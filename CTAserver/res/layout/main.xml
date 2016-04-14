@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@layout/main"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:stretchColumns="1" >
+    
+    <TableRow>
+        <TextView
+        android:padding="3dip"
+        android:text="IP Address: " />
+         <EditText
+            android:id="@+id/myIP"
+            android:padding="3dip"
+            android:text="Unknown" />
+    </TableRow>
+    
+    <TableRow>
+        <TextView
+            android:padding="3dip"
+            android:text="Server Port: " />
+        <EditText
+            android:id="@+id/serverPort"
+            android:padding="3dip"
+            android:text="8000" />
+    </TableRow>
+
+    <TableRow>
+        <TextView
+            android:padding="3dip"
+            android:text="Data Folder: " />
+        <EditText
+            android:id="@+id/dataFolder"
+            android:padding="3dip"
+            android:text="CTdata" />
+    </TableRow>
+
+    <TableRow>
+        <TextView
+            android:padding="3dip"
+            android:text="Status: " />
+        <EditText
+            android:id="@+id/myText"
+            android:padding="3dip"
+            android:text="Not Started." />
+    </TableRow>
+    
+    <TableRow>
+        <TextView
+            android:padding="3dip"
+            android:text="Queries: " />
+        <EditText
+            android:id="@+id/Counter"
+            android:padding="3dip"
+            android:text="0" />
+    </TableRow>
+    
+    <TableRow>
+        <TextView
+            android:padding="3dip"
+            android:text="Memory Used: " />
+        <EditText
+            android:id="@+id/Memory"
+            android:padding="3dip"
+            android:text="0" />
+    </TableRow>
+    
+    <RadioGroup
+        android:id="@+id/myRadioGroup"
+        android:checkableBehavior="single"
+        android:orientation="horizontal" >
+
+        <RadioButton
+            android:id="@+id/StopButton"
+            android:layout_gravity="center"
+            android:layout_weight="0.5"
+            android:checked="true"
+            android:text="Stop"
+            android:typeface="serif" >
+        </RadioButton>
+
+        <RadioButton
+            android:id="@+id/RunButton"
+            android:layout_gravity="right"
+            android:layout_weight="0.5"
+            android:checked="false"
+            android:text="Run"
+            android:textStyle="bold" >
+        </RadioButton>
+
+        <RadioButton
+            android:id="@+id/QuitButton"
+            android:layout_gravity="right"
+            android:layout_weight="0.5"
+            android:checked="false"
+            android:text="Quit"
+            android:textStyle="bold" >
+        </RadioButton>
+    </RadioGroup>
+ 
+	</TableLayout>
+    

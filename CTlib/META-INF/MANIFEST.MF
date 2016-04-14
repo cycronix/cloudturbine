@@ -1,0 +1,47 @@
+Manifest-Version: 1.0
+Export-Package: org.apache.commons.net.finger;version="3.3",org.apache
+ .commons.net.imap;version="3.3",org.apache.commons.net.echo;version="
+ 3.3",org.apache.commons.net.ntp;version="3.3",org.apache.commons.net.
+ discard;version="3.3",org.apache.commons.net.smtp;version="3.3",org.a
+ pache.commons.net;version="3.3",org.apache.commons.net.pop3;version="
+ 3.3",org.apache.commons.net.telnet;version="3.3",org.apache.commons.n
+ et.nntp;version="3.3",org.apache.commons.net.bsd;version="3.3",org.ap
+ ache.commons.net.daytime;version="3.3",org.apache.commons.net.time;ve
+ rsion="3.3",org.apache.commons.net.io;version="3.3",org.apache.common
+ s.net.ftp;version="3.3",org.apache.commons.net.util;version="3.3",org
+ .apache.commons.net.whois;version="3.3",org.apache.commons.net.charge
+ n;version="3.3",org.apache.commons.net.ftp.parser;version="3.3",org.a
+ pache.commons.net.tftp;version="3.3"
+Private-Package: examples.mail,examples.telnet,examples.cidr,examples.
+ unix,examples.util,examples.nntp,examples.ntp,examples.ftp,examples
+Implementation-Title: Commons Net
+Built-By: User
+Tool: Bnd-1.50.0
+Implementation-Vendor: The Apache Software Foundation
+Implementation-Vendor-Id: org.apache
+Specification-Title: Commons Net
+Bundle-License: http://www.apache.org/licenses/LICENSE-2.0.txt
+Bundle-SymbolicName: org.apache.commons.net
+X-Compile-Target-JDK: 1.5
+Implementation-Version: 3.3
+Specification-Vendor: The Apache Software Foundation
+Bundle-Name: Commons Net
+Created-By: Apache Maven Bundle Plugin
+X-Compile-Source-JDK: 1.5
+Bundle-Vendor: The Apache Software Foundation
+Build-Jdk: 1.7.0_21
+Bundle-Version: 3.3.0
+Bnd-LastModified: 1370645358546
+Bundle-ManifestVersion: 2
+Bundle-Description: Apache Commons Net library contains a collection o
+ f network utilities and protocol implementations.Supported protocols 
+ include: Echo, Finger, FTP, NNTP, NTP, POP3(S), SMTP(S), Telnet, Whoi
+ s
+Bundle-DocURL: http://commons.apache.org/proper/commons-net/
+Import-Package: javax.crypto,javax.crypto.spec,javax.net,javax.net.ssl
+Include-Resource: META-INF/LICENSE.txt=LICENSE.txt,META-INF/NOTICE.txt
+ =NOTICE.txt
+Specification-Version: 3.3
+Implementation-Build: trunk@r1490851; 2013-06-07 23:49:06+0100
+Archiver-Version: Plexus Archiver
+
