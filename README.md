@@ -1,5 +1,5 @@
 # cloudturbine
-Streaming data via cloud file sharing.
+CloudTurbine:  streaming data via cloud file sharing
 
 Family of utilities including apps and API libraries related to CloudTurbine software.
 
