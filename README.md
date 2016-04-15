@@ -6,7 +6,7 @@ Family of utilities including apps and API libraries related to CloudTurbine sof
 Some highlights:
 
 <li>CTlib - Java API interface to read/write CT files
-<li>CTserver - Tiny webserver that serves CT file data via HTTP (compatible with WebScan)
+<li>CTserver - Access CT file data via HTTP (compatible with WebScan)
 
 
 
