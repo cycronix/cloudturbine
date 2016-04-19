@@ -20,7 +20,7 @@ public class CTremote extends CTwriter {
 
 	private remoteSelect rSelect;
 	private CTftp 		ctftp=null;
-	private CTdropbox 	ctdbx=null;
+//	private CTdropbox 	ctdbx=null;
 	private CTwriter	ctw=null;
 	
 	public enum remoteSelect {
@@ -35,7 +35,7 @@ public class CTremote extends CTwriter {
 		rSelect = _rSelect;
 		switch(rSelect) {
 		case FTP:  		ctftp = new CTftp(dstFolder); 		break;
-		case DROPBOX:	ctdbx = new CTdropbox(dstFolder); 	break;
+//		case DROPBOX:	ctdbx = new CTdropbox(dstFolder); 	break;
 		case FILE:		ctw = 	new CTwriter(dstFolder); 	break;		// drop-thru
 		}
 	}
@@ -45,7 +45,7 @@ public class CTremote extends CTwriter {
 	public void login(String host, String user, String pw) throws Exception {
 		switch(rSelect) {
 		case FTP:		ctftp.login(host, user, pw);	break;
-		case DROPBOX:	ctdbx.login(host, user, pw);	break;
+//		case DROPBOX:	ctdbx.login(host, user, pw);	break;
 		case FILE:		break;		// no-op
 		}
 	}
@@ -53,7 +53,7 @@ public class CTremote extends CTwriter {
 	public void logout() throws Exception {
 		switch(rSelect) {
 		case FTP:		ctftp.logout();		break;
-		case DROPBOX:	ctdbx.logout ();	break;
+//		case DROPBOX:	ctdbx.logout ();	break;
 		case FILE:		break;		// no-op
 		}
 	}
@@ -62,7 +62,7 @@ public class CTremote extends CTwriter {
 	protected void writeToStream(String pathname, byte[] bdata) throws IOException {
 		switch(rSelect) {
 		case FTP:		ctftp.writeToStream(pathname, bdata);	break;
-		case DROPBOX:	ctdbx.writeToStream(pathname, bdata);	break;
+//		case DROPBOX:	ctdbx.writeToStream(pathname, bdata);	break;
 		case FILE:		ctw.writeToStream(pathname, bdata); 	break;
 		}
 	}

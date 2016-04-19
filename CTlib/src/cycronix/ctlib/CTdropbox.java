@@ -5,15 +5,10 @@ package cycronix.ctlib;
 // Matt Miller, Cycronix
 // 01/11/2016
 
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import com.dropbox.core.*;
-import com.dropbox.core.v2.*;
+// experimental implementation - tied to specific Cycronix access token,
+// dropbox.jar:  /Users/mattmiller/.m2/repository/dropbox/core/dropbox-core-sdk/2.0-beta-4
+// comment out for now - MJM 4/19/16
+// also comment out refs in CTremote.java, CTlib project setup
 
 /**
  * CloudTurbine utility class that extends CTFile class to write via Dropbox versus local filesystem
@@ -23,11 +18,22 @@ import com.dropbox.core.v2.*;
  * 
 */
  
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+//import com.dropbox.core.*;
+//import com.dropbox.core.v2.*;
+
+
 public class CTdropbox extends CTwriter {
 
 //    static final String ACCESS_TOKEN = "MIaRzGXMocQAAAAAAALwsB7h5p_zW-U5hjuTvGtFQpIwNlpRtrE8QhaKIBDFVpiC";
     static final String ACCESS_TOKEN = "MIaRzGXMocQAAAAAAALxVENtAUWBFNROatiYPZlCtmCvR3jJ-mlpZ-24mDWq_C7Q";
-	private DbxClientV2 client;
+//	private DbxClientV2 client;
 	private ExecutorService executor = Executors.newFixedThreadPool(10);
 
 	//------------------------------------------------------------------------------------------------
@@ -43,7 +49,7 @@ public class CTdropbox extends CTwriter {
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	
+/*	
 	public void login(String host, String user, String pw) throws Exception {
 		synchronized(this) {
 			try{
@@ -98,5 +104,5 @@ public class CTdropbox extends CTwriter {
 			}
 	    }
 	}
-	
+*/	
 }

@@ -151,7 +151,8 @@ public class CTserver extends NanoHTTPD {
     	StringBuilder response = new StringBuilder(64);			// estimate initial size
     	boolean remoteAddr = !session.getHeaders().get("remote-addr").equals("127.0.0.1");
     	if(debug || logOut) System.err.println
-    		(new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+remoteAddr);
+		(new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+session.getHeaders().get("remote-addr"));
+//    		(new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+remoteAddr);
     	
     	// system clock utility
     	if(request.equals("/sysclock")) return newFixedLengthResponse(Response.Status.OK,MIME_PLAINTEXT,(""+System.currentTimeMillis()));
