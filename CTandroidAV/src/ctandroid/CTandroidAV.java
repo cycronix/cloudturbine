@@ -99,8 +99,8 @@ public class CTandroidAV extends Activity  {
 	int flushDur = 0;
 
 	TextView tv;
-	CTremote ctw = null;
-	CTremote.remoteSelect remoteMode = CTremote.remoteSelect.FTP;			// FILE, DROPBOX, FTP
+	CTftp ctw = null;
+//	CTremote.remoteSelect remoteMode = CTremote.remoteSelect.FTP;			// FILE, DROPBOX, FTP
 	
 	private Camera mCamera=null;
 	private CameraPreview mPreview;
@@ -399,7 +399,8 @@ public class CTandroidAV extends Activity  {
 		// (re)setup for recording
 		private void setup() throws Exception {
 			try {
-				ctw = new CTremote(sourceFolder, remoteMode);
+//				ctw = new CTremote(sourceFolder, remoteMode);
+				ctw = new CTftp(sourceFolder);
 				ctw.login(ftpHost,ftpUser,ftpPassword);		// need to get user/password out of hardcoded
 
 				ctw.setZipMode(true);			// bundle to zip files

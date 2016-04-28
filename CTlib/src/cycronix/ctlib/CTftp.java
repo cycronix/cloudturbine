@@ -11,7 +11,7 @@ import java.io.OutputStream;
 import org.apache.commons.net.ftp.FTPClient;
 
 /**
- * CloudTurbine utility class that extends CTFile class to write via FTP versus local filesystem
+ * CloudTurbine utility class that extends CTwriter class to write via FTP versus local filesystem
  * <p>
  * @author Matt Miller (MJM), Cycronix
  * @version 2015/06/01

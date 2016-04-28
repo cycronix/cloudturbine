@@ -291,7 +291,8 @@ public class CTplugin {
 //					if(tmode.equals("absolute")) td = ctmap.getTimeData(cname, tget, tdur);	// use tget,tdur for trim
 //					else						 td = ctmap.getTimeData(cname);
 					if(debug) System.err.println("getTimeData, tget: "+tget+", tdur: "+tdur+", tmode: "+tmode);
-					td = ctmap.getTimeData(cname, tget, tdur, tmode);
+//					td = ctmap.getTimeData(cname, tget, tdur, tmode);
+					td = ctmap.get(cname);		// already trimmed MJM 4/27/16
 					if(debug) System.err.println("cname: "+cname+", fileType: "+CTmap.fileType(cname, typeDefault)+", td.size: "+td.size());
 					if(td == null || td.size()==0) continue;		// no data found this time
 

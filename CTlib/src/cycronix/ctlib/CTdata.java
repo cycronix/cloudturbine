@@ -57,14 +57,14 @@ public class CTdata {
 	}
 	
 	// add byte array
-	public void add(double mytime, byte[] mydata) {
+	void add(double mytime, byte[] mydata) {
 		timelist.add(mytime);
 		datalist.add(mydata);
 //		System.err.println("add byte, time: "+mytime+", bdata.size: "+datalist.size());
 	}
 	
 	// add byte array
-	public void add(double mytime, byte[] mydata, CTFile file) {
+	void add(double mytime, byte[] mydata, CTFile file) {
 		timelist.add(mytime);
 		datalist.add(mydata);
 		filelist.add(file);
@@ -72,13 +72,13 @@ public class CTdata {
 	}
 	
 	// add CTFile (unfinished, for delayed data-read concept)
-	public void add(double mytime, CTFile myfile) {
+	void add(double mytime, CTFile myfile) {
 		timelist.add(mytime);
 		filelist.add(myfile);
 //		System.err.println("add byte, time: "+mytime+", bdata.size: "+datalist.size());
 	}
 	
-	public void add(CTdata tdata) {		// append 
+	void add(CTdata tdata) {		// append 
 		timelist.addAll(tdata.timelist);
 		datalist.addAll(tdata.datalist);
 		filelist.addAll(tdata.filelist);
@@ -94,21 +94,21 @@ public class CTdata {
 	
 //-----------------------------------------------------------------------------------------------------------------------------
 // get subset of data for time interval, expanding times across packed byte array
-	public CTdata timeRange(double start, double duration) { 
+	CTdata timeRange(double start, double duration) { 
 		return timeRange(1, 0., start, duration, "absolute");
 	}
 	
-	public CTdata timeRange(int wordsize, double start, double duration, String tmode) { 
+	CTdata timeRange(int wordsize, double start, double duration, String tmode) { 
 		return timeRange(wordsize, 0., start, duration, tmode);
 	}
 	
-	public CTdata timeRange(int wordSize, double start, double duration) { 
+	CTdata timeRange(int wordSize, double start, double duration) { 
 //		if(wordSize <= 1) return this;								// pass through
 		return timeRange(wordSize, 0., start, duration, "absolute");			// derive timeInc
 //		return timeRange(wordSize, 0.000090702, start, duration);	// FOO need real timeInc!!!
 	}
 	
-	public CTdata timeRange(int wordSize, double incTimeI, double start, double duration, String tmode) { 
+	CTdata timeRange(int wordSize, double incTimeI, double start, double duration, String tmode) { 
 		CTdata ctd = new CTdata();
 		double incTime = incTimeI;
 		double prevtime=0;
@@ -158,7 +158,8 @@ public class CTdata {
 
 			if(wordSize <= 1) {							// full intact frames 
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
-
+				if(tmode.equals("prev")) { start = end; end = start - duration; }		// mjm 4/27/16
+				
 				if(time < start) continue;
 				if(duration == 0) {						// single-point case, just return first one after start time
 					if(debug) System.err.println("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);

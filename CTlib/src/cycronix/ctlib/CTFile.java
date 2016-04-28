@@ -51,7 +51,7 @@ import java.util.zip.ZipFile;
 //---------------------------------------------------------------------------------	
 //CTFile:  extended File class, list file and/or zip entries
 
-public class CTFile extends File {
+class CTFile extends File {
 	static final long serialVersionUID = 0;		// to make extends File happy
 
 //	private boolean isZip=false;		// parent zip file.zip
@@ -80,7 +80,7 @@ public class CTFile extends File {
 	 * 
 	 * @param path file path to new CTFile
 	 */
-	public CTFile(String path) {
+	CTFile(String path) {
 		super(path = convertGzip(path));
 //		System.err.println("new CTFile path: "+path);
 		myPath = new String(path);
@@ -132,7 +132,7 @@ public class CTFile extends File {
 	 * Gets name of parent zipfile for this file
 	 * @return name of zipfile
 	 */
-	public String getMyZipFile() {
+	String getMyZipFile() {
 		return myZipFile;
 	}
 	
@@ -146,7 +146,7 @@ public class CTFile extends File {
 	 * get path of this file
 	 * @return this file path
 	 */
-	public String getMyPath() {
+	String getMyPath() {
 		return myPath;
 	}
 	
@@ -156,7 +156,7 @@ public class CTFile extends File {
 	 * @return is this file a time file?
 	 */
 	// 
-	public boolean isTFILE() {
+	boolean isTFILE() {
 		File pfolder = getParentFile();
 		return (pfolder!=null && (fileTime(pfolder.getName()) == 0) && isFile() 								// any non-Time folder file is TFILE?
 				&& myPath.endsWith(".jpg"));																	// for now, only .jpg files work
@@ -269,7 +269,7 @@ public class CTFile extends File {
 	 */
 	// file-list pruned to only include folders (inefficient?)
 //	CTFile[] prunedlist = null;			// cache
-	public CTFile[] listFolders() {
+	CTFile[] listFolders() {
 //		if(prunedlist!=null) {
 //			System.err.println("cache hit listFolders!!!!!");
 //			return prunedlist;
@@ -309,7 +309,7 @@ public class CTFile extends File {
 	 * test if this CTFile is a container (folder)
 	 * @return true/false 
 	 */
-	public boolean isFileFolder() {
+	boolean isFileFolder() {
 		switch(fileType) {
 		case ZIP:		return false;
 		case ZENTRY:	return true;
@@ -393,7 +393,7 @@ public class CTFile extends File {
 	 * CTfile reader.  uses parent File read if native file, else reads data from within zip-entry
 	 * @return byte[] data read
 	 */
-	public byte[] read() {
+	byte[] read() {
 		String cacheKey = myZipFile+":"+myPath;
 		byte[] data = DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
 		if(data != null) {
@@ -605,7 +605,7 @@ public class CTFile extends File {
      * parse time from the CTFile name, units: full-seconds
      * @return double time in seconds
      */
-  	public double fileTime() {
+  	double fileTime() {
   		return fileTime(getName());
   	}
 
@@ -614,7 +614,7 @@ public class CTFile extends File {
   	 * @param fname name of file to parse
   	 * @return double time in seconds
   	 */
-  	public double fileTime(String fname) {
+  	double fileTime(String fname) {
   		// strip possible leading path and trailing suffix from name
 //    	int islash = fname.lastIndexOf('/');
     	int islash = fname.lastIndexOf(File.separator);

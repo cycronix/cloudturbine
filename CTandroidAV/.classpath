@@ -7,6 +7,6 @@
 	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.DEPENDENCIES"/>
 	<classpathentry kind="lib" path="libs/dropbox-core-sdk-2.0-beta-4.jar"/>
 	<classpathentry kind="lib" path="libs/jackson-core-2.6.1.jar"/>
-	<classpathentry kind="lib" path="/CTlib/build/CTlib.jar"/>
+	<classpathentry kind="lib" path="/CTlib/lib/CTlib.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

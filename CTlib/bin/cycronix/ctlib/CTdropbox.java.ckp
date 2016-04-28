@@ -31,19 +31,18 @@ import java.util.concurrent.Executors;
 
 public class CTdropbox extends CTwriter {
 
-//    static final String ACCESS_TOKEN = "MIaRzGXMocQAAAAAAALwsB7h5p_zW-U5hjuTvGtFQpIwNlpRtrE8QhaKIBDFVpiC";
-    static final String ACCESS_TOKEN = "MIaRzGXMocQAAAAAAALxVENtAUWBFNROatiYPZlCtmCvR3jJ-mlpZ-24mDWq_C7Q";
+    static final String ACCESS_TOKEN = "";
 //	private DbxClientV2 client;
 	private ExecutorService executor = Executors.newFixedThreadPool(10);
 
 	//------------------------------------------------------------------------------------------------
 	// constructor
 
-	public CTdropbox(String dstFolder) throws IOException {
+	CTdropbox(String dstFolder) throws IOException {
 		super(dstFolder);
 	}
 	
-	public CTdropbox(String dstFolder, double itrimTime) throws IOException {
+	CTdropbox(String dstFolder, double itrimTime) throws IOException {
 		super(dstFolder);
 		throw new IOException("CTdropbox does not yet support file trim");
 	}
@@ -74,7 +73,7 @@ public class CTdropbox extends CTwriter {
 		throw new IOException("CTdropbox does not yet support logout");
 	}
 
-	// over-ride CTwriter method to replace file-writes with FTP write
+	// over-ride CTwriter method to replace file-writes with Dropbox write
 	protected void writeToStream(String pathname, byte[] bdata) throws IOException {
 		if(!pathname.startsWith("/")) pathname = "/"+pathname;		// dropbox requires leading slash
         executor.execute(new UploadThread(pathname, bdata));

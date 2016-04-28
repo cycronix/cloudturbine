@@ -1,11 +1,14 @@
 package cycronix.ctlib;
 
+import java.util.Iterator;
+
 //---------------------------------------------------------------------------------	
 // CTmap: map of CTdata's by name
 // Matt Miller, Cycronix
 // 02/18/2014
 
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -30,7 +33,7 @@ import java.util.TreeMap;
 public class CTmap {
 	private Map<String, CTdata> ctMap = new TreeMap<String, CTdata>();
 	private boolean hasData=false;
-	double refTime=0.;
+//	double refTime=0.;
 	
 	public CTmap() {}
 	
@@ -87,6 +90,24 @@ public class CTmap {
 	
 	public int size() {
 		return ctMap.size();
+	}
+	
+	public void put(String key, CTdata value) { 
+		ctMap.put(key, value);
+	}
+	
+	public CTdata get(String key) {
+		return ctMap.get(key);
+	}
+	
+	// trim entire map of channels by time-range
+	public void trim(double tstart, double tdur, String tmode) {
+		for (Map.Entry<String, CTdata> entry : ctMap.entrySet()) {
+		    String cname = entry.getKey();
+		    CTdata tdata = entry.getValue();
+			if(tdata != null) tdata = tdata.timeRange(wordSize(fileType(cname)), tstart, tdur, tmode);
+			ctMap.put(cname, tdata);
+		}
 	}
 	
 	//--------------------------------------------------------------------------------------------------------

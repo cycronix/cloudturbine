@@ -84,18 +84,11 @@ public class CTreader {
 	
 	public CTdata getData(String source, String chan, double tget, double tdur, String tmode) {
 		CTmap ctmap= new CTmap(chan);
-//		CTFile sourceFolder = CTFileMap.get(source);
 		CTFile sourceFolder;
-//		if(sourceFolder == null) {
-			//		CTFile sourceFolder;
-			if(source == null) 	sourceFolder = new CTFile(rootFolder);
-			else				sourceFolder = new CTFile(rootFolder+File.separator+source);
-//			if(source != null) CTFileMap.put(source, sourceFolder);
-			//		else				sourceFolder = new CTFile(rootFolder+"/"+source);
-//		}
-//		else{
-//			if(debug) System.err.println("cache hit on getData source: "+source);
-//		}
+
+		if(source == null) 	sourceFolder = new CTFile(rootFolder);
+		else				sourceFolder = new CTFile(rootFolder+File.separator+source);
+
 		try {
 			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
 		} 
@@ -103,12 +96,8 @@ public class CTreader {
 			System.err.println("oops, exception: "+e+", ctmap: "+ctmap);
 		}
 
-		//			System.err.println("getTimeData: tget: "+tget);
-//		CTdata tdata = ctmap.getTimeData(chan, lastGotTime, tdur);			// global lastGotTime can collide?
-		CTdata tdata = ctmap.getTimeData(chan, ctmap.refTime, tdur, tmode);
-
-		// if packed-data type data, trim tdata to spec time range (absolute time)
-//		if(tdata != null) tdata = tdata.timeRange(wordSize(fileType(chan)), lastGotTime, tdur);	
+		//		CTdata tdata = ctmap.getTimeData(chan, ctmap.refTime, tdur, tmode);
+		CTdata tdata = ctmap.get(chan);		// already trimmed in getDataMap
 		return tdata;	
 	}
 		
@@ -358,19 +347,7 @@ public class CTreader {
 			// get updated list of folders
 			CTFile[] listOfFolders = rootfolder.listFolders();	// folders only here
 			if(listOfFolders == null || listOfFolders.length < 1) return ctmap;
-			
-			int ioffset=0;
-			boolean nextflag=false;
-			if(rmode.startsWith("next")) {		// no longer implemented (bleh)
-				nextflag = true;
-				if(rmode.length()>4) ioffset = Integer.parseInt(rmode.substring(4));	// optional offset index (not used)
-			};				// single step fwd/rvs
-			boolean prevflag=false;
-			if(rmode.startsWith("prev")) {
-				prevflag = true;
-				if(rmode.length()>4) ioffset = Integer.parseInt(rmode.substring(4));
-			}
-			
+
 			if(rmode.equals("registration")) {				// handle registration
 				System.err.println("unexpected registration request!");
 				return ctmap;
@@ -389,7 +366,6 @@ public class CTreader {
 				double tdur = newtime - getftime;
 				if(tdur > duration) getftime = newtime - duration;		// galump if nec to get most recent duration
 				getftime += 0.000001;									// microsecond after (no overlap)
-//				else if(tdur < duration) duration = tdur;				// or just let it run off end?
 				if(debug) System.err.println("after duration: "+duration);
 				rmode = "absolute";
 			}
@@ -398,112 +374,30 @@ public class CTreader {
 			// sort/search on that, with references back to zip/folder/files
 
 			double endtime = getftime + duration;
-			if(prevflag) {
-				endtime = getftime;
-				getftime = endtime - duration;
-			}
-			ctmap.refTime = getftime;		// for outside ref when newest/oldest update time (cluge)
+//			ctmap.refTime = getftime;		// for outside ref when newest/oldest update time (cluge)
+			int gotdata = 0;
 
-			// special case:  prevflag past EOF
-			if(prevflag && getftime > listOfFolders[listOfFolders.length-1].fileTime()) {
-				gatherFiles(listOfFolders[listOfFolders.length-1], ctmap);
-				return ctmap;
-			}
-			
-			// (1) first-pass, make a new listOfFolders with candidates
-			ArrayList<CTFile> FileList = new ArrayList<CTFile>();
+			// one-pass, gather list of candidate folders
 			for(int i=0; i<listOfFolders.length; i++) {						// find range of eligible folders 
 				CTFile folder = listOfFolders[i];
-//				if(debug) System.err.println("getDataMap, try folder: "+folder.getName()+", ftime: "+folder.fileTime()+", getftime: "+getftime);
 				if(i>1) {													// after end check
-					double priorftime;		
-//					if(duration==0) priorftime = listOfFolders[i].fileTime();	// duration=0 means at-or-before
-//					else			
-						priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?
-					
-//					if(debug) System.err.println("break, ftime["+i+"]: "+listOfFolders[i].fileTime()+", priorftime: "+priorftime+", endtime: "+endtime);
-					if(priorftime > endtime) break;												// done	
+					double priorftime;					
+					priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?
+					if(priorftime > endtime) break;							// done	
 				}
 
-				int ichk = (prevflag?i+2:i+1);
+				int ichk = i+2;		// was +1, include prior frame for possible "prev" request
 				if(ichk<listOfFolders.length) {								// before start check
 					if(listOfFolders[ichk].fileTime() < getftime) continue;	// keep looking
 				}
 				
-//				if(debug) System.err.println("--candidate folder: "+folder.getName()+", isFileFolder: "+folder.isFileFolder()+", ftime: "+folder.fileTime());
 				if(!folder.isFileFolder()) {		// folder-of-folders
 					CTFile[] listOfFiles = folder.listFiles();
 					for(int j=0; j<listOfFiles.length; j++) {
-//					for(CTFile file:folder.listFiles()) {				
-//						if(listOfFiles[j==0?0:j-1].fileTime() > endtime) break;	// redundant limit logic to above; TO DO:  recursive any-depth	
-//						ichk = (prevflag?j+2:j+1);
-//						if(ichk<listOfFiles.length) {								// before start check
-//							if(listOfFiles[ichk].fileTime() < getftime) continue;	// keep looking
-//						}
-						FileList.add(listOfFiles[j]);
+						gotdata += gatherFiles(listOfFiles[j], ctmap);
 					}
 				}
-				else	FileList.add(folder);		// data-file folder
-			}
-				
-			// (2) second-pass, extract requested data from arraylist of candidate files
-			int nfile = FileList.size();
-			if(debug) System.err.println("2nd pass, FileList.size: "+nfile);
-
-			int gotdata = 0;
-			// just gather all file data from prospective folders, let CTdata/timeRange sub-set, rely on caching...
-			boolean gatherAll=true;
-			if(CTmap.fileType(ctmap.getName(0)) == 's') gatherAll=false;
-			if(debug) System.err.println("gatherAll: "+gatherAll);
-			if(gatherAll) {
-				for(int i=0; i<nfile; i++) gotdata += gatherFiles(FileList.get(i), ctmap);					
-			}
-			else {
-				for(int i=0; i<nfile; i++) {
-					CTFile folder = FileList.get(i);
-					//				System.err.println("2nd pass, folder: "+folder.getName()+", filetime: "+folder.fileTime());
-					double ftime = folder.fileTime();
-
-					int nextidx = (i<(nfile-1))?(i+1):i;
-					double nextftime = FileList.get(nextidx).fileTime();	// ref next folder for embedded binary arrays
-
-					// single point
-					if(duration == 0.) {			
-						if(nextflag) {
-							if(ftime > getftime) {								// after 
-								for(int j=i+ioffset; j<nfile; j++) {			// skootch forward to find channel
-									if(gatherFiles(FileList.get(j), ctmap) > 0) break;
-								}
-							}
-						}
-						else {	
-							if(ftime >= getftime) {								// at-or-before 
-								int sidx = i;
-								if(prevflag || (ftime > getftime)) sidx = i-1;	// strictly before
-								//							int sidx = prevflag?(i-1):i;		
-								if(prevflag && sidx<0) break;					// none available
-								if(sidx<0) sidx = 0;;			
-
-								for(int j=sidx-ioffset; j>=0; j--) {			// skootch to prior folder
-									if(gatherFiles(FileList.get(j), ctmap) > 0) break;
-								}
-							}
-						}
-
-						if(ctmap.hasData()) break;								// got it
-					}
-
-					// interval of data
-					else {			// could check for and use nextftime only for binary data?
-						//					if((nextftime >= getftime) && (ftime<=endtime)) 	// bleh:  this drops data of interest for block-mode times at end of block
-						if(ftime < getftime) continue;		// this can drop data of interest??
-						if(debug) System.err.println("ftime: "+ftime+", getftime: "+getftime+", nextftime: "+nextftime+", endtime: "+endtime);
-						// just gather more than enough data and let CTdata.timeRange extract subset of interest
-						gatherFiles(folder, ctmap);
-						if(ftime > endtime) break;		// done
-					}
-
-				}	
+				else	gotdata += gatherFiles(folder, ctmap);		// data-file folder
 			}
 
 			if(debug) System.err.println("ctmap: "+ctmap.getName(0)+", gotdata: "+gotdata);
@@ -511,6 +405,11 @@ public class CTreader {
 			e.printStackTrace();
 		}
 		
+		// to do:  bite bullet and collapse prior logic to one-pass gatherAll (CHECK)
+		// to do:  loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
+		// then getDataMap is first-class public method (doesn't need follow-up timeRange trim)
+		ctmap.trim(getftime, duration, rmode);
+
 		return(ctmap);			// last folder
 	}
 		
