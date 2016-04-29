@@ -60,7 +60,6 @@ public class CTdata {
 	void add(double mytime, byte[] mydata) {
 		timelist.add(mytime);
 		datalist.add(mydata);
-//		System.err.println("add byte, time: "+mytime+", bdata.size: "+datalist.size());
 	}
 	
 	// add byte array
@@ -68,14 +67,12 @@ public class CTdata {
 		timelist.add(mytime);
 		datalist.add(mydata);
 		filelist.add(file);
-//		System.err.println("add byte, time: "+mytime+", bdata.size: "+datalist.size()+", file: "+file.getMyZipFile()+", size: "+filelist.size());
 	}
 	
 	// add CTFile (unfinished, for delayed data-read concept)
 	void add(double mytime, CTFile myfile) {
 		timelist.add(mytime);
 		filelist.add(myfile);
-//		System.err.println("add byte, time: "+mytime+", bdata.size: "+datalist.size());
 	}
 	
 	void add(CTdata tdata) {		// append 
@@ -105,7 +102,6 @@ public class CTdata {
 	CTdata timeRange(int wordSize, double start, double duration) { 
 //		if(wordSize <= 1) return this;								// pass through
 		return timeRange(wordSize, 0., start, duration, "absolute");			// derive timeInc
-//		return timeRange(wordSize, 0.000090702, start, duration);	// FOO need real timeInc!!!
 	}
 	
 	CTdata timeRange(int wordSize, double incTimeI, double start, double duration, String tmode) { 
@@ -163,8 +159,6 @@ public class CTdata {
 				if(time < start) continue;
 				if(duration == 0) {						// single-point case, just return first one after start time
 					if(debug) System.err.println("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
-//					if(tmode.equals("next") && (i<(nframe-1))) 	ctd.add(timelist.get(i+1), datalist.get(i+1));
-//					else										ctd.add(time, datalist.get(i));
 					if(tmode.equals("next")) {
 						if((time == start) && i<(nframe-1)) ctd.add(timelist.get(i+1), datalist.get(i+1));		
 						else 								ctd.add(timelist.get(i), datalist.get(i));			// index "i" is one past start
@@ -177,16 +171,6 @@ public class CTdata {
 
 				if(time > end) break;
 				
-				/*
-				// see if multi-part string
-				String sdata = new String(datalist.get(i));
-				String[] slist = sdata.split(",");
-				if(debug) System.err.println("--------sdata: "+sdata+"\nslist.size: "+slist.length+"\nslist[0]: "+slist[0]);
-				if(slist.length > 1) {
-					for(int i=0; i<slist.length; i++) ctd.add(time, slist[i]);		// chop into comma-delimited strings?
-				}
-				else	
-				*/
 				ctd.add(time, datalist.get(i));
 			}
 			else {			//  multi-point blocks

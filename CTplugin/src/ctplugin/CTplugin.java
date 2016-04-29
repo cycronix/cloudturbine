@@ -169,7 +169,7 @@ public class CTplugin {
 						if(debug) System.err.println("registration request!");
 						plugin.Flush(handleRegistration(picm));
 						continue;
-					} 
+					}
 					else {
 						double tget = picm.GetRequestStart();
 						double tdur = picm.GetRequestDuration();
@@ -276,7 +276,7 @@ public class CTplugin {
 			int nchan = picm.NumberOfChannels();
 			for(int i=0; i<nchan; i++) {
 				//			ctmap.add(picm.GetName(i),new CTdata(picm.GetTimes(i), picm.GetDataAsFloat64(i)));
-				ctmap.add(picm.GetName(i),null);		// only need names this direction
+				ctmap.add(picm.GetName(i));		// only need names this direction
 			}
 			return ctmap;
 		}
@@ -292,7 +292,7 @@ public class CTplugin {
 //					else						 td = ctmap.getTimeData(cname);
 					if(debug) System.err.println("getTimeData, tget: "+tget+", tdur: "+tdur+", tmode: "+tmode);
 //					td = ctmap.getTimeData(cname, tget, tdur, tmode);
-					td = ctmap.get(cname);		// already trimmed MJM 4/27/16
+					td = ctmap.getTimeData(cname);		// already trimmed MJM 4/27/16
 					if(debug) System.err.println("cname: "+cname+", fileType: "+CTmap.fileType(cname, typeDefault)+", td.size: "+td.size());
 					if(td == null || td.size()==0) continue;		// no data found this time
 

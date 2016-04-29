@@ -70,11 +70,11 @@ public class CTreader {
 	
 //---------------------------------------------------------------------------------	   
 //get:  direct-fetch time+data method
-		
+/*		
 	public CTdata getData(String chan, double tget, double tdur, String tmode) {
 		return getData(null, chan, tget, tdur, tmode);
 	}
-	
+*/	
 //---------------------------------------------------------------------------------	   
 //get:  direct-fetch time+data method
 // note:	this uses multi-channel ctmap internally, but only returns one channel (ctdata)
@@ -332,16 +332,19 @@ public class CTreader {
 	//---------------------------------------------------------------------------------	
 	// do the file checking and return CTmap channel map of Time-Data
 
-	double lastGotTime=0;			// global for use in timeRange (cluge)
+//	double lastGotTime=0;			// global for use in timeRange (cluge)
+/*	
+	public CTmap getDataMap(ArrayList<String>chans, String rootfolder, double getftime, double duration, String rmode) {
+		CTmap ctmap = new CTmap();
+		for(String chan:chans) ctmap.add(chan, null);    // convert channel name array to ctmap
+		return(getDataMap(ctmap, new CTFile(rootfolder), getftime, duration, rmode));
+	}
+*/	
 	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) {
 		return(getDataMap(ctmap, new CTFile(rootfolder), getftime, duration, rmode));
 	}
 	
 	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode) {
-		return(getDataMap(ctmap, rootfolder, getftime, duration, rmode, null));
-	}
-	
-	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, CTFile prevFolder) {
 		if(debug) System.err.println("getDataMap, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 		try {
 			// get updated list of folders
@@ -374,7 +377,6 @@ public class CTreader {
 			// sort/search on that, with references back to zip/folder/files
 
 			double endtime = getftime + duration;
-//			ctmap.refTime = getftime;		// for outside ref when newest/oldest update time (cluge)
 			int gotdata = 0;
 
 			// one-pass, gather list of candidate folders
@@ -405,9 +407,7 @@ public class CTreader {
 			e.printStackTrace();
 		}
 		
-		// to do:  bite bullet and collapse prior logic to one-pass gatherAll (CHECK)
-		// to do:  loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
-		// then getDataMap is first-class public method (doesn't need follow-up timeRange trim)
+		// loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
 		ctmap.trim(getftime, duration, rmode);
 
 		return(ctmap);			// last folder
