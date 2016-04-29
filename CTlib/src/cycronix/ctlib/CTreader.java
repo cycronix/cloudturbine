@@ -150,7 +150,7 @@ public class CTreader {
 	
 //---------------------------------------------------------------------------------	
 // newTime:  find newest time for this source	(neglects block-duration)
-	CTFile newFile = null;
+//	CTFile newFile = null;
 	public double newTime(String sourceFolder) {
 		return newTime(sourceFolder, (CTmap)null);
 	}
@@ -170,7 +170,7 @@ public class CTreader {
 		if(listOfFolders == null) return 0.;
 
 		//double ftime = (double)System.currentTimeMillis()/1000.;		// default is now
-		newFile = null;
+//		newFile = null;
 		double ftime = 0.;
 		
 		int idx=listOfFolders.length-1;
@@ -193,7 +193,7 @@ public class CTreader {
 					double trytime = files[j].fileTime();
 					if(trytime > ftime) {
 						ftime = trytime;
-						newFile = files[j];		// for efficient external ref (cluge)
+//						newFile = files[j];		// for efficient external ref (cluge)
 					}
 				}
 			}
@@ -308,7 +308,6 @@ public class CTreader {
 //			  			System.err.println("dir: "+dir+",rootFolder: "+rootFolder+", nroot: "+nroot);
 			  			int npath = dir.getNameCount();
 			  			String thisPath = dir.getName(npath-1).toString();
-//			  			for(int i=(npath-2); i>0; i--) thisPath = dir.getName(i) + File.separator + thisPath; 
 			  			for(int i=(npath-2); i>=nroot; i--) thisPath = dir.getName(i) + File.separator + thisPath; 	// skip rootPath
 
 			  			if(thisPath.length() >0) {
