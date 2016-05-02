@@ -27,17 +27,18 @@ import java.util.TreeMap;
 */
 
 // CTmap:  map of CTdata's by name
-public class CTmap {
-	private Map<String, CTdata> ctMap = new TreeMap<String, CTdata>();
+public class CTmap extends TreeMap<String,CTdata>{
+	private static final long serialVersionUID = 1L;
+//	private Map<String, CTdata> ctMap = new TreeMap<String, CTdata>();
 	private boolean hasData=false;
-//	double refTime=0.;
 	
-	public CTmap() {}
+	public CTmap() {
+		super();
+	}
 	
 	CTmap(String name) {
 		this.add(name,  null);
 		hasData = false;
-//		System.err.println("ctmap hasData: FALSE");
 	}
 	
 	boolean hasData() {
@@ -50,67 +51,60 @@ public class CTmap {
 	
 	void add(String cname, CTdata timedata) {
 		if(timedata != null) hasData=true;				// book-keep
-//		System.err.println("ctmap hasData: TRUE");
-
-		CTdata tdata = ctMap.get(cname);
+		CTdata tdata = this.get(cname);
 		if(tdata != null) {
 			tdata.add(timedata);		// append vs replace
-			ctMap.put(cname,  tdata);
-//			System.err.println("ctMap.add, tdata.size: "+tdata.size());
+			this.put(cname,  tdata);
 		}
-		else	ctMap.put(cname,  timedata);
-//		for(String k:ctMap.keySet()) System.err.println("ctMap: "+k+", k.equals: "+k.equals(cname)+", tdata: "+timedata);
-//		System.err.println("CTmap.add: "+cname+", ctMap.size: "+ctMap.size()+", ctMap.get: "+ctMap.get(cname));		// why null get here?
+		else	this.put(cname,  timedata);
 	}
 	
-	public CTdata getTimeData(String cname) {
-//		System.err.println("getTimeData: "+cname+", ctMap.get: "+ctMap.get(cname));
-//		return ctMap.get(cname);
-		return getTimeData(cname, 0., -1.);		// full time range (strip dupes)
+	public CTdata get(String cname, double tstart, double tdur) {		// time units = seconds
+//		System.err.println("CTmap.get: "+cname+", ctMap.get: "+this.get(cname));
+		return this.get(cname, tstart, tdur, "absolute");
 	}
 	
-	public CTdata getTimeData(String cname, double tstart, double tdur) {		// time units = seconds
-//		System.err.println("getTimeData: "+cname+", ctMap.get: "+ctMap.get(cname));
-		return getTimeData(cname, tstart, tdur, "absolute");
-	}
-	
-	public CTdata getTimeData(String cname, double tstart, double tdur, String tmode) {		// time units = seconds
-//		System.err.println("getTimeData: "+cname+", ctMap.get: "+ctMap.get(cname));
-		CTdata tdata = ctMap.get(cname);
-		if(tdata != null) tdata = tdata.timeRange(wordSize(fileType(cname)), tstart, tdur, tmode);
+	public CTdata get(String cname, double tstart, double tdur, String tmode) {		// time units = seconds
+//		System.err.println("CTmap.get: "+cname+", ctMap.get: "+this.get(cname));
+		CTdata tdata = this.get(cname);
+		if(tdata != null) 						// merge multiple tdata objects into one on fetch
+			tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
 		return tdata;
 	} 
 	
+	@Deprecated
+	public CTdata getTimeData(String cname) {
+		return this.get(cname);
+	}
+	
+	@Deprecated
+	public CTdata getTimeData(String cname, double tstart, double tdur) {		// time units = seconds
+		return this.get(cname, tstart, tdur, "absolute");
+	}
+	
+	@Deprecated
+	public CTdata getTimeData(String cname, double tstart, double tdur, String tmode) {		// time units = seconds
+		return this.get(cname, tstart, tdur, tmode);
+	} 
+	
 	public String getName(int index) {
-		return (String) ctMap.keySet().toArray()[index];
+		return (String) this.keySet().toArray()[index];
 	}
 	
 	public boolean checkName(String cname) {
-		return ctMap.containsKey(cname);
+		return this.containsKey(cname);
 	}
-	
-	public int size() {
-		return ctMap.size();
-	}
-	
-	void put(String key, CTdata value) { 
-		ctMap.put(key, value);
-	}
-	
-	CTdata get(String key) {	// shortcut to getTimeData(cname), but doesn't interpolate block-times
-		return ctMap.get(key);
-	}
-	
+
 	// trim entire map of channels by time-range
 	void trim(double tstart, double tdur, String tmode) {
-		for (Map.Entry<String, CTdata> entry : ctMap.entrySet()) {
+		for (Map.Entry<String, CTdata> entry : this.entrySet()) {
 		    String cname = entry.getKey();
 		    CTdata tdata = entry.getValue();
-			if(tdata != null) tdata = tdata.timeRange(wordSize(fileType(cname)), tstart, tdur, tmode);
-			ctMap.put(cname, tdata);
+			if(tdata != null) tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
+			this.put(cname, tdata);
 		}
 	}
-	
+/*	
 	//--------------------------------------------------------------------------------------------------------
 	// fileType:  return file type code based on file extension
 	
@@ -147,4 +141,6 @@ public class CTmap {
 		default:	return 1;	
 		}
 	}
+*/
 }
+

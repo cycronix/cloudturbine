@@ -39,7 +39,7 @@ import java.util.zip.ZipInputStream;
 import com.sun.nio.file.ExtendedWatchEventModifier;
 import com.sun.nio.file.SensitivityWatchEventModifier;
 
-import cycronix.ctlib.CTwriter;
+import cycronix.ctlib.*;
 
 
 /*
@@ -79,7 +79,7 @@ public class CTsync {
     private static String outName=null;
     
     private CTwriter CTW;			// writes data to folder/zip files
-    
+   
 	//------------------------------------------------------------------------------------------------
     /**
      * Creates a WatchService and registers the given directory
@@ -92,7 +92,7 @@ public class CTsync {
 		}
 		
 		CTW = new CTwriter(destPath);			// create CT writer
-		CTW.setDebug(debug);
+		CTinfo.setDebug(debug);
 		CTW.setZipMode(zipflag);
 		
         new PumpQ().start();					// start the async file queue monitor 

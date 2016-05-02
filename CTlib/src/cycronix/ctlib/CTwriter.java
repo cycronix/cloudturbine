@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.zip.GZIPOutputStream;
@@ -47,7 +48,6 @@ public class CTwriter {
 	private ByteArrayOutputStream baos = null;
 	protected String destName;
 
-	protected boolean debug=false;
 	protected boolean zipFlag=true;
 	protected boolean blockMode=false;
 	protected boolean byteSwap=false;		// false: Intel little-endian, true: Java/network big-endian
@@ -59,7 +59,6 @@ public class CTwriter {
 	private long lastFtime=0;
 	private long thisFtime=0;
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
-	CTtrim cttrim = null;
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	
 	//------------------------------------------------------------------------------------------------
@@ -83,7 +82,7 @@ public class CTwriter {
 	public CTwriter(String dstFolder, double itrimTime) throws IOException {
 		destPath = dstFolder;		// only set name, no mkDirs in constructor?  MJM 1/11/16
 //		new File(destPath = dstFolder).mkdirs();
-		if((trimTime=itrimTime) > 0.) cttrim = new CTtrim(dstFolder);
+		trimTime=itrimTime;
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -99,11 +98,13 @@ public class CTwriter {
 	//------------------------------------------------------------------------------------------------
 	// set state flags
 	/**
-	 * Set debug mode
+	 * Set debug mode.  Deprecated, see CTinfo.setDebug()
 	 * @param dflag boolean true/false debug mode
 	 */
+	@Deprecated
 	public void setDebug(boolean dflag) {
-		debug = dflag;
+		CTinfo.setDebug(dflag);
+//		debug = dflag;
 	}
 
 	/**
@@ -242,7 +243,7 @@ public class CTwriter {
 		try {
 			// if data has been queued in blocks, write it out once per channel before normal flush
 			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {		// entry keys are by name; full block per channel per flush
-				if(debug) System.err.println("flush block: "+e.getKey()+" at time: "+thisFtime);
+				CTinfo.debugPrint("flush block: "+e.getKey()+" at time: "+thisFtime);
 				writeData(thisFtime, e.getKey(), e.getValue().toByteArray());
 			}
 			blockData.clear();
@@ -255,8 +256,8 @@ public class CTwriter {
 			if(trimTime > 0 && rootTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
 //				double trim = ((double)rootTime/1000.) - trimTime;			// relative??
 				double trim = ((double)System.currentTimeMillis()/1000.) - trimTime;
-				if(debug) System.err.println("trimming at: "+trim);
-				cttrim.dotrim(trim);			
+				CTinfo.debugPrint("trimming at: "+trim);
+				dotrim(trim);			
 			}
 			
 
@@ -295,7 +296,7 @@ public class CTwriter {
 				fos.close();
 			}
 			
-			if(debug) System.err.println("writeToStream: "+fname+", bytes: "+bdata.length);
+			CTinfo.debugPrint("writeToStream: "+fname+", bytes: "+bdata.length);
 		} catch(Exception e) { 
 			System.err.println("writeToStream failed"); 
 			e.printStackTrace(); 
@@ -310,7 +311,7 @@ public class CTwriter {
 	public synchronized void putData(String outName, byte[] bdata) throws Exception {
 		// TO DO:  deprecate following, use addData vs putData/blockmode
 		if(blockMode) {				// in block mode, delay putData logic until full queue
-			if(debug) System.err.println("addData at rootTime: "+rootTime+", thisFtime: "+thisFtime);
+			CTinfo.debugPrint("addData at rootTime: "+rootTime+", thisFtime: "+thisFtime);
 			addData(outName, bdata);
 			return;
 		}
@@ -322,11 +323,11 @@ public class CTwriter {
 		thisFtime = fTime;
 		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
 
-		if(debug) System.err.println("putData: "+outName+", thisFtime: "+thisFtime+", rootTime: "+rootTime+", fTime: "+fTime);
+		CTinfo.debugPrint("putData: "+outName+", thisFtime: "+thisFtime+", rootTime: "+rootTime+", fTime: "+fTime);
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize
 		else if((thisFtime - lastFtime) >= autoFlush) {
-			if(debug) System.err.println("putData autoFlush at: "+thisFtime+" ********************************");
+			CTinfo.debugPrint("putData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
 		if(rootTime == 0) rootTime = thisFtime;
@@ -345,7 +346,7 @@ public class CTwriter {
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize
 		else if((thisFtime - lastFtime) >= autoFlush) {
-			if(debug) System.err.println("addData autoFlush at: "+thisFtime+" ********************************");
+			CTinfo.debugPrint("addData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
 		if(rootTime == 0) rootTime = thisFtime;
@@ -354,7 +355,7 @@ public class CTwriter {
 		long newTime = fTime;
 		if(newTime == 0) newTime = System.currentTimeMillis();
 		if((lastFtime!=0) && ((newTime - lastFtime) >= autoFlush)) {
-			if(debug) System.err.println("addData autoFlush at: "+thisFtime+" ********************************");
+			CTinfo.debugPrint("addData autoFlush at: "+thisFtime+" ********************************");
 			flush();		// thisFtime used indirectly in flush()
 		}
 		thisFtime = newTime;
@@ -362,7 +363,7 @@ public class CTwriter {
 		if(rootTime == 0) rootTime = thisFtime;
 */
 		
-		if(debug) System.err.println("addData: "+name+", thisFtime: "+thisFtime+", rootTime: "+rootTime+", fTime: "+fTime);
+		CTinfo.debugPrint("addData: "+name+", thisFtime: "+thisFtime+", rootTime: "+rootTime+", fTime: "+fTime);
 
 		try {
 			ByteArrayOutputStream bstream = blockData.get(name);
@@ -382,12 +383,12 @@ public class CTwriter {
 	private synchronized void writeData(long time, String outName, byte[] bdata) throws Exception {
 //	private void writeData(long time, String outName, byte[] bdata) throws Exception {		// sync makes remote writes pace slow???
 
-		if(debug) System.err.println("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", rootTime: "+rootTime);
+		CTinfo.debugPrint("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", rootTime: "+rootTime);
 		try {
 			if(zipFlag) {
 				if(zos == null) {    			
 					destName = destPath + File.separator + rootTime  + ".zip";
-					if(debug) System.err.println("create destName: "+destName);
+					CTinfo.debugPrint("create destName: "+destName);
 					baos = new ByteArrayOutputStream();
 					zos = new ZipOutputStream(baos);
 					zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
@@ -399,14 +400,14 @@ public class CTwriter {
 				try {
 					zos.putNextEntry(entry);
 				} catch(IOException e) {
-					if(debug) System.err.println("zip entry exception: "+e);
+					CTinfo.debugPrint("zip entry exception: "+e);
 					throw e;
 				}
 
 				zos.write(bdata); 
 				zos.closeEntry();		// note: zip file not written until flush() called
 
-				if(debug) System.err.println("PutZip: "+name+" to: "+destName);
+				CTinfo.debugPrint("PutZip: "+name+" to: "+destName);
 			}
 			else {
 				// put first putData to rootFolder 
@@ -423,7 +424,7 @@ public class CTwriter {
 				//				fos.write(bdata);
 				//				fos.close();
 
-				if(debug) System.err.println("writeData: "+outName+" to: "+destName);
+				CTinfo.debugPrint("writeData: "+outName+" to: "+destName);
 			}
 		} catch(Exception e) {
 			System.err.println("writeData exception: "+e);
@@ -568,6 +569,62 @@ public class CTwriter {
 		putData(outName, bdata);
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// do the file trimming
+	/**
+	 * Trim (delete) files older than spec.  Note this will be done automatically if trimTime provided in constructor.
+	 * @param oldTime time point at which to delete older files
+	 */
+	public boolean dotrim(double oldTime) {
+		
+		// validity checks (beware unwanted deletes!)
+		if(destPath == null || destPath.length() < 6) {
+			System.err.println("CTtrim Error, illegal parent folder: "+destPath);
+			return false;
+		}
+		if(oldTime < 1.e9 || oldTime > 1.e12) {
+			System.err.println("CTtrim time error, must specify full-seconds time since epoch.  oldTime: "+oldTime);
+			return false;
+		}
+		
+		File rootFolder = new File(destPath);
+		
+		File[] flist = rootFolder.listFiles();
+		Arrays.sort(flist);						// make sure sorted 
+
+		for(File file:flist) {
+			double ftime = fileTime(file);
+//			System.err.println("CTtrim file: "+file.getAbsolutePath()+", ftime: "+ftime+", oldTime: "+oldTime+", diff: "+(ftime-oldTime));
+			if(ftime <= 0) continue;				// not a CT time file
+			if(ftime >= oldTime) return true;		// all done (sorted)
+			System.err.println("CTtrim delete: "+file.getAbsolutePath());
+			boolean status = file.delete();		// only trims top-level zip files (need recursive, scary)
+			if(!status) System.err.println("CTtrim warning, failed to delete: "+file.getAbsolutePath());
+		}
+		
+		return true;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	//fileTime:  parse time from file name, units: full-seconds (dupe from CTreader, should consolidate)
+	private double fileTime(File file) {
+		String fname = file.getName();
+		if(fname.endsWith(".zip")) {
+			fname = fname.split("\\.")[0];		// grab first part
+		}
+		
+		double msec = 1;
+		double ftime = 0.;
+		if(fname.length() > 10) msec = 1000.;
+		try {
+			ftime = (double)(Long.parseLong(fname)) / msec;
+		} catch(NumberFormatException e) {
+			//				System.err.println("warning, bad time format, folder: "+fname);
+			ftime = 0.;
+		}
+		return ftime;
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	/**
 	 *  cleanup.  for now, just flush.

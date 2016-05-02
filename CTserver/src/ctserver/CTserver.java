@@ -39,9 +39,7 @@ import java.util.Date;
 import java.util.Map;
 import javax.imageio.ImageIO;
 
-import cycronix.ctlib.CTdata;
-import cycronix.ctlib.CTmap;
-import cycronix.ctlib.CTreader;
+import cycronix.ctlib.*;
 
 //---------------------------------------------------------------------------------	
 
@@ -66,7 +64,7 @@ public class CTserver extends NanoHTTPD {
 	public CTserver(int port) {
 	    super(port);
      	ctreader = new CTreader(rootFolder);
-     	ctreader.setDebug(debug);
+     	CTinfo.setDebug(debug);
 	}
 	
 	public CTserver(int port, String IresourceBase, String IrootFolder) {
@@ -74,7 +72,7 @@ public class CTserver extends NanoHTTPD {
 		resourceBase = IresourceBase;
 		rootFolder = IrootFolder;
      	ctreader = new CTreader(rootFolder);
-     	ctreader.setDebug(debug);
+     	CTinfo.setDebug(debug);
 	}
 	
 	//---------------------------------------------------------------------------------	
@@ -150,9 +148,7 @@ public class CTserver extends NanoHTTPD {
     	Map<String,String> parms = session.getParms();
     	StringBuilder response = new StringBuilder(64);			// estimate initial size
     	boolean remoteAddr = !session.getHeaders().get("remote-addr").equals("127.0.0.1");
-    	if(debug || logOut) System.err.println
-		(new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+session.getHeaders().get("remote-addr"));
-//    		(new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+remoteAddr);
+    	CTinfo.debugPrint(logOut,new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+session.getHeaders().get("remote-addr"));
     	
     	// system clock utility
     	if(request.equals("/sysclock")) return newFixedLengthResponse(Response.Status.OK,MIME_PLAINTEXT,(""+System.currentTimeMillis()));
@@ -188,7 +184,7 @@ public class CTserver extends NanoHTTPD {
     		if(request.equals(servletRoot+"/") || request.equals(rbnbRoot+"/")) request = servletRoot;		//  strip trailing slash
     		
     		if(request.equals(servletRoot) || request.equals(rbnbRoot)) {			// Root level request for Sources
-    			if(debug) System.err.println("source request: "+request);
+    			CTinfo.debugPrint("source request: "+request);
     			printHeader(response,request,"/");
     			ArrayList<String> slist = new ArrayList<String>();
     			
@@ -199,7 +195,7 @@ public class CTserver extends NanoHTTPD {
     			if(slist==null || slist.size()==0) response.append("No Sources!");
     			else {
     				for(String sname : slist) {
-    					if(debug) System.err.println("src: "+sname);
+    					CTinfo.debugPrint("src: "+sname);
     					response.append("<li><a href=\""+(request+"/"+sname)+"/\">"+sname+"/</a><br>");          
     				}
     			}
@@ -208,12 +204,12 @@ public class CTserver extends NanoHTTPD {
 //    		else if(pathParts.length == 3) {
         	else if(request.endsWith("/")) {										// Source level request for Channels
 
-    			if(debug) System.err.println("channel request: "+request);
+    			CTinfo.debugPrint("channel request: "+request);
     			if(pathParts.length < 3) return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found (bad trailing slash?)");
     			String sname = pathParts[2];
     			for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     			if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
-    			if(debug) System.err.println("CTserver listChans for source: "+(rootFolder+File.separator+sname));
+    			CTinfo.debugPrint("CTserver listChans for source: "+(rootFolder+File.separator+sname));
     			ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname);
 
     			if(clist == null) response.append("<NULL>");
@@ -230,7 +226,7 @@ public class CTserver extends NanoHTTPD {
     						response.append("<th>"+chan+"</th>");
     						CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
     	    				if(time == null) time = tdata.getTime();			// presume all times follow first chan
-    	    				chanlist.add(tdata.getDataAsString(CTmap.fileType(chan,'s')));
+    	    				chanlist.add(tdata.getDataAsString(CTinfo.fileType(chan,'s')));
     					}
     					response.append("</tr>\n");
 						for(int i=0; i<time.length; i++) {
@@ -247,7 +243,7 @@ public class CTserver extends NanoHTTPD {
     				else {
     	    			printHeader(response,request,"/"+pathParts[1]);
     					for(String cname : clist) {
-    						if(debug) System.err.println(sname+"/chan: "+cname);
+    						CTinfo.debugPrint(sname+"/chan: "+cname);
     						response.append("<li><a href=\""+cname+"\">"+cname+"</a><br>");
     					}
     				}
@@ -255,7 +251,7 @@ public class CTserver extends NanoHTTPD {
     			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
     		}
     		else {									// Channel level request for data
-    			if(debug) System.err.println("data request: "+request);
+    			CTinfo.debugPrint("data request: "+request);
     			String source = pathParts[2];
     			for(int i=3; i<pathParts.length-1; i++) source += ("/"+pathParts[i]);		// multi-level source name
 //    			String chan = pathParts[3];				//  presumes /CT/Source/Chan with no sub-level nesting
@@ -268,7 +264,7 @@ public class CTserver extends NanoHTTPD {
     			
     			CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     			if(tdata == null) {		// empty response for WebTurbine compatibility
-    				if(debug) System.err.println("no such channel: "+source+chan);
+    				CTinfo.debugPrint("no such channel: "+source+chan);
     				return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
     			}
     			else {
@@ -279,7 +275,7 @@ public class CTserver extends NanoHTTPD {
 	    				return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
     				}
     				int numData = time.length;
-    				if(debug) System.err.println("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype);
+    				CTinfo.debugPrint("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype);
 
     				if(numData > MaxDat && ftype != 'b') {		// unlimited binary fetch
     					System.err.println("limiting output points to: "+MaxDat);
@@ -293,8 +289,8 @@ public class CTserver extends NanoHTTPD {
     						return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
     					}
     					else {		
-    						if(ftype == 's') ftype = CTmap.fileType(chan,'s');
-    						if(debug) System.err.println("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
+    						if(ftype == 's') ftype = CTinfo.fileType(chan,'s');
+    						CTinfo.debugPrint("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
 
     						switch(ftype) {
 
@@ -327,11 +323,11 @@ public class CTserver extends NanoHTTPD {
 //                					if(bdata.length > 1 && !chan.endsWith(".wav") && !chan.endsWith(".mp3")) {	// don't want to concatenate mp3, wav audio...
             							for(byte[] b : bdata) output.write(b, 0, b.length);		// concatenate response
             							input = new ByteArrayInputStream(output.toByteArray());
-            							if(debug) System.err.println("concatenated data ("+bdata.length+") chunks: "+output.size());
+            							CTinfo.debugPrint("concatenated data ("+bdata.length+") chunks: "+output.size());
             						}
             						else {
             							input = new ByteArrayInputStream(bdata[0]);
-            							if(debug) System.err.println("single chunk data, size: "+bdata[0].length);
+            							CTinfo.debugPrint("single chunk data, size: "+bdata[0].length);
             						}
         							resp = newChunkedResponse(Response.Status.OK, mimeType(chan, "application/octet-stream"), input);
             					}
@@ -347,11 +343,11 @@ public class CTserver extends NanoHTTPD {
             					String hnewest = formatTime(newTime);         			
             					String hlag = formatTime(lagTime);
             					
-            					if(debug) System.err.println("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
+            					CTinfo.debugPrint("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
     							resp.addHeader("time", htime);								// sec
     							long lastmod = (long)(1000*time[time.length-1]);
     							String smod = new Date(lastmod).toGMTString();
-    							if(debug) System.err.println("lastmod: "+smod);
+    							CTinfo.debugPrint("lastmod: "+smod);
             					resp.addHeader("Last-Modified", ""+smod);			// msec
             					
     							resp.addHeader("duration", hdur);
@@ -361,14 +357,14 @@ public class CTserver extends NanoHTTPD {
     							resp.addHeader("newest", hnewest);
     							resp.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
     							
-        						if(debug) System.err.println("-------CTserver: "+chan+", size: "+input.available() +", nitems: "+bdata.length);
-        						if(debug) System.err.println("+++++++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
+        						CTinfo.debugPrint("---CTserver: "+chan+", size: "+input.available() +", nitems: "+bdata.length);
+        						CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
 
     							return resp;	
     						
     						// HTML table format (for import to spreadsheets)
     						case 'H':			
-    							strdata = tdata.getDataAsString(CTmap.fileType(chan,'s'));		// convert any/all numeric types to string
+    							strdata = tdata.getDataAsString(CTinfo.fileType(chan,'s'));		// convert any/all numeric types to string
     							if(strdata != null) {
     								response.append("<table id="+source+"/"+chan+">\n");
     								response.append("<tr><th>Time</th><th>"+source+"/"+chan+"</th></tr>");

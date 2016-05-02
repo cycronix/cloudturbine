@@ -47,7 +47,7 @@ public class CTftp extends CTwriter {
 		client.setFileType(FTPClient.BINARY_FILE_TYPE);
 		
 		loginDir = client.printWorkingDirectory();
-		if(debug) System.err.println("FTP login, u: "+user+", pw: "+pw);
+		CTinfo.debugPrint("FTP login, u: "+user+", pw: "+pw);
 	}
 
 	public void logout() {
@@ -73,7 +73,7 @@ public class CTftp extends CTwriter {
 			}
 //			boolean success = client.storeFile(filename, fis); 
 			OutputStream ostream = client.storeFileStream(filename+".tmp");
-			if(debug) System.err.println("ftp pathname: "+pathname+", filename: "+filename+", filepath: "+filepath);
+			CTinfo.debugPrint("ftp pathname: "+pathname+", filename: "+filename+", filepath: "+filepath);
 			if(ostream==null) {
 				throw new IOException("Unable to FTP file: " + client.getReplyString());
 			}

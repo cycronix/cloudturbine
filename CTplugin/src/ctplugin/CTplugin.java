@@ -10,9 +10,7 @@ import java.io.File;
 import java.util.ArrayList;
 import com.rbnb.sapi.*;
 
-import cycronix.ctlib.CTdata;
-import cycronix.ctlib.CTmap;
-import cycronix.ctlib.CTreader;
+import cycronix.ctlib.*;
 
 //---------------------------------------------------------------------------------	
 
@@ -253,7 +251,7 @@ public class CTplugin {
 		String regString(String fname) {
 			String fmime = "\t\t<mime>application/octet-stream</mime>\n";
 			if(fname.endsWith(".jpg")) fmime = "\t\t<mime>image/jpeg</mime>\n";
-			char ftype = CTmap.fileType(fname,typeDefault);
+			char ftype = CTinfo.fileType(fname,typeDefault);
 			// 	System.err.println("fname: "+fname+", fmime: "+fmime+", ftype: "+ftype);
 			int wlen = 1;
 			if	   (ftype == 'F' || ftype == 'I' || ftype == 'N') wlen = 8;
@@ -293,11 +291,11 @@ public class CTplugin {
 					if(debug) System.err.println("getTimeData, tget: "+tget+", tdur: "+tdur+", tmode: "+tmode);
 //					td = ctmap.getTimeData(cname, tget, tdur, tmode);
 					td = ctmap.getTimeData(cname);		// already trimmed MJM 4/27/16
-					if(debug) System.err.println("cname: "+cname+", fileType: "+CTmap.fileType(cname, typeDefault)+", td.size: "+td.size());
+					if(debug) System.err.println("cname: "+cname+", fileType: "+CTinfo.fileType(cname, typeDefault)+", td.size: "+td.size());
 					if(td == null || td.size()==0) continue;		// no data found this time
 
 					td.setSwap(swapFlag);
-					char fileType = CTmap.fileType(cname, typeDefault);
+					char fileType = CTinfo.fileType(cname, typeDefault);
 
 					if(fileType != 'B') picm.PutTimes(td.getTime());		// doesn't work with byte[][]
 					//				System.err.println("PutTimes len: "+td.getTime().length);

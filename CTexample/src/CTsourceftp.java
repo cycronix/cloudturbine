@@ -35,7 +35,7 @@ public class CTsourceftp {
 			
 			ctw.setZipMode(true);			// bundle to zip files
 //			ctw.autoFlush(200);				// automatically flush at this interval (msec)
-			ctw.setDebug(true);
+			CTinfo.setDebug(true);
 			
 			long time = System.currentTimeMillis();
 			long dt = 500;

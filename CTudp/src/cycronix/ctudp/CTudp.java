@@ -142,7 +142,7 @@ public class CTudp {
 		try {
 			ctw = new CTwriter(srcName,trimTime);	
 			ctw.setZipMode(zipMode);
-			ctw.setDebug(debug);
+			CTinfo.setDebug(debug);
 			autoFlushMillis = (long)(autoFlush*1000.);
 //			ctw.autoFlush(autoFlush);		// auto flush to zip once per interval (sec) of data
 		} catch(Exception e) {

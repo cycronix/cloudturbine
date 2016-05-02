@@ -164,7 +164,7 @@ public class CopyOfCTudp {
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(srcName,trimTime);	
 			ctw.setZipMode(zipMode);
-			ctw.setDebug(debug);
+			CTinfo.setDebug(debug);
 			ctw.autoFlush(autoFlush);		// auto flush to zip once per interval (sec) of data
 
 			long[] oldtime = new long[32];

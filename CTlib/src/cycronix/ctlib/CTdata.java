@@ -34,9 +34,7 @@ public class CTdata {
 	private ArrayList<CTFile>filelist=new ArrayList<CTFile>();
 
 	private java.nio.ByteOrder border = java.nio.ByteOrder.LITTLE_ENDIAN;	// Intel order (default, most common)
-	
-	private boolean debug = false;
-	
+		
 	CTdata() {}
 
 	CTdata(double mytime, byte[] mydata) {		// mytime units = full-seconds
@@ -52,8 +50,10 @@ public class CTdata {
 		else 		border = java.nio.ByteOrder.LITTLE_ENDIAN;		// Intel order (default, most common)
 	}
 	
+	@Deprecated
 	public void setDebug(boolean idebug) {
-		debug = idebug;
+		CTinfo.setDebug(idebug);
+//		debug = idebug;
 	}
 	
 	// add byte array
@@ -113,7 +113,7 @@ public class CTdata {
 //		if(tmode.equals("oldest")) start = timelist.get(0);		// defer until find first point, may need to deduct block-duration 
 		
 		double end = start + duration;		// presume absolute time provided
-		if(debug) System.err.println("timeRange, start: "+start+", end: "+end+", duration: "+duration+", timelist(0): "+timelist.get(0)+", wordSize: "+wordSize);
+		CTinfo.debugPrint("timeRange, start: "+start+", end: "+end+", duration: "+duration+", timelist(0): "+timelist.get(0)+", wordSize: "+wordSize);
 	
 		if(start==0. || duration < 0.) end = Double.MAX_VALUE;		// use full range if relative timestamp 
 		int nframe = datalist.size();
@@ -147,10 +147,10 @@ public class CTdata {
 		for(int i=0; i<nframe; i++) {					// multiple frames per arraylist element
 			double time = timelist.get(i);
 
-			if(debug) System.err.println("frame: "+i+", tframe: "+time+", nframe: "+nframe+", start: "+start+", end: "+end);
+			CTinfo.debugPrint("frame: "+i+", tframe: "+time+", nframe: "+nframe+", start: "+start+", end: "+end);
 			if(time == prevtime) continue;				// skip dupes		
 			
-			if(debug) System.err.println("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time);
+			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time);
 
 			if(wordSize <= 1) {							// full intact frames 
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
@@ -158,7 +158,7 @@ public class CTdata {
 				
 				if(time < start) continue;
 				if(duration == 0) {						// single-point case, just return first one after start time
-					if(debug) System.err.println("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
+					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
 					if(tmode.equals("next")) {
 						if((time == start) && i<(nframe-1)) ctd.add(timelist.get(i+1), datalist.get(i+1));		
 						else 								ctd.add(timelist.get(i), datalist.get(i));			// index "i" is one past start
@@ -202,7 +202,7 @@ public class CTdata {
 							double interval = time - refTime;
 							dt = interval / count;
 //							dt = interval / (count+1);			// account for last interval past last point...?
-							if(debug) System.err.println("thisZip: "+thisZipFile+", oldZipFile: "+oldZipFile+", refTime: "+refTime+", prevtime: "+prevtime+", interval: "+interval+", dt: "+dt);
+							CTinfo.debugPrint("thisZip: "+thisZipFile+", oldZipFile: "+oldZipFile+", refTime: "+refTime+", prevtime: "+prevtime+", interval: "+interval+", dt: "+dt);
 						}
 					}
 				}
@@ -216,25 +216,25 @@ public class CTdata {
 					value |= (data[0+offset] & 0xFF);
 					dt = 1. / value;
 //					time += dt*count;			// counter adjustment below?
-					if(debug) System.err.println("got WaveHeader! sampRate: "+value+", dt: "+dt+", totalcount: "+count);
+					CTinfo.debugPrint("got WaveHeader! sampRate: "+value+", dt: "+dt+", totalcount: "+count);
 				}
 				
 				if(dt == 0.) {
 					dt = incTime;		// backup way for old multi-block PCM frames
-					if(debug) System.err.println("CTdata, blockdata zero zip-to-entry dt, using backup incTime: "+incTime);
+					CTinfo.debugPrint("CTdata, blockdata zero zip-to-entry dt, using backup incTime: "+incTime);
 				}
 				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");
 				
-//				if(debug) System.err.println("time: "+time+", dt: "+dt+", adjTime: "+(time - dt*count));
+//				CTinfo.debugPrint("time: "+time+", dt: "+dt+", adjTime: "+(time - dt*count));
 				double endBlock = time;		// for ref (round off error)
 //				time -= dt*count;			// adjust to start of multi-point block
 				time -= dt*(count-1);			// adjust to start of multi-point block
 
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				
-				if(debug) System.err.println("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt));
+				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt));
 				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
-//					if(debug) System.err.println("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", incTime: "+incTime);
+//					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", incTime: "+incTime);
 					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
 					if(time < start) continue;
 					else if(time <= end) {

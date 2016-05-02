@@ -6,7 +6,8 @@ package ctarchive;
 
 import com.rbnb.sapi.*;
 import com.rbnb.utility.*;
-import cycronix.ctlib.CTwriter;
+import cycronix.ctlib.*;
+import cycronix.ctlib.ArgHandler;
 
 /**
 * A class to save DT data to CT files
@@ -94,7 +95,7 @@ public class CTarchive {
     	try {
     		ctw = new CTwriter(dropFolder,trimTime);
     		ctw.setZipMode(true);
-    		ctw.setDebug(false);
+    		CTinfo.setDebug(false);
     		ctw.autoFlush(flushTime);				// autoflush @ flushTime
     	} catch(Exception e) {
     		System.err.println("Error setting up CTwriter");
