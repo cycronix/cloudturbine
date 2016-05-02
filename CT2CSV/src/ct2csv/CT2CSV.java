@@ -13,9 +13,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 
-import cycronix.ctlib.CTdata;
-import cycronix.ctlib.CTmap;
-import cycronix.ctlib.CTreader;
+import cycronix.ctlib.*;
 
 //---------------------------------------------------------------------------------	
 
@@ -131,7 +129,7 @@ public class CT2CSV {
 						}
 						numData = MaxDat;
 					}
-					char ftype = CTmap.fileType(chan);
+					char ftype = CTinfo.fileType(chan);
 
 					String[] dstring = tdata.getDataAsString(ftype);
 					if(dstring != null) {
