@@ -49,7 +49,7 @@ public class CTmap extends TreeMap<String,CTdata>{
 		add(cname, null);		// list-of-channels without data (for ref)
 	}
 	
-	void add(String cname, CTdata timedata) {
+	public void add(String cname, CTdata timedata) {
 		if(timedata != null) hasData=true;				// book-keep
 		CTdata tdata = this.get(cname);
 		if(tdata != null) {

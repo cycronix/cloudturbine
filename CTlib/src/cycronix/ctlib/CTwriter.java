@@ -162,7 +162,7 @@ public class CTwriter {
 	
 	// various options (too many?) to set compression mode
 	/**
-	 * set wheter output files are to be zipped.  
+	 * set whether output files are to be zipped.  
 	 * @param zipflag zip files true/false (default: true)
 	 */
 	public void setZipMode(boolean zipflag) {
