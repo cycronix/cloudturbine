@@ -4,6 +4,7 @@ package cycronix.ctlib;
 //CTFile:  extended File class, list file and/or zip entries
 //Matt Miller, Cycronix
 //02/18/2014
+// test comment
 
 import java.io.File;
 import java.io.FileInputStream;
