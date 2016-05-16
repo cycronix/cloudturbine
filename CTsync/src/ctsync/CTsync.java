@@ -43,7 +43,8 @@ import cycronix.ctlib.*;
 
 
 /*
- * Cloudturbine file sync
+ * Cloudturbine file sync:
+ * 	Monitor current-value (CV) folder for new files, copy them into CT-stream CT time-stamped folder(s)
  * basic logic:
  * WatchService recursively registers and catches file update events
  * (some logic to avoid dupes)
