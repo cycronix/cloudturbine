@@ -3,6 +3,7 @@ import cycronix.ctlib.*;
  
 /**
  * CloudTurbine demo sink
+ * JPW tweak
  * <p>
  * @author Matt Miller (MJM), Cycronix
  * @version 2014/03/10
