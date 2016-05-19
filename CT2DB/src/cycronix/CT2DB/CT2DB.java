@@ -52,8 +52,8 @@ public class CT2DB extends Activity {
     // Note that this is a really insecure way to do this, and you shouldn't
     // ship code which contains your key & secret in such an obvious way.
     // Obfuscation is good.
-	final static private String APP_KEY = "kc477q3rm4wqsld";
-	final static private String APP_SECRET = "7cm86fglo61syux";
+	final static private String APP_KEY = "xxxxxxxxxx";
+	final static private String APP_SECRET = "yyyyyyyyyyy";
 
     
 	private static final float updateInc = (float)1.0;		// update interval (sec)
