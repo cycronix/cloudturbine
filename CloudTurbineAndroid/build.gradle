@@ -1,0 +1,24 @@
+
+// The following buildscript block is for configuring Gradle; don't include
+// dependency information in this block for the Android application itself; that
+// is in a separate section.
+
+buildscript {
+
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+    	// The following specifies the version of the Android Plugin for Gradle
+		classpath 'com.android.tools.build:gradle:2.1.2'
+    }
+}
+
+// Here are the projects to build
+dependencies {
+    project(":CTandroidACL")
+    project(":CTandroidAV")
+    project(":CTAserver")
+}
+

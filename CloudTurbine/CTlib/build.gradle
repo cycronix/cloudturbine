@@ -1,0 +1,31 @@
+defaultTasks 'build'
+
+apply plugin: 'java'
+
+dependencies {
+    // Could also use the following:
+    // compile 'commons-net:commons-net:3.5'
+	compile group: 'commons-net', name: 'commons-net', version: '3.5'
+}
+
+// Not sure it is needed, but we have the copy done last (specified by using
+// "<<") to make sure the new jar file gets copied, not the old/original one 
+build << {
+	String fromLoc = "${buildDir}/libs/CTlib.jar"
+	String toLoc = "../../CloudTurbineAndroid/Common"
+	println "Copy library from " + fromLoc + " to " + toLoc
+	copy {
+		from fromLoc
+        into toLoc
+	}
+}
+
+// Here's a different approach; problem with this is that the user would need
+// to specifically execute the 'buildLibrary' task to have this done.
+// defaultTasks 'buildLibrary'
+// task copyJarToDestination(type:Copy,dependsOn:[build]) {
+//     from "${buildDir}/libs/CTlib.jar"
+//     into "../../CloudTurbineAndroid/Common"
+// }
+// task buildLibrary (dependsOn: [build, copyJarToDestination])
+

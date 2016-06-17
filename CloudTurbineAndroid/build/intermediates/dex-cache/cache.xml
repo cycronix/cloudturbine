@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items version="2" >
+
+    <item
+        jar="C:\TEMP\CloudTurbineAndroid\Common\CTserver.jar"
+        jumboMode="false"
+        revision="23.0.3"
+        sha1="60a86a20dfed8bd4f836aca67f5d98fe0414dab8">
+        <dex dex="C:\TEMP\CloudTurbineAndroid\CTAserver\build\intermediates\pre-dexed\debug\CTserver_c805fdf380c26c979b1b691c825a5575736d591f.jar" />
+    </item>
+    <item
+        jar="C:\TEMP\CloudTurbineAndroid\Common\CTlib.jar"
+        jumboMode="false"
+        revision="23.0.3"
+        sha1="2a5e746829f2cb1ce3b0e92daf18ac0f7127894d">
+        <dex dex="C:\TEMP\CloudTurbineAndroid\CTAserver\build\intermediates\pre-dexed\debug\CTlib_b48b984705824d1da66a387dc1b77c3d20c1c98d.jar" />
+    </item>
+    <item
+        jar="C:\TEMP\CloudTurbineAndroid\Common\dropbox-android-sdk-1.6.3\lib\dropbox-android-sdk-1.6.3.jar"
+        jumboMode="false"
+        revision="23.0.3"
+        sha1="986e7a58e925c6f91b88ae8d3224a0550b65acc7">
+        <dex dex="C:\TEMP\CloudTurbineAndroid\CT2DB\build\intermediates\pre-dexed\debug\dropbox-android-sdk-1.6.3_78f7103e9d9e5746e5fd0833a3a809a6649bd358.jar" />
+    </item>
+
+</items>

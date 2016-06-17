@@ -1,0 +1,42 @@
+defaultTasks 'build'
+
+// An example of how to change the default source directory
+// sourceSets.main.java.srcDirs = ['src/java']
+
+// If we want to define something for ALL projects, put it in here
+//allprojects {
+//    task intro_msg << {task -> println "Task: $task.project.name" }
+//}
+
+subprojects {
+	apply plugin: 'java'
+    task intro_msg << {task -> println "Build CloudTurbine subproject $task.project.name"}
+    // Define a common Third_Party library directory that all projects can share
+    repositories {
+        flatDir {
+            dirs "$rootProject.projectDir/Third_Party"
+            // For those projects which depend on CTlib.jar, we also need to
+            // tell them where to find commons-net-3.5, because they need to
+            // access all the dependencies of CTlib.jar.  This is explained by
+            // the following quote:
+            // https://docs.gradle.org/current/userguide/multi_project_builds.html
+            //     "A 'lib' dependency is a special form of an execution
+            //      dependency. It causes the other project to be built first
+            //      and adds the jar with the classes of the other project to
+            //      the classpath. It also adds the dependencies of the other
+            //      project to the classpath."
+            // Thus, the *transitive dependencies* are also added to the
+            // classpath (i.e., the classes that CTlib.jar depended upon for
+            // its build).  Ideally, all we really need to add is CTlib.jar,
+            // but I haven't been able to figure out the dependencies to do that.
+            dirs "$rootProject.projectDir/Third_Party/commons-net-3.5"
+        }
+        // Optionally, can also find external libraries from Maven repository
+        // mavenCentral()
+    }
+    // Example of how to override an existing task (the build task in this case)
+    build.doLast {
+	    task -> println "Built $task.project.name"
+    }
+}
+

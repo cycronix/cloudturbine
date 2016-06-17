@@ -1,0 +1,21 @@
+defaultTasks 'build'
+
+apply plugin: 'java'
+
+repositories {
+    flatDir {
+    	// Location of CTlib.jar
+    	dirs "$rootProject.projectDir/CTlib/build/libs"
+    }
+}
+
+dependencies {
+	// Build CTlib project first, because we use CTlib.jar
+	compile project(':CTlib')
+	// Specify that we use CTlib.jar
+    compile name: 'CTlib'
+    // Specify that we use rbnb.jar
+    compile name: 'rbnb'
+
+}
+

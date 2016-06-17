@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/RelativeLayout1"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:columnCount="2"
+    android:orientation="horizontal"
+    tools:context="ctandroid.CTandroidACL" >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical" >
+
+        <TableLayout
+            android:id="@+id/TableLayout1"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:stretchColumns="*" >
+
+            <TableRow
+                android:id="@+id/tableRow4"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent" >
+
+                <Button
+                    android:id="@+id/Start"
+                    android:layout_width="fill_parent"
+                    android:minHeight="24dip"
+                    android:text="Start"
+                    android:textSize="@dimen/medium" />
+
+                <Button
+                    android:id="@+id/Stop"
+                    android:layout_width="fill_parent"
+                    android:minHeight="24dip"
+                    android:text="Stop"
+                    android:textSize="@dimen/medium" />
+
+                <Button
+                    android:id="@+id/Quit"
+                    android:layout_width="fill_parent"
+                    android:minHeight="24dip"
+                    android:text="Quit"
+                    android:textSize="@dimen/medium" />
+            </TableRow>
+        </TableLayout>
+
+        <TableLayout
+            android:id="@+id/TableLayout2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stretchColumns="1"
+            android:textSize="10dp" >
+
+            <TableRow
+                android:id="@+id/tableRow1"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/StatusLabel"
+                    android:padding="3dip"
+                    android:text="Status" />
+
+                <TextView
+                    android:id="@+id/Status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="3dip"
+                    android:text="Stopped"
+                    android:textSize="@dimen/small" />
+            </TableRow>
+
+            <TableRow
+                android:id="@+id/tableRow3"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/TextView01"
+                    android:padding="3dip"
+                    android:text="Host" />
+
+                <EditText
+                    android:id="@+id/Host"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:textSize="@dimen/small" >
+
+                    <requestFocus />
+                </EditText>
+            </TableRow>
+
+            <TableRow
+                android:id="@+id/tableRow5"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/TextView02"
+                    android:padding="3dip"
+                    android:text="User" />
+
+                <EditText
+                    android:id="@+id/User"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:textSize="@dimen/small" />
+            </TableRow>
+
+            <TableRow
+                android:id="@+id/tableRow6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/PasswordLabel"
+                    android:padding="3dip"
+                    android:text="PassW" />
+
+                <EditText
+                    android:id="@+id/Password"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:inputType="textPassword"
+                    android:textSize="@dimen/small" />
+            </TableRow>
+
+            <TableRow
+                android:id="@+id/tableRow7"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/FolderLabel"
+                    android:padding="3dip"
+                    android:text="Folder" />
+
+                <EditText
+                    android:id="@+id/Folder"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:textSize="@dimen/small" />
+            </TableRow>
+        </TableLayout>
+
+        <RadioGroup
+            android:id="@+id/radioGroup1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="fill_horizontal"
+            android:orientation="horizontal"
+            android:stretchColumns="*" >
+
+            <RadioButton
+                android:id="@+id/rate1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                android:checked="true"
+                android:text="5s"
+                android:textSize="@dimen/small" />
+
+            <RadioButton
+                android:id="@+id/radioButton1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                android:text="2s"
+                android:textSize="@dimen/small" />
+
+            <RadioButton
+                android:id="@+id/rate2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                android:text="1s"
+                android:textSize="@dimen/small" />
+
+            <RadioButton
+                android:id="@+id/rate3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                android:text="0.5s"
+                android:textSize="@dimen/small" />
+        </RadioGroup>
+
+        <FrameLayout
+            android:id="@+id/camera_preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingTop="10dip" >
+        </FrameLayout>
+    </LinearLayout>
+
+</RelativeLayout>

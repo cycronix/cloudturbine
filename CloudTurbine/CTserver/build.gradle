@@ -1,0 +1,30 @@
+defaultTasks 'build'
+
+apply plugin: 'java'
+
+repositories {
+    flatDir {
+    	// Location of CTlib.jar
+    	dirs "$rootProject.projectDir/CTlib/build/libs"
+    }
+}
+
+dependencies {
+	// Build CTlib project first, because we use CTlib.jar
+	compile project(':CTlib')
+	// Specify that we use CTlib.jar
+    compile name: 'CTlib'
+}
+
+// Not sure it is needed, but we have the copy done last (specified by using
+// "<<") to make sure the new jar file gets copied, not the old/original one 
+build << {
+	String fromLoc = "${buildDir}/libs/CTserver.jar"
+	String toLoc = "../../CloudTurbineAndroid/Common"
+	println "Copy library from " + fromLoc + " to " + toLoc
+	copy {
+		from fromLoc
+        into toLoc
+	}
+}
+

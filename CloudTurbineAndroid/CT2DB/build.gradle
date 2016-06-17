@@ -1,0 +1,33 @@
+
+// Apply the Android plugin for Gradle
+apply plugin: 'com.android.application'
+
+android {
+	// To locate the SDK version and build tools, define an environment var
+	// called ANDROID_HOME and set it to the home directory of the Android SDK
+	// installation (for example, for JPW this is C:\Users\johnw\android-sdks).
+	// Then add the following directories to the path environment variable:
+	//     - %ANDROID_HOME%\platform-tools
+	//     - %ANDROID_HOME%\tools
+    // Android SDK versions are at %ANDROID_HOME%\platforms
+    compileSdkVersion 23
+    // Android build tool versions are at %ANDROID_HOME%\build-tools
+    buildToolsVersion "23.0.3"
+    
+    // [OPTIONAL] Specify default settings here; some of the items which can be
+    // included in defaultConfig can override attributes in AndroidManifest.xml
+    // defaultConfig {
+    //     // Defines the minimum API level required to run the app.
+    //     minSdkVersion 14
+    //     // Specifies the API level used to test the app.
+    //     targetSdkVersion 23
+    // }
+}
+
+dependencies {
+	// Include all jar files from this module's "libs" directory
+	compile fileTree(dir: 'libs', include: ['*.jar'])
+	// Dropbox libraries
+	compile files('../Common/dropbox-android-sdk-1.6.3/lib/dropbox-android-sdk-1.6.3.jar')
+}
+

@@ -1,0 +1,23 @@
+defaultTasks 'build'
+
+apply plugin: 'java'
+
+repositories {
+    flatDir {
+    	// Location of CTlib.jar
+    	dirs "$rootProject.projectDir/CTlib/build/libs"
+    }
+}
+
+dependencies {
+	// Build CTlib project first, because we use CTlib.jar
+	compile project(':CTlib')
+	// Specify that we use CTlib.jar
+    compile name: 'CTlib'
+}
+
+// An attemtp to get CTlib to build prior to CT2CSV, but it hasn't worked.
+// If this did work, I wouldn't need the "compile project(':CTlib')" line
+// in the dependencies section above.
+// classes.dependsOn ":CTlib:build"
+
