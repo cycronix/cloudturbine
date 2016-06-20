@@ -1,7 +1,9 @@
 *.bak
 *.class
 *.apk
+*~
+bin/
+build/
 local.properties
-/build/
 /.gradle/
 

@@ -1,4 +1,7 @@
 *.bak
 *.class
 *.apk
+*~
+bin/
+build/
 
