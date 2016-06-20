@@ -1,3 +1,5 @@
+apply plugin: 'java'
+
 defaultTasks 'build'
 
 // An example of how to change the default source directory
@@ -9,8 +11,7 @@ defaultTasks 'build'
 //}
 
 subprojects {
-	apply plugin: 'java'
-    task intro_msg << {task -> println "Build CloudTurbine subproject $task.project.name"}
+	task intro_msg << {task -> println "Build CloudTurbine subproject $task.project.name"}
     // Define a common Third_Party library directory that all projects can share
     repositories {
         flatDir {
@@ -37,6 +38,13 @@ subprojects {
     // Example of how to override an existing task (the build task in this case)
     build.doLast {
 	    task -> println "Built $task.project.name"
+    }
+}
+
+// As part of the clean, delete JAR files in the Distribute folder
+clean.doFirst {
+	delete fileTree("$rootProject.projectDir/Distribute") {
+        include '**/*.jar'
     }
 }
 

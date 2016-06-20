@@ -28,3 +28,20 @@ build << {
 	}
 }
 
+// Here's how to change the default destination directory for the JAR file;
+// we won't do this (ie, we'll keep the default directory structure in place);
+// instead, we'll copy the JAR file to a top level "Distribute" folder
+// tasks.withType(Jar) {
+//     destinationDir = file("$rootDir/Distribute")
+// }
+// Copy the JAR file to a top level "Distribute" folder; do this last so we
+// make sure to get the new JAR file that we just built
+build << {
+	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
+	String toLoc = "../Distribute"
+	copy {
+		from fromLoc
+        into toLoc
+	}
+}
+

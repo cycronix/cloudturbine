@@ -8,11 +8,26 @@ dependencies {
 	compile group: 'commons-net', name: 'commons-net', version: '3.5'
 }
 
+// Here's how to change the default destination directory for the JAR file;
+// we won't do this (ie, we'll keep the default directory structure in place);
+// instead, we'll copy the JAR file to where it needs to go
+// tasks.withType(Jar) {
+//     destinationDir = file("$rootDir/Distribute")
+// }
+
 // Not sure it is needed, but we have the copy done last (specified by using
 // "<<") to make sure the new jar file gets copied, not the old/original one 
 build << {
-	String fromLoc = "${buildDir}/libs/CTlib.jar"
-	String toLoc = "../../CloudTurbineAndroid/Common"
+	// 1. Copy JAR file to the top level Distribute folder
+	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
+	String toLoc = "../Distribute"
+	copy {
+		from fromLoc
+        into toLoc
+	}
+	// 2. Copy JAR file to the CloudTurbineAndroid folder
+	fromLoc = "${buildDir}/libs/CTlib.jar"
+	toLoc = "../../CloudTurbineAndroid/Common"
 	println "Copy library from " + fromLoc + " to " + toLoc
 	copy {
 		from fromLoc
@@ -20,8 +35,8 @@ build << {
 	}
 }
 
-// Here's a different approach; problem with this is that the user would need
-// to specifically execute the 'buildLibrary' task to have this done.
+// Here's a different approach for the copy; problem with this is that the user
+// would need to specifically execute the 'buildLibrary' task to have this done.
 // defaultTasks 'buildLibrary'
 // task copyJarToDestination(type:Copy,dependsOn:[build]) {
 //     from "${buildDir}/libs/CTlib.jar"
