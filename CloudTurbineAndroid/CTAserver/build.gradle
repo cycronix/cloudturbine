@@ -35,8 +35,11 @@ android {
 dependencies {
 	// Include all jar files from this module's "libs" directory
 	compile fileTree(dir: 'libs', include: ['*.jar'])
-	// Include CTlib.jar and CTserver.jar from the Common directory
-	compile files('../Common/CTlib.jar')
-	compile files('../Common/CTserver.jar')
+	// Include CTserver.jar from the Common directory
+	// NOTE: Don't include CTlib.jar from the Common directory; all of the
+	//       contents of CTlib are included in CTserver.jar, and if we also
+	//       include CTlib.jar then Gradle gives a build error that there
+	//       are multiple files that define the CTlib classes.
+    compile files('../Common/CTserver.jar')
 }
 
