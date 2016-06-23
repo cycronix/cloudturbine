@@ -2,6 +2,12 @@ defaultTasks 'build'
 
 apply plugin: 'java'
 
+// CTserver.jar will be used in building one or more Android programs;
+// since Android Studio doesn't fully support Java 8, include the following
+// compatibility flags for Java 7.
+targetCompatibility = '1.7'
+sourceCompatibility = '1.7'
+
 // JAR settings
 // Specify ".doFirst" to force this to run in the Execution phase.  Without
 // this specification, this would be run during the Configuration phase, which

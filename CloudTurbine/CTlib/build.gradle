@@ -2,6 +2,12 @@ defaultTasks 'build'
 
 apply plugin: 'java'
 
+// CTlib.jar will be used in building one or more Android programs;
+// since Android Studio doesn't fully support Java 8, include the following
+// compatibility flags for Java 7.
+targetCompatibility = '1.7'
+sourceCompatibility = '1.7'
+
 dependencies {
     // Could also use the following:
     // compile 'commons-net:commons-net:3.5'
