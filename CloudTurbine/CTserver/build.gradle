@@ -29,9 +29,7 @@ jar.doFirst {
         sb.append(it.name + ' ')
     }
     String runtimeDependenciesStr = sb.toString().trim()
-    // println "Runtime dependencies 123: <${runtimeDependenciesStr}>"
     
-    // 'Class-Path': 'CTlib.jar commons-net-3.5.jar'
     manifest {
         attributes 'Main-Class': 'ctserver.CTserver',
                    'Class-Path': runtimeDependenciesStr

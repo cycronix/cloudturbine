@@ -2,6 +2,40 @@ defaultTasks 'build'
 
 apply plugin: 'java'
 
+// JAR settings
+// Specify ".doFirst" to force this to run in the Execution phase.  Without
+// this specification, this would be run during the Configuration phase, which
+// would fail if CTlib.jar didn't yet exist; at Execution phase, CTlib.jar
+// should have been created already.
+jar.doFirst {
+    // Create a "fat jar" file which includes all the dependencies; that way,
+    // the jar can be run stand-alone with none of the other dependency jars
+    // around.  The following was taken from a nice simple example found at:
+    // https://newfivefour.com/gradle-hello-world-java-fat-jar.html
+    // The "it" variable (kind of like "this" in Java) is a Groovy-ism which
+    // represents the implicit variable given to this closure, which I think is
+    // the project object.
+    from {
+        (configurations.runtime).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    
+    // Build up a string containing all the runtime dependencies; this will be
+    // used as the 'Class-Path' string in the manifest instead of hard-wiring
+    // library names
+    StringBuilder sb = new StringBuilder();
+    project.configurations.runtime.each {
+        sb.append(it.name + ' ')
+    }
+    String runtimeDependenciesStr = sb.toString().trim()
+    
+    manifest {
+        attributes 'Main-Class': 'ct2csv.CT2CSV',
+                   'Class-Path': runtimeDependenciesStr
+    }
+}
+
 repositories {
     flatDir {
     	// Location of CTlib.jar
