@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="CTlib">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/Common/CTlib.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
