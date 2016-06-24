@@ -37,5 +37,7 @@ dependencies {
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 	// Include CTlib.jar from the Common directory
 	compile files('../Common/CTlib.jar')
+    // Include commons-net-3.5.jar from the Common directory
+    compile files('../Common/commons-net-3.5/commons-net-3.5.jar')
 }
 
