@@ -151,7 +151,7 @@ public class CTserver extends NanoHTTPD {
     	CTinfo.debugPrint(logOut,new Date().toString()+", request: "+request+", parms: "+session.getQueryParameterString()+", remote-addr: "+session.getHeaders().get("remote-addr"));
     	
     	// system clock utility
-    	if(request.equals("/sysclock")) return newFixedLengthResponse(Response.Status.OK,MIME_PLAINTEXT,(""+System.currentTimeMillis()));
+    	if(request.equals("/sysclock")) return formResponse(newFixedLengthResponse(Response.Status.OK,MIME_PLAINTEXT,(""+System.currentTimeMillis())));
     	
     	// server resource files
     	if(!request.startsWith(servletRoot)  && !request.startsWith(rbnbRoot)) {
@@ -162,9 +162,9 @@ public class CTserver extends NanoHTTPD {
     				else													request = "/webscan.htm";
     			}
     			FileInputStream fis = new FileInputStream(resourceBase+request);
-    			return newChunkedResponse(Response.Status.OK, mimeType(request, MIME_HTML), fis);
+    			return formResponse(newChunkedResponse(Response.Status.OK, mimeType(request, MIME_HTML), fis));
     		} catch(Exception e) {
-    			return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found: "+e);
+    			return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found: "+e));
     		}
     	}
 
@@ -199,13 +199,15 @@ public class CTserver extends NanoHTTPD {
     					response.append("<li><a href=\""+(request+"/"+sname)+"/\">"+sname+"/</a><br>");          
     				}
     			}
-    			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+
+//    			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+				return formResponse(response.toString());
     		}
 //    		else if(pathParts.length == 3) {
         	else if(request.endsWith("/")) {										// Source level request for Channels
 
     			CTinfo.debugPrint("channel request: "+request);
-    			if(pathParts.length < 3) return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found (bad trailing slash?)");
+    			if(pathParts.length < 3) return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found (bad trailing slash?)"));
     			String sname = pathParts[2];
     			for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     			if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
@@ -248,7 +250,9 @@ public class CTserver extends NanoHTTPD {
     					}
     				}
     			}
-    			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+
+//    			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+				return formResponse(response.toString());
     		}
     		else {									// Channel level request for data
     			CTinfo.debugPrint("data request: "+request);
@@ -265,14 +269,14 @@ public class CTserver extends NanoHTTPD {
     			CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     			if(tdata == null) {		// empty response for WebTurbine compatibility
     				CTinfo.debugPrint("no such channel: "+source+chan);
-    				return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+    				return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     			}
     			else {
     				tdata.setSwap(swapFlag);
     				double time[] = tdata.getTime();
     				if(time == null) {
 						System.err.println("Oops, No data on fetch: "+request);
-	    				return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+	    				return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     				}
     				int numData = time.length;
     				CTinfo.debugPrint("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype);
@@ -286,7 +290,8 @@ public class CTserver extends NanoHTTPD {
 
     					if(fetch == 't') {		// only want times (everything else presume 'b' both)
     						for(int i=time.length-numData; i<numData; i++) response.append(formatTime(time[i]) + "\n");		// if limited, get most recent
-    						return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+//    						return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+    						return formResponse(response.toString());
     					}
     					else {		
     						if(ftype == 's') ftype = CTinfo.fileType(chan,'s');
@@ -300,7 +305,7 @@ public class CTserver extends NanoHTTPD {
     							byte[][]bdata = tdata.getData();
 
     							if(bdata == null || bdata[0] == null)
-    								return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+    								return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     		    				
     							NanoHTTPD.Response resp;
         						InputStream input;
@@ -315,7 +320,7 @@ public class CTserver extends NanoHTTPD {
             						} else {
             							input = new ByteArrayInputStream(bdata[0]);		// only return 1st image
             						}
-        							resp = newChunkedResponse(Response.Status.OK, mimeType(chan, "application/image/jpeg"), input);
+        							resp = formResponse(newChunkedResponse(Response.Status.OK, mimeType(chan, "application/image/jpeg"), input));
             					}
             					else {           						
             						ByteArrayOutputStream output = new ByteArrayOutputStream();	
@@ -356,11 +361,11 @@ public class CTserver extends NanoHTTPD {
     							resp.addHeader("oldest", holdest);
     							resp.addHeader("newest", hnewest);
     							resp.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
-    							
+ 
         						CTinfo.debugPrint("---CTserver: "+chan+", size: "+input.available() +", nitems: "+bdata.length);
         						CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
 
-    							return resp;	
+    							return formResponse(resp);	
     						
     						// HTML table format (for import to spreadsheets)
     						case 'H':			
@@ -375,11 +380,11 @@ public class CTserver extends NanoHTTPD {
     									response.append("</tr>\n");	
     								}
     								response.append("</table>");
-    								return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+    								return formResponse(newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString()));
     							}
     							else {
     								System.err.println("Unrecognized ftype: "+ftype);
-    								return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+    								return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     							}
     							
     						// all other types returned as rows of time,value strings
@@ -387,11 +392,12 @@ public class CTserver extends NanoHTTPD {
     							strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
     							if(strdata != null) {
     								for(int i=time.length-numData; i<numData; i++) response.append(formatTime(time[i]) +","+strdata[i]+"\n");		// most recent
-    								return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+//    								return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
+    								return formResponse(response.toString());
     							}
     							else {
     								System.err.println("Unrecognized ftype: "+ftype);
-    								return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+    								return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     							}
     						}
     					}
@@ -402,11 +408,22 @@ public class CTserver extends NanoHTTPD {
     		System.err.println("doGet Exception: "+e); e.printStackTrace(); 
     	}
     	
-    	return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+    	return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     }
     
     //---------------------------------------------------------------------------------	
 
+    private static NanoHTTPD.Response formResponse(String response) {
+		return formResponse(newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString()));
+    }
+    
+    private static NanoHTTPD.Response formResponse(NanoHTTPD.Response resp) {
+		resp.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
+		resp.addHeader("Access-Control-Allow-Methods", "GET, POST");   // CORS enable
+		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time");
+		return resp;
+    }
+    
     private static String mimeType(String fname, String deftype) {
 		String mime = deftype;
 		if		(fname.endsWith(".css")) mime = "text/css";
