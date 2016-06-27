@@ -12,9 +12,12 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import static java.nio.file.FileVisitResult.*;
+import java.nio.file.FileVisitOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumSet;
 import java.nio.file.attribute.BasicFileAttributes;
 
 /**
@@ -283,8 +286,9 @@ public class CTreader {
 		final ArrayList<String> SourceList = new ArrayList<String>();		// for registration
 		Path rootPath = new CTFile(rootFolder).toPath();
 		final int nroot = rootPath.getNameCount();
-
-		Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
+		EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);	// follow symbolic links
+		
+		Files.walkFileTree(rootPath, opts, 4, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
 					throws IOException
