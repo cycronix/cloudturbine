@@ -30,9 +30,11 @@ dependencies {
 	// Dropbox libraries
 	compile files('../Common/dropbox-android-sdk-1.6.3/lib/dropbox-android-sdk-1.6.3.jar')
     compile files('../Common/dropbox-android-sdk-1.6.3/lib/json_simple-1.1.jar')
-    compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/bcprov-jdk16-146.jar')
-    compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/commons-logging-1.1.1.jar')
-    compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/httpclient-4.0.3.jar')
-    compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/httpcore-4.0.1.jar')
-    compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/httpmime-4.0.3.jar')
+    // The following libraries are in a "test" folder so I'm not including them
+    // in the APK; hopefully this is OK.
+    // compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/bcprov-jdk16-146.jar')
+    // compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/commons-logging-1.1.1.jar')
+    // compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/httpclient-4.0.3.jar')
+    // compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/httpcore-4.0.1.jar')
+    // compile files('../Common/dropbox-android-sdk-1.6.3/lib/test/httpmime-4.0.3.jar')
 }
