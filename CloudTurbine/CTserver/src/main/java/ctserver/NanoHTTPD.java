@@ -1554,7 +1554,7 @@ public abstract class NanoHTTPD {
                 safeClose(this.data);
             } catch (IOException ioe) {
                 NanoHTTPD.LOG.log(Level.SEVERE, "Could not send response to the client", ioe);
-                throw ioe;		// MJM:  don't eat this exception (infinite loop on lost connection?)
+                throw ioe;		// MJM: don't eat this exception (infinite loop on lost connection?)
             }
         }
 
