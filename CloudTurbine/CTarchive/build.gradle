@@ -59,8 +59,32 @@ dependencies {
     compile name: 'CTlib'
     // Specify that we use rbnb.jar
     compile name: 'rbnb'
-
 }
+
+//
+// Automatically execute clean before build
+//
+// This gets around a problem we had with making our "fat" JAR files; namely,
+// if there was a change in a dependency (in a CTlib file, for instance) but no
+// change in any source files of the current project, then the JAR file wasn't
+// being rebuilt.  To get around this, whenever a user asks to do a "build"
+// we force a "clean" to be executed first.
+//
+// NOTE: Include the line to specify that "clean" is run before "compileJava";
+//       otherwise, what was happening is that the Java files would be compiled
+//       and then "clean" was run right before "build" - so the build directory
+//       was being deleted!  See Kunal's forum response at:
+//       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
+//
+// Another way to do this is by creating a new task which will call the two
+// existing tasks.  Still need to include the "compileJava.mustRunAfter clean"
+// line when doing it this way.
+// task clean_build {
+// 	dependsOn clean, build
+// }
+//
+build.dependsOn clean
+compileJava.mustRunAfter clean
 
 // Here's how to change the default destination directory for the JAR file;
 // we won't do this (ie, we'll keep the default directory structure in place);
