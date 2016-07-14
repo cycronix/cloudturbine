@@ -1510,8 +1510,9 @@ public abstract class NanoHTTPD {
 
         /**
          * Sends given response to the socket.
+         * @throws IOException 
          */
-        protected void send(OutputStream outputStream) {
+        protected void send(OutputStream outputStream) throws IOException {	// MJM throw exception
             SimpleDateFormat gmtFrmt = new SimpleDateFormat("E, d MMM yyyy HH:mm:ss 'GMT'", Locale.US);
             gmtFrmt.setTimeZone(TimeZone.getTimeZone("GMT"));
 
@@ -1553,6 +1554,7 @@ public abstract class NanoHTTPD {
                 safeClose(this.data);
             } catch (IOException ioe) {
                 NanoHTTPD.LOG.log(Level.SEVERE, "Could not send response to the client", ioe);
+                throw ioe;		// MJM: don't eat this exception (infinite loop on lost connection?)
             }
         }
 
