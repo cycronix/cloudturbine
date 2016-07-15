@@ -195,6 +195,7 @@ public class CTdata {
 //					thisZipFile = file.getMyZipFile();
 					thisZipFile = file.getParent();			// could be zip or folder
 					if(thisZipFile != null) {
+//						System.err.println("thisZipFile: "+thisZipFile+", oldZipFile: "+oldZipFile);
 						if(thisZipFile.equals(oldZipFile)) 	refTime = prevtime;						// multi-block per Zip
 						else								refTime = file.fileTime(thisZipFile);	// single (or first) block per Zip
 						

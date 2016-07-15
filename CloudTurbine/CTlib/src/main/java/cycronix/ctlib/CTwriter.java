@@ -60,6 +60,7 @@ public class CTwriter {
 	private long thisFtime=0;
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
+	private boolean timeRelative=false;		// if set, writeData to relative-timestamp subfolders
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
@@ -124,6 +125,14 @@ public class CTwriter {
 		autoFlush = (long)(iautoflush * 1000.);			// convert to msec
 	}
 		
+	/**
+	 * set whether to use time-relative mode  
+	 * @param trflag flag true/false (default: false)
+	 */
+	public void setTimeRelative(boolean trflag) {
+		timeRelative = trflag;
+	}
+	
 	/**
 	 * Set binary packed block mode output.
 	 * <p>  
@@ -395,6 +404,8 @@ public class CTwriter {
 				}
 //				zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
 
+				if(timeRelative) time = time - rootTime;		// relative timestamps
+				
 				String name = time+"/"+outName;			// always use subfolders in zip files
 				ZipEntry entry = new ZipEntry(name);
 				try {
@@ -413,9 +424,13 @@ public class CTwriter {
 				// put first putData to rootFolder 
 				String dpath;
 				//				System.err.println("rootTime: "+rootTime+", time: "+time);
-				if(rootTime == time) 		// top-level folder unless new time
+				if(rootTime == time && !timeRelative) {		// top-level folder unless new time?
 					dpath = destPath + File.separator + time;
-				else	dpath = destPath + File.separator + rootTime +  File.separator + time;
+					if(!blockMode) flush();	// absolute, non-zip, non-block data flush to individual top-level time-folders?
+				} else	{
+					if(timeRelative) time = time - rootTime;		// relative timestamps
+					dpath = destPath + File.separator + rootTime +  File.separator + time;
+				}
 
 				new File(dpath).mkdirs();
 				destName = dpath + File.separator + outName;

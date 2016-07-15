@@ -83,7 +83,6 @@ class CTFile extends File {
 		if(path.endsWith(".zip") || path.endsWith(".gz")) fileType = FileType.ZIP;
 		if(isTFILE()) fileType = FileType.TFOLDER;		// need better filter
 
-//		System.err.println("CTFile path: "+path+", ftype: "+fileType);
 //		isZip = path.endsWith(".zip") || path.endsWith(".gz");
 //		if(isZip) {
 		if(fileType == FileType.ZIP) {
@@ -95,7 +94,7 @@ class CTFile extends File {
 	// zip File 
 	private CTFile(String path, String myzipfile, String mypath) {
 		super(path);
-		myPath = new String(mypath);
+		myPath = new String(mypath);		// note:  here myPath is short zip-entry name (inconsistent)
 		myZipFile = myzipfile;
 //		isFile = true;
 		fileType = FileType.ZFILE;
@@ -106,6 +105,8 @@ class CTFile extends File {
 		super(path);
 		myZipFile = myzipfile;
 		myPath = new String(path);
+    	myPath = myzipfile.substring(0,myzipfile.lastIndexOf('.')) + File.separator + myPath;	// full effective zip entry path for relative timestamps to work
+		
 		myFiles = files;				// this can clobber pre-existing files at this path, need to append
 		if(files == null) fileType = FileType.ZFILE;
 		else			  fileType = FileType.ZENTRY;
@@ -153,12 +154,9 @@ class CTFile extends File {
 	// 
 	boolean isTFILE() {
 		File pfolder = getParentFile();
-		return (pfolder!=null && (fileTime(pfolder.getName()) == 0) && isFile() 								// any non-Time folder file is TFILE?
-				&& myPath.endsWith(".jpg"));																	// for now, only .jpg files work
-		// simply treat any folder-less file as TFILE?
-//		String fname = new File(myPath).getName();
-//		if((fname.startsWith("dlink2") || fname.startsWith("2")) && fname.endsWith(".jpg")) return true;		// needs better file filter
-//		return false;
+//		return (pfolder!=null && (fileTime(pfolder.getName()) == 0) && isFile() 		// any non-Time folder file is TFILE?
+		return (pfolder!=null && (fileTime(pfolder.getPath()) == 0) && isFile() 		// any non-Time folder file is TFILE? (use fullpath of parent)
+				&& myPath.endsWith(".jpg"));											// for now, only .jpg files work
 	}
 	//---------------------------------------------------------------------------------	
 	/**
@@ -176,7 +174,8 @@ class CTFile extends File {
 			//		}
 		case ZENTRY:
 			//		else if(isEntry) {
-			return myPath;
+//			return myPath;
+			return fileName(myPath);
 			//		}
 		case ZFILE:
 			//		else if(isFile) {
@@ -221,8 +220,9 @@ class CTFile extends File {
 			clist = new CTFile[myFiles.length];
 
 			for(int i=0; i<myFiles.length; i++) {
-				//				String fname = Paths.get(myFiles[i]).getName(0).toString();		
+				//				String fname = Paths.get(myFiles[i]).getName(0).toString();	
 				String fname = myFiles[i].split(File.pathSeparator)[0];		// Java 1.6 compat
+//				System.err.println("myFiles["+i+"]: "+myFiles[i]+", fname: "+fname);
 				clist[i] = new CTFile(fname,myZipFile,myFiles[i]);
 			}
 			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
@@ -314,7 +314,9 @@ class CTFile extends File {
 		default:	
 			if(super.isDirectory()) {
 				File[] files = super.listFiles();
-				if(files!=null && files.length>0 && files[0].isFile()) return true;
+//				if(files!=null && files.length>0 && files[0].isFile()) return true;
+				// check last (vs first) file to avoid .DS_Store or other hidden files messing up test (MJM 7/12/16)
+				if(files!=null && files.length>0 && files[files.length-1].isFile()) return true;
 				else							  return false;		// needs testing
 			} else return false;
 		}
@@ -390,6 +392,8 @@ class CTFile extends File {
 	 */
 	byte[] read() {
 		String cacheKey = myZipFile+":"+myPath;
+//		String cacheKey = myPath;	// myPath includes zipfile name?  Nope, inconsistent but myPath for zip-entry is not full time-path
+//		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
 		if(data != null) {
 //			System.err.println("cache hit on data read: "+myPath);
@@ -406,6 +410,7 @@ class CTFile extends File {
 //		if(isFile) {		
 			try {
 				ZipFile zfile = new ZipFile(myZipFile);
+				// note:  myPath for zip-entry is not full-path as it is with other CTFile...
 				String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
 				
 /*		// doesn't seem to help.  MJM 8/14/15
@@ -597,11 +602,12 @@ class CTFile extends File {
     boolean useFileTime=false;						// required if TFILE == isFile()
     
     /**
-     * parse time from the CTFile name, units: full-seconds
+     * Parse time from the CTFile name, units: full-seconds
      * @return double time in seconds
      */
   	double fileTime() {
-  		return fileTime(getName());
+//  		return fileTime(getName());
+  		return fileTime(getMyPath());	// provide full pathname (support relative timestamps)
   	}
 
   	/**
@@ -610,97 +616,166 @@ class CTFile extends File {
   	 * @return double time in seconds
   	 */
   	double fileTime(String fname) {
-  		// strip possible leading path and trailing suffix from name
-//    	int islash = fname.lastIndexOf('/');
-    	int islash = fname.lastIndexOf(File.separator);
+  		
+  		// special logic for TFOLDER (e.g. camera time.jpg files)
+  		if(fileType==FileType.TFOLDER) return tfolderTime(fname);
+	
+  		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
+//    	int idot = fname.lastIndexOf('.');					// strip trailing suffix (e.g. .zip)
+//    	if(idot > 0) fname = fname.substring(0,idot);
+    	
+		// new multi-part timestamp logic:  parse path up from file, sum relative times until first fulltime
+		String[] pathparts = fname.split(File.separator);
+		Long sumtime = 0L;
+		double ftime = 0.;
+		for(int i=pathparts.length-1; i>=0; i--) {
+			String thispart = pathparts[i];
+//			System.err.println("fileTime fname: "+pathname+", thispart: "+thispart);
+			Long thistime = 0L;
+			try {
+				thistime = Long.parseLong(thispart);
+				sumtime += thistime;
+			} catch(NumberFormatException e) {
+				continue;		// keep looking?
+			}
+//			System.err.println("fileTime sumtime: "+sumtime);
 
-    	if(islash >= 0) fname = fname.substring(islash+1);
-    	int idot = fname.lastIndexOf('.');
-    	if(idot > 0) fname = fname.substring(0,idot);
+			if(thistime >= 1000000000000L) {	// absolute msec
+				ftime = (double)sumtime / 1000.;
+				return ftime;
+			}
+			if(thistime >= 1000000000L) {		// absolute sec
+				ftime = (double)sumtime;
+				return ftime;
+			}
+		}
+		
+//		CTinfo.debugPrint("OOPS, bad file time! "+fname);
+		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
+/*		
+  		String fname;
+  		
+  		// strip possible leading path
+    	int islash = pathname.lastIndexOf(File.separator);
+    	if(islash >= 0) fname = pathname.substring(islash+1);
+    	else			fname = pathname;
     	
   		double msec = 1;
-  		double ftime = 0.;
-  		
-  		// special TFILE parsing (e.g. for camera JPEG photos)
-  		//  		if(fileType==FileType.TFOLDER) return (this.lastModified() / 1000.);
-  																// with the any-file is TFILE logic, got to use lastModified
-  		if(fileType==FileType.TFOLDER) {			
-//  			System.err.println("TFILE: "+fname);
-  			if(useFileTime) {
-  				ftime = this.lastModified();				// simply use actual file modification time?
-  			} 
-  			else {
-//  				fname = fname.replace(".jpg", "");
-  				fname = fname.replace("dlink", "");
+		String pname = this.getParent();
+		System.err.println("fileTime pathname: "+pathname+", fname: "+fname+", pname: "+pname);
+	
+  		// relative timestamp logic:  if short (<10 digit) time, add basetime from parent
+  		double basetime = 0.;
+  		if(fname.length() < 10) {
+  			if((pname != null)) {	
+  				//  basetime = fileTime(pname);		// recursive 
+  				islash = pname.lastIndexOf(File.separator);
+  				if(islash >= 0) pname = pname.substring(islash+1);
+  				System.err.println("fileTime stripped pname: "+pname);
 
-  				boolean pslash = fname.lastIndexOf("-") > 15;
-
-  				// e.g.  "2014-09-10 16.00.32-1-1"
-  				//  				System.err.println("entry fname: "+fname);
-  				fname = fname.replaceFirst("-", ".").replaceFirst("-",".");				// replace first two slashes with dot
-  				islash = fname.lastIndexOf("-");
-  				if(islash>=0) {
-  					fname = fname.replaceFirst("-", ".");
-  					fname = fname.replace("-", "");
-  					int nmsec = fname.length() - islash - 1;
-  					if(nmsec == 1) fname += "00";
-  					else if(nmsec == 2) fname += "0";
-  				}
-  				//  				System.err.println("exit fname:  "+fname);
-
-  				// try most recently successful first
-  				if(sdflast != null) {
+  				if(pname.length() >= 10) { // relative time requires absolute-time parent
+  					if(pname.length() > 10) msec = 1000.;		// msec parent implies msec child
   					try {
-  						ftime = sdflast.parse(fname).getTime();
+  						basetime = (double)(Long.parseLong(pname)) / msec;
+  					} catch(NumberFormatException e) {
+  						basetime = 0.;
   					}
-  					catch(Exception e) { sdflast = null; }
+  					System.err.println("CTfile relative time, parent: "+pname+", basetime: "+basetime);
   				}
-
-  				// try various formats
-  				if(sdflast == null)
-  					try { 				
-  						SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH.mm.ss.SSS");
-  						if(pslash) fname = fname + "00";			// ensure msec if trailing dash syntax 
-  						ftime = sdf.parse(fname).getTime();
-  						sdflast=sdf;
-  					} catch(Exception e1) {
-  						try {
-  							SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH.mm.ss");
-  							ftime = sdf.parse(fname).getTime();
-  							sdflast = sdf;
-  						} catch(Exception e2) {
-  							try {
-  								SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-  								ftime = sdf.parse(fname).getTime();
-  								sdflast=sdf;
-
-  							} catch(Exception e3) {
-  								try {				  		// dlink2015081713324201.jpg
-  									SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSS");
-  									ftime = sdf.parse(fname).getTime();
-//  									System.err.println("dlink ftime: "+ftime+", fname: "+fname);
-  									sdflast=sdf;
-  								}
-  								catch(Exception e4) { sdflast=null; };
-  							};
-  						};
-  					};
   			}
-//  			System.err.println("fileTime("+fname+"): "+ftime+", date: "+new Date((long)ftime)+", sdflast: "+sdflast.toString());
-  			return ftime / 1000.;
   		}
+  		else if(fname.length() > 10) msec = 1000.;
   		
-  		if(fname.length() > 10) msec = 1000.;
   		try {
-  			ftime = (double)(Long.parseLong(fname)) / msec;
+  			ftime = basetime + (double)(Long.parseLong(fname)) / msec;
+  	  		System.err.println("CTFile.filetime, basetime: "+basetime+", fname: "+fname+", ftime: "+ftime);
   		} catch(NumberFormatException e) {
   			ftime = 0.;
   		}
-  		
   		return ftime;
+*/
+  	}
+
+    //---------------------------------------------------------------------------------	
+  	// special TFILE parsing (e.g. for camera JPEG photos)
+  	// clunky logic, needs to be generalized
+  	
+  	private double tfolderTime(String fname) {
+//		System.err.println("TFILE: "+fname);
+    	int islash = fname.lastIndexOf(File.separator);		// strip leading path from name
+    	if(islash >= 0) fname = fname.substring(islash+1);
+    	
+    	int idot = fname.lastIndexOf('.');					// strip trailing .suffix
+    	if(idot > 0) fname = fname.substring(0,idot);
+
+  		double ftime = 0.;
+  		
+		if(useFileTime) {
+			ftime = this.lastModified();		// simply use actual file modification time?
+		} 
+		else {
+//			fname = fname.replace(".jpg", "");
+			fname = fname.replace("dlink", "");
+
+			boolean pslash = fname.lastIndexOf("-") > 15;
+
+			// e.g.  "2014-09-10 16.00.32-1-1"
+			//  				System.err.println("entry fname: "+fname);
+			fname = fname.replaceFirst("-", ".").replaceFirst("-",".");				// replace first two slashes with dot
+			islash = fname.lastIndexOf("-");
+			if(islash>=0) {
+				fname = fname.replaceFirst("-", ".");
+				fname = fname.replace("-", "");
+				int nmsec = fname.length() - islash - 1;
+				if(nmsec == 1) fname += "00";
+				else if(nmsec == 2) fname += "0";
+			}
+			//  				System.err.println("exit fname:  "+fname);
+
+			// try most recently successful first
+			if(sdflast != null) {
+				try {
+					ftime = sdflast.parse(fname).getTime();
+				}
+				catch(Exception e) { sdflast = null; }
+			}
+
+			// try various formats
+			if(sdflast == null)
+				try { 				
+					SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH.mm.ss.SSS");
+					if(pslash) fname = fname + "00";			// ensure msec if trailing dash syntax 
+					ftime = sdf.parse(fname).getTime();
+					sdflast=sdf;
+				} catch(Exception e1) {
+					try {
+						SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH.mm.ss");
+						ftime = sdf.parse(fname).getTime();
+						sdflast = sdf;
+					} catch(Exception e2) {
+						try {
+							SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+							ftime = sdf.parse(fname).getTime();
+							sdflast=sdf;
+
+						} catch(Exception e3) {
+							try {				  		// dlink2015081713324201.jpg
+								SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSS");
+								ftime = sdf.parse(fname).getTime();
+//								System.err.println("dlink ftime: "+ftime+", fname: "+fname);
+								sdflast=sdf;
+							}
+							catch(Exception e4) { sdflast=null; };
+						};
+					};
+				};
+		}
+//		System.err.println("fileTime("+fname+"): "+ftime+", date: "+new Date((long)ftime)+", sdflast: "+sdflast.toString());
+		return ftime / 1000.;
   	}
   	
- // To sort by file time
+    //---------------------------------------------------------------------------------	
+  	// To sort by file time
   	Comparator<CTFile> fileTimeComparator = new Comparator<CTFile>() {
   	    public int compare(CTFile filea, CTFile fileb) {
   	    	return( Double.compare(filea.fileTime(), fileb.fileTime()) );

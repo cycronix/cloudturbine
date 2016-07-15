@@ -225,7 +225,9 @@ public class CTreader {
 
 		for(int i=0; i<listOfFiles.length; i++) {
 			CTFile thisFile = listOfFiles[i];
-//			CTinfo.debugPrint(i+" listChans: "+thisFile+", dir: "+thisFile.isDirectory()+", fileType: "+thisFile.fileType);
+//			CTinfo.setDebug(true);
+//			CTinfo.debugPrint(i+" listChans: "+thisFile+", dir: "+thisFile.isDirectory()+", fileType: "+thisFile.fileType+", fileTime: "+thisFile.fileTime());
+//			CTinfo.setDebug(false);
 			if(!thisFile.isDirectory() || thisFile.fileTime()==0) continue;		// this isn't a channel-folder
 			buildChanList(thisFile, ChanList);			// side effect is to add to ChanList
 		}
@@ -284,11 +286,12 @@ public class CTreader {
 	
 	public ArrayList<String> listSourcesRecursive() throws IOException {
 		final ArrayList<String> SourceList = new ArrayList<String>();		// for registration
-		Path rootPath = new CTFile(rootFolder).toPath();
+		final Path rootPath = new CTFile(rootFolder).toPath();
 		final int nroot = rootPath.getNameCount();
 		EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);	// follow symbolic links
 		
 		Files.walkFileTree(rootPath, opts, 4, new SimpleFileVisitor<Path>() {
+			
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
 					throws IOException
@@ -296,12 +299,14 @@ public class CTreader {
 //				System.err.println("walkFileTree file: "+file);
 				return FileVisitResult.CONTINUE;
 			}
+			
 			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException e)
+			public FileVisitResult postVisitDirectory(final Path dir, IOException e)
 					throws IOException
 			{
 				if (e == null) {
-//					System.err.println("walkFileTree dir: "+dir);
+		            if ( dir.equals( rootPath ) ) return FileVisitResult.CONTINUE;
+
 					String thisFolder = dir.getFileName().toString();
 			  		try {
 			  			Long.parseLong(thisFolder);
