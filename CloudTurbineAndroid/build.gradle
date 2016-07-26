@@ -15,10 +15,3 @@ buildscript {
     }
 }
 
-// Here are the projects to build
-dependencies {
-    project(":CTandroidACL")
-    project(":CTandroidAV")
-    project(":CTAserver")
-}
-
