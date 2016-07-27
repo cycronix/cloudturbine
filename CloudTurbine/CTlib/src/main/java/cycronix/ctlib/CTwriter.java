@@ -61,6 +61,7 @@ public class CTwriter {
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=false;		// if set, writeData to relative-timestamp subfolders
+	private long blockDuration=0;				// if non-zero, blockMode block-duration (msec)
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
@@ -146,8 +147,19 @@ public class CTwriter {
 	 * <p>
 	 * @param bflag true/false set block mode (default: false)
 	 */
+	@Deprecated
 	public void setBlockMode(boolean bflag) {
 		blockMode = bflag;
+		CTinfo.warnPrint("Deprecated call to setBlockMode(boolean), use setBlockMode(blockDuration) instead!");
+	}
+	
+	public void setBlockMode(double iBlockDuration) {
+		setBlockMode((long)(iBlockDuration*1000.));	// sec->msec
+	}
+	
+	public void setBlockMode(long iBlockDuration) {
+		blockDuration = iBlockDuration;					// msec
+		if(blockDuration > 0) blockMode = true;
 	}
 	
 	/**
@@ -237,18 +249,26 @@ public class CTwriter {
     * 02/06/2014  MJM	Created.
     */
 	
-	public void flush() throws IOException {
-		flush(false);
+	@Deprecated
+	public void flush(boolean gapless) throws IOException {
+		flush();
 	}
 	
 	/**
 	 * Write collected entries to .zip file
-	 * @param gapless true/false auto-set end time of this zip file to start of next
+	 * @param blockDuration sets time-interval of multi-point data block.  N/A for single-point data.
 	 * @throws IOException
 	 */
 //	public void flush(boolean gapless) throws IOException {		// sync slows external writes?
-	public synchronized void flush(boolean gapless) throws IOException {
-
+	public synchronized void flush() throws IOException {
+		if(blockMode && blockDuration==0) CTinfo.debugPrint("Warning, blockMode with zero blockDuration!");
+		
+		// Note: when blockDuration is set, only the rootTime and blockDuration are used to determine intermediate block point times
+		if(blockDuration > 0.) {
+			System.err.println("CTwriter/flush, thisFtime: "+thisFtime+", rootTime: "+rootTime+", blockDuration: "+blockDuration+", adjustedTime: "+(rootTime+blockDuration));
+			thisFtime = rootTime + blockDuration;	// specified block interval (msec)
+		}
+		
 		try {
 			// if data has been queued in blocks, write it out once per channel before normal flush
 			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {		// entry keys are by name; full block per channel per flush
@@ -268,11 +288,11 @@ public class CTwriter {
 				CTinfo.debugPrint("trimming at: "+trim);
 				dotrim(trim);			
 			}
-			
 
 			lastFtime = thisFtime;								// remember last time flushed
-			if(gapless ||  blockMode) rootTime = thisFtime;		// preset next folder-rootTime to end of this for gapless time
-			else		rootTime = 0;							// reset to new root folder
+//			if(gapless ||  blockMode) rootTime = thisFtime;		// default next folder-rootTime to end of this for gapless time
+			if(blockMode) 	rootTime = thisFtime;				// default next folder-rootTime to end of this for gapless time
+			else			rootTime = 0;						// reset to new root folder
 			
 		} catch(Exception e) { 
 			System.err.println("flush failed"); 
@@ -449,7 +469,7 @@ public class CTwriter {
 
 	//------------------------------------------------------------------------------------------------
 	// putData:  put data in various forms to (zip) file
-	// these handle various binary formats in, everything is written as String format out
+	// these handle various binary formats in, non-blockmode data is written as String format out
 	// use putData(byte[]) for raw binary data output
 	
 	/**

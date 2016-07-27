@@ -39,6 +39,10 @@ public class CTsink {
 						float[] dd = data.getDataAsFloat32();
 						for(int i=0; i<dd.length; i++) System.err.println("time: "+dt[i]+", data: "+dd[i]);	
 					}
+					if(chan.endsWith(".num")) {
+						float[] dd = data.getDataAsNumericF32();
+						for(int i=0; i<dd.length; i++) System.err.println("time: "+dt[i]+", data: "+dd[i]);	
+					}
 					else {
 						byte[][] dd = data.getData();
 						for(int i=0; i<dd.length; i++) System.err.println("time: "+dt[i]+", data: "+new String(dd[i]));

@@ -135,7 +135,7 @@ public class CTlogger {
 				ctw.setZipMode(zipmode);			//  compress none-most, 0-9, 10=zip.gz
 				ctw.setDebug(debug);
 				if(autoflush>0) ctw.autoFlush(autoflush*1000);		// auto flush to zip once per interval (msec) of data
-				ctw.setBlockMode(blockMode);
+				ctw.setBlockMode(blockMode);	// blockMode doesn't work well, should flush(blockDur), but then interpolates intermediate timestamps
 				ctw.setGZipMode(gzipmode);
 				
 				// parsable time formats

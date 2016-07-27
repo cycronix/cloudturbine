@@ -49,11 +49,12 @@ public class CTperf {
 			ctw.setZipMode(true);			// bundle to zip files
 			//			ctw.autoFlush(200);				// automatically flush at this interval (msec)
 			//			ctw.setDebug(debug);
-			ctw.setBlockMode(blockMode);			// block data per flush
+//			ctw.setBlockMode(blockMode);			// block data per flush
 
 			long time = System.currentTimeMillis();
 			long dt = 10;
 			long startTime = time;
+			if(blockMode) ctw.setBlockMode(dt*blocksize);			// block duration (msec)
 			//			time = 0;									// try absolute 0-based time						
 			// loop and write some output
 			if(blockMode) ctw.setTime(time);			// blockMode:  set time at start of block

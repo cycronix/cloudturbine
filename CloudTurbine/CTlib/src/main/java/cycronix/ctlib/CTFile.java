@@ -20,6 +20,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -155,8 +156,8 @@ class CTFile extends File {
 	boolean isTFILE() {
 		File pfolder = getParentFile();
 //		return (pfolder!=null && (fileTime(pfolder.getName()) == 0) && isFile() 		// any non-Time folder file is TFILE?
-		return (pfolder!=null && (fileTime(pfolder.getPath()) == 0) && isFile() 		// any non-Time folder file is TFILE? (use fullpath of parent)
-				&& myPath.endsWith(".jpg"));											// for now, only .jpg files work
+		return (isFile() && myPath.endsWith(".jpg") 						// any non-Time folder file is TFILE? (use fullpath of parent)
+				&& pfolder!=null && (fileTime(pfolder.getPath())==0));		// for now, only .jpg files work
 	}
 	//---------------------------------------------------------------------------------	
 	/**
@@ -625,7 +626,7 @@ class CTFile extends File {
 //    	if(idot > 0) fname = fname.substring(0,idot);
     	
 		// new multi-part timestamp logic:  parse path up from file, sum relative times until first fulltime
-		String[] pathparts = fname.split(File.separator);
+		String[] pathparts = fname.split(Pattern.quote(File.separator));
 		Long sumtime = 0L;
 		double ftime = 0.;
 		for(int i=pathparts.length-1; i>=0; i--) {
@@ -652,50 +653,46 @@ class CTFile extends File {
 		
 //		CTinfo.debugPrint("OOPS, bad file time! "+fname);
 		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
-/*		
-  		String fname;
-  		
-  		// strip possible leading path
-    	int islash = pathname.lastIndexOf(File.separator);
-    	if(islash >= 0) fname = pathname.substring(islash+1);
-    	else			fname = pathname;
-    	
-  		double msec = 1;
-		String pname = this.getParent();
-		System.err.println("fileTime pathname: "+pathname+", fname: "+fname+", pname: "+pname);
-	
-  		// relative timestamp logic:  if short (<10 digit) time, add basetime from parent
-  		double basetime = 0.;
-  		if(fname.length() < 10) {
-  			if((pname != null)) {	
-  				//  basetime = fileTime(pname);		// recursive 
-  				islash = pname.lastIndexOf(File.separator);
-  				if(islash >= 0) pname = pname.substring(islash+1);
-  				System.err.println("fileTime stripped pname: "+pname);
-
-  				if(pname.length() >= 10) { // relative time requires absolute-time parent
-  					if(pname.length() > 10) msec = 1000.;		// msec parent implies msec child
-  					try {
-  						basetime = (double)(Long.parseLong(pname)) / msec;
-  					} catch(NumberFormatException e) {
-  						basetime = 0.;
-  					}
-  					System.err.println("CTfile relative time, parent: "+pname+", basetime: "+basetime);
-  				}
-  			}
-  		}
-  		else if(fname.length() > 10) msec = 1000.;
-  		
-  		try {
-  			ftime = basetime + (double)(Long.parseLong(fname)) / msec;
-  	  		System.err.println("CTFile.filetime, basetime: "+basetime+", fname: "+fname+", ftime: "+ftime);
-  		} catch(NumberFormatException e) {
-  			ftime = 0.;
-  		}
-  		return ftime;
-*/
   	}
 
+  	/**
+  	 * Parse file-time given string to find "base" time:
+  	 * the time of the top-level containing folder or zipfile
+  	 * this is used for block-mode timestamps, basetime is start time of block
+  	 * and lowest-level file time is end-time of block.
+  	 * @param fname name of file to parse
+  	 * @return double time in seconds
+  	 */
+  	double baseTime() {
+  		if(myZipFile==null) return baseTime(myPath);		// bleh getMyPath should be good for zipEntries
+  		else				return baseTime(myZipFile);
+  	}
+  	
+  	double baseTime(String fname) {
+  		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
+  		String[] pathparts = fname.split(Pattern.quote(File.separator));
+		Long thistime = 0L;
+		boolean gotatime=false;
+		
+  		for(int i=pathparts.length-1; i>=0; i--) {
+  			String thispart = pathparts[i];
+//  			System.err.println("fileTime fname: "+fname+", thispart: "+thispart);
+  			try {
+  				thistime = Long.parseLong(thispart);
+  				gotatime=true;
+//  				System.err.println("thisTime: "+thistime);
+  			} catch(NumberFormatException e) {
+  				if(gotatime) {		// grab highest level contiguous time after first one
+  			  		if(thistime >= 1000000000000L) 	return (double)thistime / 1000.;	// msec
+  					if(thistime >= 1000000000L) 	return (double)thistime;			// sec
+  				}
+  				continue;		// keep going 
+  			}
+  		}
+
+  		return 0.;	
+  	}
+  	
     //---------------------------------------------------------------------------------	
   	// special TFILE parsing (e.g. for camera JPEG photos)
   	// clunky logic, needs to be generalized

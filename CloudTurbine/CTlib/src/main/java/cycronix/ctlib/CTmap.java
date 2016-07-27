@@ -68,7 +68,9 @@ public class CTmap extends TreeMap<String,CTdata>{
 //		System.err.println("CTmap.get: "+cname+", ctMap.get: "+this.get(cname));
 		CTdata tdata = this.get(cname);
 		if(tdata != null) 						// merge multiple tdata objects into one on fetch
-			tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
+			tdata = tdata.timeRange(CTinfo.fileType(cname), tstart, tdur, tmode);
+//			tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
+
 		return tdata;
 	} 
 	
@@ -100,47 +102,12 @@ public class CTmap extends TreeMap<String,CTdata>{
 		for (Map.Entry<String, CTdata> entry : this.entrySet()) {
 		    String cname = entry.getKey();
 		    CTdata tdata = entry.getValue();
-			if(tdata != null) tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
+			if(tdata != null) 
+				tdata = tdata.timeRange(CTinfo.fileType(cname), tstart, tdur, tmode);
+//				tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
+
 			this.put(cname, tdata);
 		}
 	}
-/*	
-	//--------------------------------------------------------------------------------------------------------
-	// fileType:  return file type code based on file extension
-	
-	public static char fileType(String fname) {
-		return fileType(fname, 's');
-	}
-	
-	public static char fileType(String fName, char typeDefault) {
-		
-		char fType = typeDefault;		// default
-		if		(fName.endsWith(".bin")) fType = 'B';
-		else if	(fName.endsWith(".jpg")) fType = 'B';
-		else if	(fName.endsWith(".wav")) fType = 'j';		// was 'B'
-		else if	(fName.endsWith(".mp3")) fType = 'B';
-		else if	(fName.endsWith(".pcm")) fType = 'j';		// FFMPEG s16sle audio
-		else if	(fName.endsWith(".txt")) fType = 's';	
-		else if	(fName.endsWith(".f32")) fType = 'f';
-		else if	(fName.endsWith(".f64")) fType = 'F';
-		else if	(fName.endsWith(".i16")) fType = 'j';		// 's' is string for compat with WebTurbine
-		else if	(fName.endsWith(".i32")) fType = 'i';
-		else if	(fName.endsWith(".i64")) fType = 'I';
-		else if (fName.endsWith(".Num")) fType = 'N';
-		else if (fName.endsWith(".num")) fType = 'n';
-		return(fType);
-	}
-	
-	public static int wordSize(char ftype) {
-		switch(ftype) {
-		case 'f':	return 4;
-		case 'F':	return 8;
-		case 'j':	return 2;
-		case 'i':	return 4;
-		case 'I':	return 8;
-		default:	return 1;	
-		}
-	}
-*/
 }
 

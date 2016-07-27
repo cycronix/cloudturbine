@@ -8,6 +8,7 @@ package cycronix.ctlib;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 
 /**
  * CloudTurbine utility class to manage ArrayList of time,data couples
@@ -104,6 +105,55 @@ public class CTdata {
 		return timeRange(wordSize, 0., start, duration, "absolute");			// derive timeInc
 	}
 	
+	CTdata timeRange(char wordType, double start, double duration, String tmode) { 
+		switch(wordType) {
+			case 'n':
+			case 'N':
+				return timeRangeNumeric(wordType, 0., start, duration, tmode);
+			default:
+				return timeRange(CTinfo.wordSize(wordType), 0., start, duration, tmode);
+		}
+	}
+
+	// special timeRange method to handle "numeric" (string-numbers) data
+	// probably could fold it into regular timeRange method but that is getting complex
+	CTdata timeRangeNumeric(int wordSize, double incTimeI, double start, double duration, String tmode) { 
+		// Note:  start, duration is requested time, versus timelist being actual available time
+
+		double tend = start + duration;		// for ref
+		CTdata ctd = new CTdata();
+
+//		System.err.println("requested tstart: "+start+", requested duration: "+duration+", tend: "+tend);
+		for(int i=0; i<datalist.size(); i++) {
+			double tbase = filelist.get(i).baseTime();
+			double time = timelist.get(i);
+			
+			CTinfo.debugPrint("filelist.get("+i+"): "+filelist.get(i).getMyPath()+", tbase: "+tbase);
+			
+			String dds = new String(datalist.get(i));		// CSV comma separated string of values
+			String[] ddp = dds.split(",");
+			long count = ddp.length;
+
+			double dt = (time-tbase) / count;	// timelist(i) is point-time (block end time)
+			time -= dt*(count-1);			// adjust to start of multi-point block
+			
+			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", ddp.length: "+ddp.length);
+			for(int j=0; j<count; j++) {
+				double t = time+j*dt;
+//				System.err.println("t["+j+"]: "+t);
+				if(t>=start && t<=tend)	{					// trim to requested start+duration
+					ctd.add((time+j*dt), ddp[j].getBytes());
+//					System.err.println("grab t: "+t+", d: "+ddp[j]+", date: "+new Date((long)(t*1000)));
+				}
+				if(t >= tend) break;
+			}
+			if(time >= tend) break;
+		}
+		
+		return ctd;
+	}
+	
+	// timeRange from binary data
 	CTdata timeRange(int wordSize, double incTimeI, double start, double duration, String tmode) { 
 		CTdata ctd = new CTdata();
 		double incTime = incTimeI;
@@ -192,13 +242,12 @@ public class CTdata {
 				// if dt==0, fall back to old average interval calc (above)
 				if(wordSize>1 && filelist.size() >= nframe) {
 					CTFile file = filelist.get(i);
-//					thisZipFile = file.getMyZipFile();
 					thisZipFile = file.getParent();			// could be zip or folder
 					if(thisZipFile != null) {
-//						System.err.println("thisZipFile: "+thisZipFile+", oldZipFile: "+oldZipFile);
 						if(thisZipFile.equals(oldZipFile)) 	refTime = prevtime;						// multi-block per Zip
-						else								refTime = file.fileTime(thisZipFile);	// single (or first) block per Zip
-						
+//						else								refTime = file.fileTime(thisZipFile);	// single (or first) block per Zip
+						else								refTime = file.baseTime();
+//System.err.println("refTime: "+refTime+" VS baseTime: "+file.baseTime());
 						if(refTime > 0) {
 							double interval = time - refTime;
 							dt = interval / count;
@@ -240,7 +289,7 @@ public class CTdata {
 					if(time < start) continue;
 					else if(time <= end) {
 						int idx = j + waveHeader/wordSize;
-						byte[] barray = Arrays.copyOfRange(data, idx*wordSize, (idx+1)*wordSize);
+						byte[] barray = Arrays.copyOfRange(data, idx*wordSize, (idx+1)*wordSize);	// parse bytes into words
 //						System.err.println("ctd add time<end");
 						ctd.add(time, barray);
 					}

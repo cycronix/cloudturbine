@@ -62,6 +62,11 @@ public class CTserver extends NanoHTTPD {
 	//---------------------------------------------------------------------------------	
 
 	public CTserver(int port) {
+// TODO for HTTPS support:
+//	    super.makeSecure(sslServerSocketFactory, sslProtocols);
+// e.g.    super.makeSecure(NanoHTTPD.makeSSLSocketFactory("/keystore.jks", "password".toCharArray()));
+// nanoHTTPD test code: https://github.com/NanoHttpd/nanohttpd/.../HttpSSLServerTest.java
+		
 	    super(port);
      	ctreader = new CTreader(rootFolder);
      	CTinfo.setDebug(debug);

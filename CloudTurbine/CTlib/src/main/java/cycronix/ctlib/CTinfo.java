@@ -51,6 +51,14 @@ public class CTinfo {
 		if(debug) System.err.println(callerClassName()+": "+msg);
 	}
 	
+	/**
+	 * Print given warning message. Automatically prepends calling class name to debug print.
+	 * @param msg warning message 
+	 */
+	public static void warnPrint(String msg) {
+		System.err.println(callerClassName()+": "+msg);
+	}
+	
 	//--------------------------------------------------------------------------------------------------------
 	// fileType:  return file type code based on file extension
 	
