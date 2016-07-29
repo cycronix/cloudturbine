@@ -1,6 +1,3 @@
-defaultTasks 'build'
-
-apply plugin: 'java'
 
 // JAR settings
 // Specify ".doFirst" to force this to run in the Execution phase.  Without
@@ -48,52 +45,5 @@ dependencies {
 	compile project(':CTlib')
 	// Specify that we use CTlib.jar
     compile name: 'CTlib'
-}
-
-//
-// Automatically execute clean before build
-//
-// This gets around a problem we had with making our "fat" JAR files; namely,
-// if there was a change in a dependency (in a CTlib file, for instance) but no
-// change in any source files of the current project, then the JAR file wasn't
-// being rebuilt.  To get around this, whenever a user asks to do a "build"
-// we force a "clean" to be executed first.
-//
-// NOTE: Include the line to specify that "clean" is run before "compileJava";
-//       otherwise, what was happening is that the Java files would be compiled
-//       and then "clean" was run right before "build" - so the build directory
-//       was being deleted!  See Kunal's forum response at:
-//       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
-//
-// Another way to do this is by creating a new task which will call the two
-// existing tasks.  Still need to include the "compileJava.mustRunAfter clean"
-// line when doing it this way.
-// task clean_build {
-// 	dependsOn clean, build
-// }
-//
-build.dependsOn clean
-compileJava.mustRunAfter clean
-
-// An attemtp to get CTlib to build prior to CT2CSV, but it hasn't worked.
-// If this did work, I wouldn't need the "compile project(':CTlib')" line
-// in the dependencies section above.
-// classes.dependsOn ":CTlib:build"
-
-// Here's how to change the default destination directory for the JAR file;
-// we won't do this (ie, we'll keep the default directory structure in place);
-// instead, we'll copy the JAR file to a top level "Distribute" folder
-// tasks.withType(Jar) {
-//     destinationDir = file("$rootDir/Distribute")
-// }
-// Copy the JAR file to a top level "Distribute" folder; do this last so we
-// make sure to get the new JAR file that we just built
-build << {
-	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
-	String toLoc = "../Distribute"
-	copy {
-		from fromLoc
-        into toLoc
-	}
 }
 

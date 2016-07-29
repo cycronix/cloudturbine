@@ -1,6 +1,3 @@
-defaultTasks 'build'
-
-apply plugin: 'java'
 
 // CTlib.jar will be used in building one or more Android programs;
 // since Android Studio doesn't fully support Java 8, include the following
@@ -14,64 +11,14 @@ dependencies {
 	compile group: 'commons-net', name: 'commons-net', version: '3.5'
 }
 
-//
-// Automatically execute clean before build
-//
-// This gets around a problem we had with making our "fat" JAR files; namely,
-// if there was a change in a dependency (in a CTlib file, for instance) but no
-// change in any source files of the current project, then the JAR file wasn't
-// being rebuilt.  To get around this, whenever a user asks to do a "build"
-// we force a "clean" to be executed first.
-//
-// NOTE: Include the line to specify that "clean" is run before "compileJava";
-//       otherwise, what was happening is that the Java files would be compiled
-//       and then "clean" was run right before "build" - so the build directory
-//       was being deleted!  See Kunal's forum response at:
-//       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
-//
-// Another way to do this is by creating a new task which will call the two
-// existing tasks.  Still need to include the "compileJava.mustRunAfter clean"
-// line when doing it this way.
-// task clean_build {
-// 	dependsOn clean, build
-// }
-//
-build.dependsOn clean
-compileJava.mustRunAfter clean
-
-// Here's how to change the default destination directory for the JAR file;
-// we won't do this (ie, we'll keep the default directory structure in place);
-// instead, we'll copy the JAR file to where it needs to go
-// tasks.withType(Jar) {
-//     destinationDir = file("$rootDir/Distribute")
-// }
-
-// Not sure it is needed, but we have the copy done last (specified by using
-// "<<") to make sure the new jar file gets copied, not the old/original one 
+// Copy JAR file to the CloudTurbineAndroid folder
 build << {
-	// 1. Copy JAR file to the top level Distribute folder
-	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
-	String toLoc = "../Distribute"
-	copy {
-		from fromLoc
-        into toLoc
-	}
-	// 2. Copy JAR file to the CloudTurbineAndroid folder
-	fromLoc = "${buildDir}/libs/CTlib.jar"
-	toLoc = "../../CloudTurbineAndroid/Common"
+	String fromLoc = "${buildDir}/libs/CTlib.jar"
+	String toLoc = "../../CloudTurbineAndroid/Common"
 	println "Copy library from " + fromLoc + " to " + toLoc
 	copy {
 		from fromLoc
         into toLoc
 	}
 }
-
-// Here's a different approach for the copy; problem with this is that the user
-// would need to specifically execute the 'buildLibrary' task to have this done.
-// defaultTasks 'buildLibrary'
-// task copyJarToDestination(type:Copy,dependsOn:[build]) {
-//     from "${buildDir}/libs/CTlib.jar"
-//     into "../../CloudTurbineAndroid/Common"
-// }
-// task buildLibrary (dependsOn: [build, copyJarToDestination])
 
