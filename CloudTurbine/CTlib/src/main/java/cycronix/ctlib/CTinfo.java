@@ -19,7 +19,7 @@ public class CTinfo {
 	
 	/**
 	 * Set debug mode for all CTlib methods.
-	 * @param dflag boolean true/false debug mode
+	 * @param setdebug boolean true/false debug mode
 	 */	
 	public static void setDebug(boolean setdebug) {
 		debug = setdebug;

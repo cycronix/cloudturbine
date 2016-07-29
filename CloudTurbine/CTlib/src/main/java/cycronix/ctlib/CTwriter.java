@@ -254,7 +254,7 @@ public class CTwriter {
 
 	/**
 	 * Write collected entries to .zip file
-	 * @param blockDuration sets time-interval of multi-point data block.  N/A for single-point data.
+	 * @param blockTime sets time-interval of multi-point data block.  N/A for single-point data.
 	 * @throws IOException
 	 */
 //	public void flush(boolean gapless) throws IOException {		// sync slows external writes?
