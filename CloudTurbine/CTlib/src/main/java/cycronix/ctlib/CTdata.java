@@ -109,42 +109,65 @@ public class CTdata {
 		switch(wordType) {
 			case 'n':
 			case 'N':
-				return timeRangeNumeric(wordType, 0., start, duration, tmode);
+				return timeRangeNumeric(wordType, start, duration, tmode);
 			default:
 				return timeRange(CTinfo.wordSize(wordType), 0., start, duration, tmode);
 		}
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------------------
 	// special timeRange method to handle "numeric" (string-numbers) data
-	// probably could fold it into regular timeRange method but that is getting complex
-	CTdata timeRangeNumeric(int wordSize, double incTimeI, double start, double duration, String tmode) { 
+	// TODO:  consolidate timeRangeNumeric() with timeRange() methods:
+	//			- generalize header logic (.wav etc)
+	//			- generalize extract String[] vs  byte[] chunks
+	//			- incTimeI is defunct?
+	
+	CTdata timeRangeNumeric(int wordSize, double start, double duration, String tmode) { 
 		// Note:  start, duration is requested time, versus timelist being actual available time
 
 		double tend = start + duration;		// for ref
 		CTdata ctd = new CTdata();
-
+		int nframe = datalist.size();
+		
 //		System.err.println("requested tstart: "+start+", requested duration: "+duration+", tend: "+tend);
-		for(int i=0; i<datalist.size(); i++) {
+		double Tprev=0;	String Dprev="";		// for duration=0 previous-Point
+		
+		for(int i=0; i<nframe; i++) {
 			double tbase = filelist.get(i).baseTime();
 			double time = timelist.get(i);
 			
-			CTinfo.debugPrint("filelist.get("+i+"): "+filelist.get(i).getMyPath()+", tbase: "+tbase);
+			CTinfo.debugPrint("filelist.get("+i+"): "+filelist.get(i).getMyPath()+", tbase: "+tbase+", time: "+time);
 			
 			String dds = new String(datalist.get(i));		// CSV comma separated string of values
 			String[] ddp = dds.split(",");
 			long count = ddp.length;
 
-			double dt = (time-tbase) / count;	// timelist(i) is point-time (block end time)
-			time -= dt*(count-1);			// adjust to start of multi-point block
+			double dt = 0;
+			if(count>1) {
+				dt = (time-tbase) / (count-1);		// timelist(i) is point-time (block end time)
+//				time -= dt*(count-1);				// adjust to start of multi-point block
+				time = tbase;						// start at tref=0, stop 1dt short
+			}
 			
-			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", ddp.length: "+ddp.length);
+			// not sure all the next/prev/oldest/newest logic is in here...
+			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count);
+
+			if(i==0) { Tprev = time; Dprev=ddp[0]; }	// initialize
 			for(int j=0; j<count; j++) {
 				double t = time+j*dt;
 //				System.err.println("t["+j+"]: "+t);
-				if(t>=start && t<=tend)	{					// trim to requested start+duration
-					ctd.add((time+j*dt), ddp[j].getBytes());
-//					System.err.println("grab t: "+t+", d: "+ddp[j]+", date: "+new Date((long)(t*1000)));
+				if((t>tend && duration==0)) {		// single-point case
+					ctd.add(Tprev, Dprev.getBytes());
+//					System.err.println("d=0 grab t: "+t+", ptime: "+Tprev+", d: "+Dprev+", j: "+j+", count: "+count);
 				}
+				else if(t>=start && t<=tend) {		// trim to requested start+duration
+					double ptime = time+j*dt;
+					ctd.add(ptime, ddp[j].getBytes());
+//					System.err.println("grab t: "+t+", ptime: "+ptime+", d: "+ddp[j]+", date: "+new Date((long)(t*1000)));
+				}
+				Tprev = t;				// save previous 
+				Dprev = ddp[j];
+				
 				if(t >= tend) break;
 			}
 			if(time >= tend) break;
@@ -153,6 +176,7 @@ public class CTdata {
 		return ctd;
 	}
 	
+	//-----------------------------------------------------------------------------------------------------------------------------
 	// timeRange from binary data
 	CTdata timeRange(int wordSize, double incTimeI, double start, double duration, String tmode) { 
 		CTdata ctd = new CTdata();
@@ -167,29 +191,31 @@ public class CTdata {
 	
 		if(start==0. || duration < 0.) end = Double.MAX_VALUE;		// use full range if relative timestamp 
 		int nframe = datalist.size();
-		
-		// deduce incremental point times within packed binary frame as average over frame time(s)
-		incTime = incTimeI;			// use by default
-//		if(wordSize>1 && incTimeI == 0. && nframe > 1 && filelist.size()<nframe) {	
-		if(wordSize>1 && incTimeI == 0. && nframe > 1) {	// old-fashioned way to preserve old multi-block PCM CTdata?
-			int count=0;
-			prevtime = 0;
-			for(int i=0; i<(nframe-1); i++) {
-				double time = timelist.get(i);			// skip dupes
-				if(time == prevtime) continue;
-				prevtime = time; 
-				if(datalist.get(i) != null)					// bleh
-					count += datalist.get(i).length;		// count all points (less last frame)
-//				System.err.println("frame time["+i+"]: "+timelist.get(i));
+
+		boolean deduceIncTime=true;		// obsolete?  still used for audio.pcm, but audio plays, scrolling is glumpy...	
+		if(deduceIncTime) {
+			// deduce incremental point times within packed binary frame as average over frame time(s)
+			incTime = incTimeI;			// use by default
+			if(wordSize>1 && incTimeI == 0. && nframe > 1) {	// old-fashioned way to preserve old multi-block PCM CTdata?
+				int count=0;
+				prevtime = 0;
+				for(int i=0; i<(nframe-1); i++) {
+					double time = timelist.get(i);			// skip dupes
+					if(time == prevtime) continue;
+					prevtime = time; 
+					if(datalist.get(i) != null)					// bleh
+						count += datalist.get(i).length;		// count all points (less last frame)
+					//				System.err.println("frame time["+i+"]: "+timelist.get(i));
+				}
+				count /= wordSize;
+				double timerange = timelist.get(nframe-1) - timelist.get(0);
+				incTime =  timerange / count;	// avg all frames
+				//			System.err.println("timeRangeNM1: "+timelist.get(nframe-1)+", nframe: "+nframe+", incTime: "+incTime+", count: "+count+", timerange: "+timerange);
 			}
-			count /= wordSize;
-			double timerange = timelist.get(nframe-1) - timelist.get(0);
-			incTime =  timerange / count;	// avg all frames
-//			System.err.println("timeRangeNM1: "+timelist.get(nframe-1)+", nframe: "+nframe+", incTime: "+incTime+", count: "+count+", timerange: "+timerange);
+			if(wordSize>1 && incTime == 0. && filelist.size() < nframe) {		// can happen with single nframe==1 (bleh)
+				System.err.println("WARNING: cannot derive incremental point times, using constant over frame");
+			}	
 		}
-		if(wordSize>1 && incTime == 0. && filelist.size() < nframe) {		// can happen with single nframe==1 (bleh)
-			System.err.println("WARNING: cannot derive incremental point times, using constant over frame");
-		}	
 		
 		prevtime = 0;
 		String oldZipFile=null;
@@ -247,11 +273,11 @@ public class CTdata {
 						if(thisZipFile.equals(oldZipFile)) 	refTime = prevtime;						// multi-block per Zip
 //						else								refTime = file.fileTime(thisZipFile);	// single (or first) block per Zip
 						else								refTime = file.baseTime();
-//System.err.println("refTime: "+refTime+" VS baseTime: "+file.baseTime());
+
 						if(refTime > 0) {
 							double interval = time - refTime;
-							dt = interval / count;
-//							dt = interval / (count+1);			// account for last interval past last point...?
+//							dt = interval / count;
+							if(count>1) dt = interval / (count-1);		// block start-time at 0, end-time at Tblock*(n-1)/n
 							CTinfo.debugPrint("thisZip: "+thisZipFile+", oldZipFile: "+oldZipFile+", refTime: "+refTime+", prevtime: "+prevtime+", interval: "+interval+", dt: "+dt);
 						}
 					}
@@ -276,16 +302,18 @@ public class CTdata {
 				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");
 				
 //				CTinfo.debugPrint("time: "+time+", dt: "+dt+", adjTime: "+(time - dt*count));
-				double endBlock = time;		// for ref (round off error)
-//				time -= dt*count;			// adjust to start of multi-point block
-				time -= dt*(count-1);			// adjust to start of multi-point block
-
+//				double endBlock = time;		// for ref (round off error)
+				
+//				time -= dt*count;		// adjust to start of multi-point block
+//				time -= dt*(count-1);	// adjust to start of multi-point block
+				time = refTime;		// MJM 7/28/16:  blocks start at 0-relative time for consistency with non-block times
+				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				
 				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt));
 				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
-//					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", incTime: "+incTime);
-					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
+					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", dt: "+dt);
+//					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
 					if(time < start) continue;
 					else if(time <= end) {
 						int idx = j + waveHeader/wordSize;
@@ -305,7 +333,8 @@ public class CTdata {
 				}
 				oldZipFile = thisZipFile;		
 			}
-			if(time >= end) break;		// double-check t>end
+//			if(time >= end) break;		// double-check t>end
+			if(time > end) break;		// double-check t>end
 
 			prevtime = time; 
 		}

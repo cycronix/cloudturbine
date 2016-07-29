@@ -398,11 +398,10 @@ public class CTreader {
 					if(listOfFolders[ichk].fileTime() < getftime) continue;	// keep looking
 				}
 				
-				if(!folder.isFileFolder()) {		// folder-of-folders
-					CTFile[] listOfFiles = folder.listFiles();
-					for(int j=0; j<listOfFiles.length; j++) {
-						gotdata += gatherFiles(listOfFiles[j], ctmap);
-					}
+				if(!folder.isFileFolder()) {						// folder-of-folders
+//					getDataMap(ctmap, folder, getftime, duration, rmode);	// recurse getDataMap() instead?  NG
+					CTFile[] listOfFiles = folder.listFiles();		// exhaustive search one-deep (bleh)
+					for(int j=0; j<listOfFiles.length; j++) gotdata += gatherFiles(listOfFiles[j], ctmap);
 				}
 				else	gotdata += gatherFiles(folder, ctmap);		// data-file folder
 			}
@@ -431,28 +430,20 @@ public class CTreader {
 		long hasdata = 0;
 
 		CTFile[] listOfFiles = folder.listFiles();			// get list of files in folder
-//		CTinfo.debugPrint(folder.getName()+", listOfFiles.length: "+listOfFiles.length);
 		if(listOfFiles == null) return 0;
 		for(int j=0; j<listOfFiles.length; j++) {
 			CTFile file = listOfFiles[j];
-//			CTinfo.debugPrint("check file: "+file.getName()+", isFile: "+file.isFile());
 			if(file.isFile()) {
 				String fileName =  file.getName();
-//				CTinfo.debugPrint("check fileName: "+fileName);
 				if(!cm.checkName(fileName)) continue;		// not a match 
 				byte[] data = null;
 				if(!timeOnly) data = file.read();
-//				CTinfo.debugPrint("fileName: "+fileName+", data.length: "+data.length);
  				if(timeOnly || (data != null && data.length>0)) { 
-//					cm.add(fileName, new CTdata(ftime, data));
 					if(file.isTFILE()) fileName = file.getName();
 					cm.add(fileName, new CTdata(ftime, data, file));			// squirrel away CTfile ref for timerange info??
 					if(data != null) hasdata+=data.length;
-//					cm.add( fileName,processW(ftime, data, swapFlag, fileType(fileName)) );
 					long dlen = data!=null?data.length:0;
 					CTinfo.debugPrint("Put file: "+folder+"/"+fileName+", size: "+dlen+", "+new Date((long)(1000*ftime))+", from zipFile: "+file.getMyZipFile());
-//					CTinfo.debugPrint("myZipFile: "+file.getMyZipFile()+", myPath: "+file.getMyPath());
-					// extract rootTime from myZipFile, add to CTdata object... then in CTdata TimeRange use for dt in block data
 				}
 			} 
 		}

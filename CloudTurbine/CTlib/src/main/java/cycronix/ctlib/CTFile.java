@@ -214,6 +214,9 @@ class CTFile extends File {
 				clist[i] = new CTFile((String) sfiles[i], files, myZipFile);	
 			}
 
+			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
+//			System.err.println("sorted zips:");
+//			for(CTFile c:clist) System.err.println(c);
 			return clist;
 
 		case ZENTRY:				// zip folder
@@ -639,7 +642,7 @@ class CTFile extends File {
 			} catch(NumberFormatException e) {
 				continue;		// keep looking?
 			}
-//			System.err.println("fileTime sumtime: "+sumtime);
+//			System.err.println("file: "+fname+", fileTime sumtime: "+sumtime);
 
 			if(thistime >= 1000000000000L) {	// absolute msec
 				ftime = (double)sumtime / 1000.;

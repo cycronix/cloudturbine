@@ -54,7 +54,7 @@ public class CTperf {
 			long time = System.currentTimeMillis();
 			long dt = 10;
 			long startTime = time;
-			if(blockMode) ctw.setBlockMode(dt*blocksize);			// block duration (msec)
+			if(blockMode) ctw.setBlockMode(blockMode);			// block duration (msec)
 			//			time = 0;									// try absolute 0-based time						
 			// loop and write some output
 			if(blockMode) ctw.setTime(time);			// blockMode:  set time at start of block

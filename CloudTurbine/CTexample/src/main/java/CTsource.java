@@ -3,42 +3,54 @@
 import cycronix.ctlib.*;
 
 public class CTsource {
+	static int nsamp = 1000;			// number of data samples per chan
+	static int nchan = 10;				// number of channels 
+	static long dt = 1000L;				// msec per point
+	static int blockPts=100;			// flush once per N points
+	
 	public static void main(String[] args) {
-		int nsamp = 40;					// number of data samples per chan
-		int nchan = 1;						// number of channels 
-		int blockPts=10;					// flush once per N data points
-		long blockInterval=10000;			// 10 sec (10000msec) per block
-		
-		String outputSource="CTsource";		// name of output source folder
-		if(args.length > 0) outputSource = args[0];
-		
+		// run each permutation of blockMode, zipMode, numMode
+		runTest("CTbin",		false,	false,	false);
+		runTest("CTblockbin",	true,	false,	false);
+		runTest("CTblockzipbin",true,	true,	false);
+		runTest("CTzipbin",		false,	true,	false);
+		runTest("CTnum",		false,	false,	true);
+		runTest("CTblocknum",	true,	false,	true);
+		runTest("CTblockzipnum",true,	true,	true);
+		runTest("CTzipnum",		false,	true,	true);
+		System.err.println("Done.  Output nsamp: "+nsamp+", nchan: "+nchan+", points/block: "+blockPts);
+	}
+	
+	static void runTest(String modeName, boolean blockMode, boolean zipMode, boolean numMode) {
 		try {
-			CTwriter ctw = new CTwriter("CTexample/"+outputSource);		// new CTwriter at root/source folder
+			CTwriter ctw = new CTwriter("CTsource/"+modeName);		// new CTwriter at root/source folder
 
-//			ctw.setBlockMode(true); 									// pack into binary blocks? (linear timestamps per block)
-			ctw.setBlockMode(blockInterval); 							// pack into binary blocks? (linear timestamps per block)
-
+			ctw.setBlockMode(blockMode); 				// pack into binary blocks? (linear timestamps per block)
 			ctw.setTimeRelative(true);									// use relative timestamps?
-			ctw.setZipMode(true);
+			ctw.setZipMode(zipMode);
+			CTinfo.setDebug(false);
 //			ctw.autoFlush(10.); 										// auto-flush every N sec 
 			
 //			long iTime = System.currentTimeMillis();
-			long iTime = 1460000000000L;										// nice even start time (msec)
-			ctw.setTime(iTime);										// nominal integer (1000msec) time increment 
-			// loop and write some output
-			for(int i=1; i<=nsamp; i++) {							// output to nfile
-//				ctw.setTime(iTime+=1000);							// msec (un-needed if blockInterval set
-				for(int j=0; j<nchan; j++) ctw.putData("c"+j, new Float(i+j));	// nchan per file
-//				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".num", ""+(new Float(i+j)));	// try numeric format
+			long iTime = 1460000000000L;								// msec resolution
 
-				if((i%blockPts)==0) ctw.flush();
-//					ctw.flush(blockInterval);		// flush one per N
+			// loop and write some output
+			for(int i=1; i<=nsamp; i++,iTime+=dt) {						// output to nfile
+				ctw.setTime(iTime);										// msec (blocks ignore intermediate timestamps)
+				
+				for(int j=0; j<nchan; j++) {		// nchan per time-step
+					if(numMode) ctw.putData("c"+j+".num", ""+(new Float(i+j)));		// numeric format
+					else		ctw.putData("c"+j, new Float(i+j));					// binary format
+				}
+
+				if((i%blockPts)==0) 				// flush one per N (no-op if not block/zip mode)
+//					ctw.flush(iTime);				// explicitly set block endTime (handy for when single-putData array
+					ctw.flush();					// implicitly let blockDuration = (lastTime-firstTime)
 			}
-			ctw.flush();				// clean up
+			ctw.flush();												// clean up
 
 		} catch(Exception e) {
 			System.err.println("Exception: "+e);
 		} 
-		System.err.println("Done.  Output nsamp: "+nsamp+", nchan: "+nchan+", points/block: "+blockPts);
 	}
 }
