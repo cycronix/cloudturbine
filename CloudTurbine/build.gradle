@@ -98,6 +98,11 @@ subprojects {
         source = sourceSets.main.allJava
         destinationDir = new File("$rootDir/JavaDoc/" + project.name)
 	    options.links("http://docs.oracle.com/javase/8/docs/api/");
+	    // Exclude NanoHTTPD.java (used in CTserver project) for two reasons:
+	    //   1. It produces Javadoc errors (when using Java 8)
+	    //   2. We don't want to imply that we support NanoHTTPD.java, even
+	    //      though it is distributed with the CloudTurbine software
+	    exclude "**/NanoHTTPD.java"
 	    // To include everything from private level and up in the documentation
 	    // options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PRIVATE
     }
