@@ -71,6 +71,7 @@ public class CTreader {
 	}
 	
 	boolean timeOnly=false;
+	@Deprecated
 	public void setTimeOnly(boolean tflag) {		// clumsy...  
 //		timeOnly = tflag;							// doesn't work for blockdata where time is derived from block-interval/points
 	}
