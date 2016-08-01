@@ -322,11 +322,20 @@ public class CTdata {
 						ctd.add(time, barray);
 					}
 					else if((duration == 0) && (time > end)) {		// special at-or-before
-						int idx = (j>0)?(j-1):0;
+						int idx = j-1;
+						if(j==0 && i>0) {
+							data = datalist.get(i-1);
+							idx = count-2;
+						}
+						if(idx < 0) idx=0;
+						else		time -= dt;
+//						int idx = (j>0)?(j-1):0;
+
 						idx += waveHeader/wordSize;
 						byte[] barray = Arrays.copyOfRange(data, idx*wordSize, (idx+1)*wordSize);
 //						System.err.println("ctd add at-or-before");;
 						ctd.add(time, barray);
+						break;
 					}
 					
 					if(time >= end) break;		// double-check t>end
