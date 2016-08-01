@@ -388,20 +388,25 @@ public class CTreader {
 			// one-pass, gather list of candidate folders
 			for(int i=0; i<listOfFolders.length; i++) {						// find range of eligible folders 
 				CTFile folder = listOfFolders[i];
+//				System.err.println("CTreader checking folder: "+folder.getMyPath());
 				if(i>1) {													// after end check
-					double priorftime;					
-					priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?
+					double priorftime;	
+					if(duration == 0.) 	priorftime = listOfFolders[i].fileTime();	// can't be any following if duration is zero
+					else 				priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?
 					if(priorftime > endtime) break;							// done	
 				}
 
-				int ichk = i+2;		// was +1, include prior frame for possible "prev" request
+				int ichk = i+1;		
+				if(rmode.equals("prev")) ichk = i+2;	// include prior frame for "prev" request
 				if(ichk<listOfFolders.length) {								// before start check
 					if(listOfFolders[ichk].fileTime() < getftime) continue;	// keep looking
 				}
 				
+//				System.err.println("CTreader got candidate folder: "+folder.getMyPath());
 				if(!folder.isFileFolder()) {						// folder-of-folders
 //					getDataMap(ctmap, folder, getftime, duration, rmode);	// recurse getDataMap() instead?  NG
 					CTFile[] listOfFiles = folder.listFiles();		// exhaustive search one-deep (bleh)
+//					System.err.println("CTreader diving into subfolder, length: "+listOfFiles.length);
 					for(int j=0; j<listOfFiles.length; j++) gotdata += gatherFiles(listOfFiles[j], ctmap);
 				}
 				else	gotdata += gatherFiles(folder, ctmap);		// data-file folder
