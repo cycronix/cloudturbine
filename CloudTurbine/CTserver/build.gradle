@@ -53,10 +53,10 @@ dependencies {
     compile name: 'CTlib'
 }
 
-// Copy JAR file to the AndroidCode folder
+// Copy JAR file to the CloudTurbineAndroid folder
 build << {
 	String fromLoc = "${buildDir}/libs/CTserver.jar"
-	String toLoc = "../../AndroidCode/Common"
+	String toLoc = "../../CloudTurbineAndroid/Common"
 	println "Copy library from " + fromLoc + " to " + toLoc
 	copy {
 		from fromLoc

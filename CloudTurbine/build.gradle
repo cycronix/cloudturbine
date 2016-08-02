@@ -89,7 +89,7 @@ subprojects {
     // defaultTasks 'buildLibrary'
     // task copyJarToDestination(type:Copy,dependsOn:[build]) {
     //     from "${buildDir}/libs/CTlib.jar"
-    //     into "../../AndroidCode/Common"
+    //     into "../../CloudTurbineAndroid/Common"
     // }
     // task buildLibrary (dependsOn: [build, copyJarToDestination])
     
