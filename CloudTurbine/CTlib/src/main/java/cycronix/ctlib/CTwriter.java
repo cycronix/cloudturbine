@@ -477,9 +477,16 @@ public class CTwriter {
 	 * @param data parameter data
 	 * @throws Exception
 	 */
-	public void putData(String outName, double data) throws Exception {				
-		if(blockMode)	addData(outName, data);		
-		else			putData(outName, Double.valueOf(data).toString().getBytes());
+	public void putData(String outName, double data) throws Exception {	
+		if(outName.endsWith(".f64")) {			// enforce binary mode
+			if(blockMode)	addData(outName, data);		
+			else			putData(outName, orderedByteArray(8).putDouble(data).array());
+		}
+		else {
+			long ldata = (long)data;
+			if(data==ldata) putData(outName, Long.valueOf(ldata).toString());	// trim trailing zeros
+			else			putData(outName, Double.valueOf(data).toString());
+		}
 	}
 	private void addData(String outName, double data) throws Exception {
 		String cname = outName;
@@ -494,8 +501,15 @@ public class CTwriter {
 	 * @throws Exception
 	 */
 	public void putData(String outName, float data) throws Exception {
-		if(blockMode)	addData(outName, data);		
-		else			putData(outName, Float.valueOf(data).toString().getBytes());
+		if(outName.endsWith(".f32")) {			// enforce binary mode
+			if(blockMode)	addData(outName, data);		
+			else			putData(outName, orderedByteArray(4).putFloat(data).array());
+		}
+		else {
+			long ldata = (long)data;
+			if(data==ldata) putData(outName, Long.valueOf(ldata).toString());	// trim trailing zeros
+			else			putData(outName, Float.valueOf(data).toString());
+		}
 	}
 	private void addData(String outName, float data) throws Exception {
 		String cname = outName;
@@ -510,8 +524,12 @@ public class CTwriter {
 	 * @throws Exception
 	 */
 	public void putData(String outName, long data) throws Exception {
-		if(blockMode)	addData(outName, data);		
-		else			putData(outName, Long.valueOf(data).toString().getBytes());
+		if(outName.endsWith(".i64")) {			// enforce binary mode
+			if(blockMode)	addData(outName, data);		
+			else			putData(outName, orderedByteArray(8).putLong(data).array());
+		}
+		else				putData(outName, Long.valueOf(data).toString());
+
 	}
 	private void addData(String outName, long data) throws Exception {
 		String cname = outName;
@@ -526,8 +544,11 @@ public class CTwriter {
 	 * @throws Exception
 	 */
 	public void putData(String outName, int data) throws Exception {
-		if(blockMode)	addData(outName, data);		
-		else			putData(outName, Integer.valueOf(data).toString().getBytes());
+		if(outName.endsWith(".i32")) {			// enforce binary mode
+				if(blockMode)	addData(outName, data);		
+				else			putData(outName, orderedByteArray(4).putInt(data).array());
+		}
+		else					putData(outName, Integer.valueOf(data).toString());
 	}
 	private void addData(String outName, int data) throws Exception {
 		String cname = outName;
@@ -542,8 +563,11 @@ public class CTwriter {
 	 * @throws Exception
 	 */
 	public void putData(String outName, short data) throws Exception {
-		if(blockMode)	addData(outName, data);		
-		else			putData(outName, Integer.valueOf(data).toString().getBytes());
+		if(outName.endsWith(".i16")) {			// enforce binary mode
+			if(blockMode)	addData(outName, data);		
+			else			putData(outName, orderedByteArray(2).putShort(data).array());
+		}
+		else				putData(outName, Short.valueOf(data).toString());
 	}
 	private void addData(String outName, short data) throws Exception {
 		String cname = outName;

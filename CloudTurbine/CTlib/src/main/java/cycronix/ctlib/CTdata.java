@@ -226,9 +226,10 @@ public class CTdata {
 			CTinfo.debugPrint("frame: "+i+", tframe: "+time+", nframe: "+nframe+", start: "+start+", end: "+end);
 			if(time == prevtime) continue;				// skip dupes		
 			
-			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time);
+			int count = datalist.get(i).length/wordSize;
+			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time+", count: "+count);
 
-			if(wordSize <= 1) {							// full intact frames 
+			if(wordSize <= 1 || count<=1) {							// full intact frames 
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				if(tmode.equals("prev")) { start = end; end = start - duration; }		// mjm 4/27/16
 				
@@ -252,7 +253,7 @@ public class CTdata {
 			else {			//  multi-point blocks
 				int waveHeader = filelist.get(i).getName().endsWith(".wav")?44:0;		// skip audio.wav header (44 bytes)
 				byte[] data = datalist.get(i);
-				int count = 0;
+				count = 0;
 				if(data == null) {
 					ctd.add(time, (byte[]) null);			// time-only request
 					return ctd;
@@ -274,7 +275,7 @@ public class CTdata {
 //						else								refTime = file.fileTime(thisZipFile);	// single (or first) block per Zip
 						else								refTime = file.baseTime();
 
-						if(refTime > 0) {
+						if(refTime > 0 && count>1) {
 							double interval = time - refTime;
 //							dt = interval / count;
 							if(count>1) dt = interval / (count-1);		// block start-time at 0, end-time at Tblock*(n-1)/n
@@ -295,9 +296,9 @@ public class CTdata {
 					CTinfo.debugPrint("got WaveHeader! sampRate: "+value+", dt: "+dt+", totalcount: "+count);
 				}
 				
-				if(dt == 0.) {
+				if(dt == 0. && count>1) {
 					dt = incTime;		// backup way for old multi-block PCM frames
-					CTinfo.debugPrint("CTdata, blockdata zero zip-to-entry dt, using backup incTime: "+incTime);
+					CTinfo.debugPrint("CTdata, blockdata zero dt, using backup incTime: "+incTime+", count: "+count);
 				}
 				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");
 				
@@ -310,7 +311,7 @@ public class CTdata {
 				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				
-				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt));
+				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count);
 				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
 					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", dt: "+dt);
 //					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
@@ -342,9 +343,7 @@ public class CTdata {
 				}
 				oldZipFile = thisZipFile;		
 			}
-//			if(time >= end) break;		// double-check t>end
 			if(time > end) break;		// double-check t>end
-
 			prevtime = time; 
 		}
 		return ctd;

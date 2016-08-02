@@ -104,7 +104,6 @@ public class CTmap extends TreeMap<String,CTdata>{
 		    CTdata tdata = entry.getValue();
 			if(tdata != null) 
 				tdata = tdata.timeRange(CTinfo.fileType(cname), tstart, tdur, tmode);
-//				tdata = tdata.timeRange(CTinfo.wordSize(CTinfo.fileType(cname)), tstart, tdur, tmode);
 
 			this.put(cname, tdata);
 		}

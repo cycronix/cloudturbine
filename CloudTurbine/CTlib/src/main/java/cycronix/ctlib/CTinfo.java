@@ -69,7 +69,7 @@ public class CTinfo {
 	 * @see #fileType(String,char)
 	 */
 	public static char fileType(String fname) {
-		return fileType(fname, 's');
+		return fileType(fname, 'n');			// was 's'
 	}
 	
 	/**
