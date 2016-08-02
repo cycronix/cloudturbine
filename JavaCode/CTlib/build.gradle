@@ -11,10 +11,10 @@ dependencies {
 	compile group: 'commons-net', name: 'commons-net', version: '3.5'
 }
 
-// Copy JAR file to the CloudTurbineAndroid folder
+// Copy JAR file to the AndroidCode folder
 build << {
 	String fromLoc = "${buildDir}/libs/CTlib.jar"
-	String toLoc = "../../CloudTurbineAndroid/Common"
+	String toLoc = "../../AndroidCode/Common"
 	println "Copy library from " + fromLoc + " to " + toLoc
 	copy {
 		from fromLoc
