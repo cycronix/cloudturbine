@@ -138,8 +138,8 @@ public class CTdata {
 			
 			CTinfo.debugPrint("filelist.get("+i+"): "+filelist.get(i).getMyPath()+", tbase: "+tbase+", time: "+time);
 			
-			String dds = new String(datalist.get(i));		// CSV comma separated string of values
-			String[] ddp = dds.split(",");
+			String dds = new String(datalist.get(i));				// CSV comma separated string of values
+			String[] ddp = dds.replaceFirst("^,","").split(",");	// skip leading comma if present
 			long count = ddp.length;
 
 			double dt = 0;

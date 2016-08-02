@@ -58,6 +58,7 @@ public class CTwriter {
 	private long autoFlush=Long.MAX_VALUE;	// auto-flush subfolder time-delta (msec)
 	private long lastFtime=0;
 	private long thisFtime=0;
+	private long prevFtime=0;				// prior frame time (for autoflush)
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
@@ -113,6 +114,7 @@ public class CTwriter {
 	 * Automatically flush data (no-op in non-zipfile mode)
 	 * @param iautoflush interval (msec) at which to flush data to new zip file
 	 */
+	@Deprecated
 	public void autoFlush(long iautoflush) {
 		if(iautoflush == 0) autoFlush = Long.MAX_VALUE;
 		else				autoFlush = iautoflush;						// msec
@@ -122,6 +124,7 @@ public class CTwriter {
 	 * Automatically flush data (no-op in non-zipfile mode)
 	 * @param iautoflush interval (sec) at which to flush data to new zip file
 	 */
+	@Deprecated
 	public void autoFlush(double iautoflush) {
 		autoFlush = (long)(iautoflush * 1000.);			// convert to msec
 	}
@@ -148,7 +151,19 @@ public class CTwriter {
 	 * @param bflag true/false set block mode (default: false)
 	 */
 	public void setBlockMode(boolean bflag) {
+		setBlockMode(bflag, false, 0L);
+	}
+	public void setBlockMode(boolean bflag, boolean zflag) {
+		setBlockMode(bflag, zflag, 0L);
+	}
+	public void setBlockMode(boolean bflag, boolean zflag, double iautoFlush) {
+		setBlockMode(bflag, zflag, (long)(iautoFlush * 1000.));
+	}
+	public void setBlockMode(boolean bflag, boolean zflag, long iautoFlush) {
 		blockMode = bflag;
+		zipFlag = zflag;
+		if(iautoFlush == 0) autoFlush = Long.MAX_VALUE;
+		else				autoFlush = iautoFlush;				// msec
 	}
 	
 	/**
@@ -175,6 +190,7 @@ public class CTwriter {
 	 * set whether output files are to be zipped.  
 	 * @param zipflag zip files true/false (default: true)
 	 */
+	@Deprecated
 	public void setZipMode(boolean zipflag) {
 		zipFlag = zipflag;
 	}
@@ -266,7 +282,8 @@ public class CTwriter {
 			// if data has been queued in blocks, write it out once per channel before normal flush
 			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {		// entry keys are by name; full block per channel per flush
 				CTinfo.debugPrint("flush block: "+e.getKey()+" at time: "+thisFtime);
-				writeData(thisFtime, e.getKey(), e.getValue().toByteArray());
+//				writeData(thisFtime, e.getKey(), e.getValue().toByteArray());
+				writeData(prevFtime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
 			}
 			blockData.clear();
 
@@ -345,7 +362,7 @@ public class CTwriter {
 		// fTime:  manually set time (0 if use autoTime)
 		// thisFtime:  this frame-entry time, set to fTime each entry
 		// rootTime:  parent folder (zip) time, set to match first add/put frame-entry time
-		
+		prevFtime = thisFtime;
 		thisFtime = fTime;
 		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
 
@@ -366,12 +383,12 @@ public class CTwriter {
 	private HashMap<String, ByteArrayOutputStream>blockData = new HashMap<String, ByteArrayOutputStream>();
 
 	private synchronized void addData(String name, byte[] bdata) throws Exception {
-		
+		prevFtime = thisFtime;
 		thisFtime = fTime;
 		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
 
-		if(lastFtime == 0) lastFtime = thisFtime;				// initialize
-		else if((thisFtime - lastFtime) >= autoFlush) {
+		if(lastFtime == 0) lastFtime = thisFtime;				// initialize	
+		else if((thisFtime - lastFtime) >= autoFlush) {			// autoFlush prior data (at prior thisFtime!)
 			CTinfo.debugPrint("addData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
@@ -463,12 +480,14 @@ public class CTwriter {
 	 * @throws Exception
 	 */
 	public void putData(String outName, String data) throws Exception {
-		if(blockMode)	addData(outName, data);								// WARNING: blockMode strings don't parse well in CTreader
+		if(blockMode)	addData(outName, data);						
 		else			putData(outName, data.getBytes());
 	}
 	private void addData(String outName, String data) throws Exception {
-		if(blockData.get(outName) != null) 	addData(outName, (","+data).getBytes());	// comma delimit multi-string addData
-		else					 			addData(outName, data.getBytes());
+		System.err.println("addData; outName: "+outName+"; blockData: "+blockData.get(outName)+"; data: "+data);
+//		if(blockData.get(outName) != null) 	addData(outName, (","+data).getBytes());	// comma delimit multi-string addData
+//		else					 			addData(outName, data.getBytes());
+		addData(outName,(data+",").getBytes());
 	}
 	
 	/** 
