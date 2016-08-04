@@ -198,7 +198,7 @@ public class CTwriter {
 	/** 
 	 * set output files to be zipped setting compression level
 	 * @param zipflag zip mode true/false (default: true)
-	 * @param clevel zip compression level (1=none, 9-max, 10=auto-gzip).  default=1: best-speed
+	 * @param clevel zip compression level (0=none, 1-fastest, 9-max, 10=auto-gzip).  default=1
 	 */
 	public void setZipMode(boolean zipflag, int clevel) {
 		if(compressLevel == 10) setZipMode(zipflag, 0, true);
@@ -484,7 +484,7 @@ public class CTwriter {
 		else			putData(outName, data.getBytes());
 	}
 	private void addData(String outName, String data) throws Exception {
-		System.err.println("addData; outName: "+outName+"; blockData: "+blockData.get(outName)+"; data: "+data);
+//		System.err.println("addData; outName: "+outName+"; blockData: "+blockData.get(outName)+"; data: "+data);
 //		if(blockData.get(outName) != null) 	addData(outName, (","+data).getBytes());	// comma delimit multi-string addData
 //		else					 			addData(outName, data.getBytes());
 		addData(outName,(data+",").getBytes());

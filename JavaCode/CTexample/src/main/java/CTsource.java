@@ -3,10 +3,10 @@
 import cycronix.ctlib.*;
 
 public class CTsource {
-	static int nsamp = 100;			// number of data samples per chan
+	static int nsamp = 1000;			// number of data samples per chan
 	static int nchan = 10;				// number of channels 
 	static long dt = 1000L;				// msec per point
-	static long blockPts=10;			// flush once per N points
+	static long blockPts=100;			// flush once per N points
 	
 	public static void main(String[] args) {
 		// run each permutation of blockMode, zipMode, numMode
@@ -25,11 +25,11 @@ public class CTsource {
 		try {
 			CTwriter ctw = new CTwriter("CTsource/"+modeName);		// new CTwriter at root/source folder
 
-			ctw.setBlockMode(blockMode); 				// pack into binary blocks? (linear timestamps per block)
-			ctw.setTimeRelative(true);					// use relative timestamps?
-			ctw.setZipMode(zipMode);
+			ctw.setBlockMode(blockMode,zipMode,blockPts*dt); 		// pack into binary blocks? (linear timestamps per block)
+//			ctw.setTimeRelative(true);								// use relative timestamps?
+//			ctw.setZipMode(zipMode);
 			CTinfo.setDebug(false);
-			ctw.autoFlush(blockPts*dt); 				// auto-flush every N sec 
+//			ctw.autoFlush(blockPts*dt); 				// auto-flush every N sec 
 			
 //			long iTime = System.currentTimeMillis();
 			long iTime = 1460000000000L;						// msec resolution
