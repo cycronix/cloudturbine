@@ -273,7 +273,7 @@ public class CTserver extends NanoHTTPD {
     			
     			CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     			if(tdata == null) {		// empty response for WebTurbine compatibility
-    				CTinfo.debugPrint("no such channel: "+source+chan);
+    				CTinfo.debugPrint("no such channel: "+source+File.separator+chan);
     				return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found"));
     			}
     			else {

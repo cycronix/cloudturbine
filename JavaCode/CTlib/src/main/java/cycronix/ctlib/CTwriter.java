@@ -48,13 +48,22 @@ public class CTwriter {
 	private ByteArrayOutputStream baos = null;
 	protected String destName;
 
-	protected boolean zipFlag=true;
+	protected boolean zipFlag=false;
 	protected boolean blockMode=false;
 	protected boolean byteSwap=false;		// false: Intel little-endian, true: Java/network big-endian
 	
 	private boolean gzipFlag=false;
 	private long fTime=0;
-	private long rootTime=0;
+	private long blockTime=0;				// parent (zip) folder time, sets start of block interval
+	
+	private long sourceTime=0;				// top-level absolute time for entire source (msec)
+	private long segmentTime=0;				// segment time, block subfolders relative to this.  
+	private String baseTimeStr="";			// string representation of sourceTime/segementTime
+	private boolean rebaseFlag=false;		// auto-rebase segmentTime
+	private long blocksPerSegment=100;		// auto new segment every so many blocks
+	private long flushCount=0;				// keep track of flushes
+	private boolean initBaseTime = true;	// first-time startup init flag
+
 	private long autoFlush=Long.MAX_VALUE;	// auto-flush subfolder time-delta (msec)
 	private long lastFtime=0;
 	private long thisFtime=0;
@@ -62,7 +71,7 @@ public class CTwriter {
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
-	private long blockDuration=0;			// if non-zero, blockMode block-duration (msec)
+//	private long blockDuration=0;			// if non-zero, blockMode block-duration (msec)
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
@@ -111,27 +120,44 @@ public class CTwriter {
 	}
 
 	/**
-	 * Automatically flush data (no-op in non-zipfile mode)
-	 * @param iautoflush interval (msec) at which to flush data to new zip file
+	 * Automatically flush data blocks
+	 * @param timePerBlock interval (msec) at which to flush data to new zip file
 	 */
-	@Deprecated
-	public void autoFlush(long iautoflush) {
-		if(iautoflush == 0) autoFlush = Long.MAX_VALUE;
-		else				autoFlush = iautoflush;						// msec
+	public void autoFlush(long timePerBlock) {
+		autoFlush(timePerBlock, blocksPerSegment);
 	}
 	
 	/** 
-	 * Automatically flush data (no-op in non-zipfile mode)
-	 * @param iautoflush interval (sec) at which to flush data to new zip file
+	 * Automatically flush data blocks
+	 * @param timePerBlock interval (sec) at which to flush data to new zip file
 	 */
-	@Deprecated
-	public void autoFlush(double iautoflush) {
-		autoFlush = (long)(iautoflush * 1000.);			// convert to msec
+	public void autoFlush(double timePerBlock) {
+		autoFlush(timePerBlock, blocksPerSegment);
 	}
-		
+	
+	/**
+	 * Automatically flush data blocks
+	 * @param timePerBlock interval (msec) at which to flush data to new zip file
+	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
+	 */
+	public void autoFlush(double timePerBlock, long iblocksPerSegment) {
+		autoFlush((long)(timePerBlock * 1000.), iblocksPerSegment);			// convert to msec	
+	}
+	
+	/**
+	 * Automatically flush data blocks
+	 * @param timePerBlock interval (msec) at which to flush data to new zip file
+	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
+	 */
+	public void autoFlush(long timePerBlock, long iblocksPerSegment) {
+		if(timePerBlock == 0) 	autoFlush = Long.MAX_VALUE;
+		else					autoFlush = timePerBlock;				// msec
+		blocksPerSegment = iblocksPerSegment;
+	}
+	
 	/**
 	 * set whether to use time-relative mode  
-	 * @param trflag flag true/false (default: false)
+	 * @param trflag flag true/false (default: true)
 	 */
 	public void setTimeRelative(boolean trflag) {
 		timeRelative = trflag;
@@ -151,19 +177,11 @@ public class CTwriter {
 	 * @param bflag true/false set block mode (default: false)
 	 */
 	public void setBlockMode(boolean bflag) {
-		setBlockMode(bflag, false, 0L);
+		setBlockMode(bflag, true);
 	}
 	public void setBlockMode(boolean bflag, boolean zflag) {
-		setBlockMode(bflag, zflag, 0L);
-	}
-	public void setBlockMode(boolean bflag, boolean zflag, double iautoFlush) {
-		setBlockMode(bflag, zflag, (long)(iautoFlush * 1000.));
-	}
-	public void setBlockMode(boolean bflag, boolean zflag, long iautoFlush) {
 		blockMode = bflag;
 		zipFlag = zflag;
-		if(iautoFlush == 0) autoFlush = Long.MAX_VALUE;
-		else				autoFlush = iautoFlush;				// msec
 	}
 	
 	/**
@@ -184,7 +202,7 @@ public class CTwriter {
 	public void setGZipMode(boolean gzipflag) {
 		gzipFlag = gzipflag;
 	}
-	
+	//------------------------------------------------------------------------------------------------
 	// various options (too many?) to set compression mode
 	/**
 	 * set whether output files are to be zipped.  
@@ -212,6 +230,22 @@ public class CTwriter {
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// segmentTime:  sets new time segment 
+	private void segmentTime(long iSegmentTime) {
+		if(initBaseTime) sourceTime = iSegmentTime;		// one-time set overall source time
+		segmentTime = iSegmentTime;
+		baseTimeStr = "";
+		if(timeRelative) {
+			if(blocksPerSegment <= 0) 	baseTimeStr = File.separator+sourceTime;		// disable segments
+			else						baseTimeStr = File.separator+sourceTime+File.separator+(segmentTime-sourceTime);
+		}
+			 	
+		rebaseFlag = false;					// defer taking effect until full-block on flush
+		initBaseTime = false;
+		CTinfo.debugPrint("setBaseTime: "+destPath+baseTimeStr);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	// 
 	/**
 	 * Set time for subsequent <code>putData()</code>.
@@ -230,6 +264,7 @@ public class CTwriter {
 	 */
 	public void setTime(long ftime) {
 		fTime = ftime;	
+		if(initBaseTime) segmentTime(ftime);				// ensure baseTime initialized
 	}
 
 	/**
@@ -237,15 +272,10 @@ public class CTwriter {
 	 * @param ftime time (sec)
 	 */
 	public void setTime(double ftime) {
-		fTime = (long)(ftime * 1000.);				// convert to msec (eventually carry thru sec)
+		setTime((long)(ftime * 1000.));				// convert to msec (eventually carry thru sec)
 	}
 	
 	//------------------------------------------------------------------------------------------------	
-	/**
-	  * Write collected entries to .zip file.  
-	  * <p> No-op for regular (non-zip) files.
-    */
-
    /*
     *
     *   Date      By	Description
@@ -253,7 +283,11 @@ public class CTwriter {
     * ----------  --	-----------
     * 02/06/2014  MJM	Created.
     */
-	
+	/**
+	 * Write collected entries to block (compacted) file
+	 * @throws IOException
+	 */
+/*	
 	public void flush() throws IOException {
 		flush(false,0L);
 	}
@@ -264,20 +298,22 @@ public class CTwriter {
 
 	// flush(blockTime) for case of single-putData array with non-zero duration
 	// Note: blockTime should be time of last point in block, e.g. blockStart + blockInterval*(blockSize-1)/blockSize
-	public void flush(long blockTime) throws IOException {
-		flush(false,blockTime);
+	public void flush(long blockEndTime) throws IOException {
+		flush(false,blockEndTime);
+	}
+*/
+
+//	public void flush(boolean gapless) throws IOException {		// sync slows external writes?
+//	public synchronized void flush(boolean gapless, long blockTime) throws IOException {	
+	
+	public void flush() throws IOException {
+		flush(false);
 	}
 
-	/**
-	 * Write collected entries to .zip file
-	 * @param blockTime sets time-interval of multi-point data block.  N/A for single-point data.
-	 * @throws IOException
-	 */
-//	public void flush(boolean gapless) throws IOException {		// sync slows external writes?
-	public synchronized void flush(boolean gapless, long blockTime) throws IOException {		
+	public synchronized void flush(boolean gapless) throws IOException {		
 		try {
 			long bcount = blockData.size();								// zero-based block counter:
-			if(bcount > 1 && blockTime > 0) thisFtime = blockTime;		
+//			if(bcount > 1 && blockEndTime > 0) thisFtime = blockEndTime;		
 
 			// if data has been queued in blocks, write it out once per channel before normal flush
 			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {		// entry keys are by name; full block per channel per flush
@@ -292,24 +328,28 @@ public class CTwriter {
 				writeToStream(destName, baos.toByteArray());
 			}
 			
-			if(trimTime > 0 && rootTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
-//				double trim = ((double)rootTime/1000.) - trimTime;			// relative??
+			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
+//				double trim = ((double)blockTime/1000.) - trimTime;			// relative??
 				double trim = ((double)System.currentTimeMillis()/1000.) - trimTime;
 				CTinfo.debugPrint("trimming at: "+trim);
 				dotrim(trim);			
 			}
 
-			lastFtime = thisFtime;								// remember last time flushed
+			lastFtime = thisFtime;						// remember last time flushed
 			
-			// default next folder-rootTime next point for gapless time
-			if(gapless && blockMode && (bcount>1) && (thisFtime>rootTime)) {
-				long dt = Math.round((double)(thisFtime-rootTime)/(bcount-1));
-				rootTime = thisFtime+dt;			
+			// default next folder-blockTime next point for gapless time
+			if(gapless && blockMode && (bcount>1) && (thisFtime>blockTime)) {
+				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
+				blockTime = thisFtime+dt;			
 			}
-			else			
-				rootTime = 0;						// reset to new root folder
+			else	blockTime = 0;						// reset to new root folder		
 			
-		} catch(Exception e) { 
+			flushCount++;
+			
+			if((blocksPerSegment>0) && ((flushCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
+				rebaseFlag = true;
+		} 
+		catch(Exception e) { 
 			System.err.println("flush failed"); 
 			e.printStackTrace(); 
 			throw new IOException("FTP flush failed: " + e.getMessage());
@@ -319,13 +359,15 @@ public class CTwriter {
 	//------------------------------------------------------------------------------------------------
 
 	// separate writeToStream from flush():  allows CTftp to over-ride this method for non-file writes
-	private boolean firstTime = true;
 	protected void writeToStream(String fname, byte[] bdata) throws IOException {
 		try {
-			if(firstTime==true) {
-				firstTime=false;
-				new File(destPath).mkdirs();  // mkdir here, not in constructor MJM 1/11/16
-			}
+//			if(firstTime==true) {
+//				firstTime=false;
+//				System.err.println("firstTime in writeToStream, baseTimeStr: "+baseTimeStr);
+//				new File(destPath+baseTimeStr).mkdirs();  // mkdir here, not in constructor MJM 1/11/16
+//			}
+			new File(fname).getParentFile().mkdirs();  // mkdir before every file write
+//			System.err.println("writeToStream: "+fname);
 			
 			if(gzipFlag) {		// special case, gzip(zip).  won't yet work with FTP 
 				OutputStream fos = new FileOutputStream(new File(fname+".gz"));
@@ -354,26 +396,31 @@ public class CTwriter {
 	public synchronized void putData(String outName, byte[] bdata) throws Exception {
 		// TO DO?:  deprecate following, use addData vs putData/blockmode?
 		if(blockMode) {				// in block mode, delay putData logic until full queue
-			CTinfo.debugPrint("addData at rootTime: "+rootTime+", thisFtime: "+thisFtime);
+			CTinfo.debugPrint("addData at blockTime: "+blockTime+", thisFtime: "+thisFtime);
 			addData(outName, bdata);
 			return;
 		}
 		
 		// fTime:  manually set time (0 if use autoTime)
 		// thisFtime:  this frame-entry time, set to fTime each entry
-		// rootTime:  parent folder (zip) time, set to match first add/put frame-entry time
+		// blockTime:  parent folder (zip) time, set to match first add/put frame-entry time
+//		if(fTime == 0) setTime(System.currentTimeMillis());		// side effect to init baseTime
 		prevFtime = thisFtime;
 		thisFtime = fTime;
-		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
+		if(thisFtime == 0) {
+			thisFtime = System.currentTimeMillis();
+			if(initBaseTime) segmentTime(thisFtime);		// catch alternate initialization
+		}
 
-		CTinfo.debugPrint("putData: "+outName+", thisFtime: "+thisFtime+", rootTime: "+rootTime+", fTime: "+fTime);
+		CTinfo.debugPrint("putData: "+outName+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime);
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize
 		else if((thisFtime - lastFtime) >= autoFlush) {
 			CTinfo.debugPrint("putData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
-		if(rootTime == 0) rootTime = thisFtime;
+		if(blockTime == 0) blockTime = thisFtime;
+		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
 
 		writeData(thisFtime, outName, bdata);
 	}
@@ -392,9 +439,10 @@ public class CTwriter {
 			CTinfo.debugPrint("addData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
-		if(rootTime == 0) rootTime = thisFtime;
+		if(blockTime == 0) blockTime = thisFtime;
+		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
 		
-		CTinfo.debugPrint("addData: "+name+", thisFtime: "+thisFtime+", rootTime: "+rootTime+", fTime: "+fTime);
+		CTinfo.debugPrint("addData: "+name+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime);
 
 		try {
 			ByteArrayOutputStream bstream = blockData.get(name);
@@ -413,11 +461,15 @@ public class CTwriter {
 	
 //	private void writeData(long time, String outName, byte[] bdata) throws Exception {		// sync makes remote writes pace slow???
 	private synchronized void writeData(long time, String outName, byte[] bdata) throws Exception {
-		CTinfo.debugPrint("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", rootTime: "+rootTime);
+		
+		CTinfo.debugPrint("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", blockTime: "+blockTime);
 		try {
+//			if(todoBaseTime) setBaseTime(time);				// ensure baseTime initialized
+			
+			//  zip mode:  queue up data in ZipOutputStream
 			if(zipFlag) {
 				if(zos == null) {    			
-					destName = destPath + File.separator + rootTime  + ".zip";
+					destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
 					CTinfo.debugPrint("create destName: "+destName);
 					baos = new ByteArrayOutputStream();
 					zos = new ZipOutputStream(baos);
@@ -425,7 +477,7 @@ public class CTwriter {
 				}
 //				zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
 
-				if(timeRelative) time = time - rootTime;		// relative timestamps
+				if(timeRelative) time = time - blockTime;		// relative timestamps
 				
 				String name = time+"/"+outName;			// always use subfolders in zip files
 				ZipEntry entry = new ZipEntry(name);
@@ -441,25 +493,22 @@ public class CTwriter {
 
 				CTinfo.debugPrint("PutZip: "+name+" to: "+destName);
 			}
+			// non zip mode:  write data to outputstream 
 			else {
 				// put first putData to rootFolder 
 				String dpath;
-				//				System.err.println("rootTime: "+rootTime+", time: "+time);
-				if(rootTime == time && !timeRelative) {		// top-level folder unless new time?
+				//				System.err.println("blockTime: "+blockTime+", time: "+time);
+				if(blockTime == time && !timeRelative) {		// top-level folder unless new time?
 					dpath = destPath + File.separator + time;
 					if(!blockMode) flush();	// absolute, non-zip, non-block data flush to individual top-level time-folders?
 				} else	{
-					if(timeRelative) time = time - rootTime;		// relative timestamps
-					dpath = destPath + File.separator + rootTime +  File.separator + time;
+					if(timeRelative) time = time - blockTime;		// relative timestamps
+					dpath = destPath + baseTimeStr + File.separator + (blockTime-segmentTime) +  File.separator + time;
 				}
 
-				new File(dpath).mkdirs();
+//				new File(dpath).mkdirs();		// move to writeToStream
 				destName = dpath + File.separator + outName;
 				writeToStream(destName, bdata);
-				//				FileOutputStream fos = new FileOutputStream(destName);
-				//				fos.write(bdata);
-				//				fos.close();
-
 				CTinfo.debugPrint("writeData: "+outName+" to: "+destName);
 			}
 		} catch(Exception e) {
@@ -640,7 +689,7 @@ public class CTwriter {
 	public boolean dotrim(double oldTime) {
 		
 		// validity checks (beware unwanted deletes!)
-		if(destPath == null || destPath.length() < 6) {
+		if(destPath == null || destPath.length() < 1) {		// was <6 ?
 			System.err.println("CTtrim Error, illegal parent folder: "+destPath);
 			return false;
 		}

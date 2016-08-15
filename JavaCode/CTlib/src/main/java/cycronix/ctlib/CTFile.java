@@ -96,6 +96,8 @@ class CTFile extends File {
 	private CTFile(String path, String myzipfile, String mypath) {
 		super(path);
 		myPath = new String(mypath);		// note:  here myPath is short zip-entry name (inconsistent)
+//		myPath = myzipfile.substring(0,myzipfile.lastIndexOf('.')) + File.separator + myPath;	// full effective zip entry path for relative timestamps to work
+
 		myZipFile = myzipfile;
 //		isFile = true;
 		fileType = FileType.ZFILE;
@@ -107,8 +109,8 @@ class CTFile extends File {
 		myZipFile = myzipfile;
 		myPath = new String(path);
     	myPath = myzipfile.substring(0,myzipfile.lastIndexOf('.')) + File.separator + myPath;	// full effective zip entry path for relative timestamps to work
-		
-		myFiles = files;				// this can clobber pre-existing files at this path, need to append
+
+    	myFiles = files;				// this can clobber pre-existing files at this path, need to append
 		if(files == null) fileType = FileType.ZFILE;
 		else			  fileType = FileType.ZENTRY;
 //		if(files == null) isFile=true;		// top-level files in zip
@@ -240,24 +242,12 @@ class CTFile extends File {
 			
 		default:				// conventional file...
 			File[] flist = super.listFiles();
-			try {
-//				File tf = new File(super.getCanonicalFile());
-//				System.err.println("tf.list: "+super.getCanonicalFile().listFiles());
-			} catch(Exception e) {
-				System.err.println("tf exception: "+e);
-			}
-			if(flist == null) {
-//				System.err.println("listFiles returned NULL: "+super.getAbsolutePath());
-				return null;
-			}
+			if(flist == null) return null;
 			clist = new CTFile[flist.length];
-
-//			System.err.println("listFiles, folder: "+this.myPath);
 			for(int i=0; i<clist.length; i++) {
 				clist[i] = new CTFile(flist[i].getPath());
-//				System.err.println("listFiles["+i+"]: "+clist[i]);
 			}
-			Arrays.sort(clist, fileTimeComparator);								// make sure sorted (newTime etc presumes)
+			Arrays.sort(clist, fileTimeComparator);					// make sure sorted (newTime etc presumes)
 			return clist;		// wrap in CTFile class
 		}
 	}
@@ -267,12 +257,7 @@ class CTFile extends File {
 	 * @return CTfile[] array of folders
 	 */
 	// file-list pruned to only include folders (inefficient?)
-//	CTFile[] prunedlist = null;			// cache
 	CTFile[] listFolders() {
-//		if(prunedlist!=null) {
-//			System.err.println("cache hit listFolders!!!!!");
-//			return prunedlist;
-//		}
 		CTFile[] filelist = this.listFiles();
 		if(filelist == null) {
 //			System.err.println("CTFile: Empty folder-list!");
@@ -283,7 +268,7 @@ class CTFile extends File {
 		for(CTFile f:filelist) if(f.isDirectory()) folderlist[count++]=f;
 		CTFile[] prunedlist = new CTFile[count];
 		System.arraycopy(folderlist, 0, prunedlist, 0, count);
-		Arrays.sort(prunedlist, fileTimeComparator);		// make sure sorted
+//		Arrays.sort(prunedlist, fileTimeComparator);		// listFiles already sorted
 		return prunedlist;
 	}
 
@@ -320,7 +305,9 @@ class CTFile extends File {
 				File[] files = super.listFiles();
 //				if(files!=null && files.length>0 && files[0].isFile()) return true;
 				// check last (vs first) file to avoid .DS_Store or other hidden files messing up test (MJM 7/12/16)
-				if(files!=null && files.length>0 && files[files.length-1].isFile()) return true;
+				String checkname = files[files.length-1].getName();
+//				System.err.println("isFileFolder, files.length: "+files.length+", checkname: "+checkname+", isTimeFile: "+isTimeFile(checkname) );
+				if(files!=null && files.length>0 && !isTimeFile(checkname)) return true;
 				else							  return false;		// needs testing
 			} else return false;
 		}
@@ -619,7 +606,8 @@ class CTFile extends File {
   	 * @param fname name of file to parse
   	 * @return double time in seconds
   	 */
-  	double fileTime(String fname) {
+  	
+  	private double fileTime(String fname) {
   		
   		// special logic for TFOLDER (e.g. camera time.jpg files)
   		if(fileType==FileType.TFOLDER) return tfolderTime(fname);
@@ -628,13 +616,13 @@ class CTFile extends File {
 //    	int idot = fname.lastIndexOf('.');					// strip trailing suffix (e.g. .zip)
 //    	if(idot > 0) fname = fname.substring(0,idot);
     	
-		// new multi-part timestamp logic:  parse path up from file, sum relative times until first fulltime
+		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
 		String[] pathparts = fname.split(Pattern.quote(File.separator));
 		Long sumtime = 0L;
 		double ftime = 0.;
+		
 		for(int i=pathparts.length-1; i>=0; i--) {
 			String thispart = pathparts[i];
-//			System.err.println("fileTime fname: "+pathname+", thispart: "+thispart);
 			Long thistime = 0L;
 			try {
 				thistime = Long.parseLong(thispart);
@@ -642,35 +630,43 @@ class CTFile extends File {
 			} catch(NumberFormatException e) {
 				continue;		// keep looking?
 			}
-//			System.err.println("file: "+fname+", fileTime sumtime: "+sumtime);
+//			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
 
 			if(thistime >= 1000000000000L) {	// absolute msec
 				ftime = (double)sumtime / 1000.;
+//				System.err.println("******fileTime: "+ftime);
 				return ftime;
 			}
 			if(thistime >= 1000000000L) {		// absolute sec
 				ftime = (double)sumtime;
+//				System.err.println("******fileTime: "+ftime);
 				return ftime;
 			}
 		}
 		
-//		CTinfo.debugPrint("OOPS, bad file time! "+fname);
 		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
   	}
 
+    //---------------------------------------------------------------------------------	
   	/**
   	 * Parse file-time given string to find "base" time:
-  	 * the time of the top-level containing folder or zipfile
+  	 * the time of the parent containing folder or zipfile
   	 * this is used for block-mode timestamps, basetime is start time of block
   	 * and lowest-level file time is end-time of block.
   	 * @param fname name of file to parse
   	 * @return double time in seconds
   	 */
   	double baseTime() {
-  		if(myZipFile==null) return baseTime(myPath);		// bleh getMyPath should be good for zipEntries
-  		else				return baseTime(myZipFile);
+//  		System.err.println("baseTime, fname: "+getName()+", thisPath: "+getPath()+", getParent: "+getParent()+", myPath: "+myPath);
+//  		return fileTime(this.getPath(), true);
+  		if(fileType == FileType.FILE) 
+  				return fileTime(this.getParentFile().getParent());		// grandparent for regular folders
+  		else	return fileTime(this.getParent());						// zipfile itself for embedded zentries
+  		
+//  		if(myZipFile==null) return baseTime(myPath);		// bleh getMyPath should be good for zipEntries
+//  		else				return baseTime(myZipFile);
   	}
-  	
+/*  	
   	double baseTime(String fname) {
   		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
   		String[] pathparts = fname.split(Pattern.quote(File.separator));
@@ -695,7 +691,7 @@ class CTFile extends File {
 
   		return 0.;	
   	}
-  	
+*/  	
     //---------------------------------------------------------------------------------	
   	// special TFILE parsing (e.g. for camera JPEG photos)
   	// clunky logic, needs to be generalized
@@ -772,6 +768,28 @@ class CTFile extends File {
 		}
 //		System.err.println("fileTime("+fname+"): "+ftime+", date: "+new Date((long)ftime)+", sdflast: "+sdflast.toString());
 		return ftime / 1000.;
+  	}
+  	
+    //---------------------------------------------------------------------------------	
+  	private boolean isTimeFile(String fname) {
+  		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
+		try {
+			Long.parseLong(fname);
+			return true;
+		} catch(NumberFormatException e) {
+			return false;
+		}
+  	}
+  	
+  	private boolean isTimeFolder(File file) {
+  		return isTimeFolder(file.getPath());
+  	}
+  	private boolean isTimeFolder(CTFile ctfile) {
+  		return isTimeFolder(ctfile.getPath());
+  	}
+  	
+  	private boolean isTimeFolder(String fname) {
+  		return (fileTime(fname)>0.);
   	}
   	
     //---------------------------------------------------------------------------------	

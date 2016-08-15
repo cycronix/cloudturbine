@@ -97,6 +97,17 @@ public class CTmap extends TreeMap<String,CTdata>{
 		return this.containsKey(cname);
 	}
 
+	public long datasize() {
+		long n=0;
+		for (Map.Entry<String, CTdata> entry : this.entrySet()) {
+			if(entry != null) {
+				CTdata ctd = entry.getValue();
+				if(ctd != null) n += ctd.size();
+			}
+		}
+		return n;
+	}
+	
 	// trim entire map of channels by time-range
 	void trim(double tstart, double tdur, String tmode) {
 		for (Map.Entry<String, CTdata> entry : this.entrySet()) {

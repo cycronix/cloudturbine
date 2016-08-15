@@ -150,12 +150,12 @@ public class CTdata {
 			}
 			
 			// not sure all the next/prev/oldest/newest logic is in here...
-			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count);
+			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count+", duration: "+duration);
 
 			if(i==0) { Tprev = time; Dprev=ddp[0]; }	// initialize
 			for(int j=0; j<count; j++) {
 				double t = time+j*dt;
-//				System.err.println("t["+j+"]: "+t);
+//				System.err.println("t["+j+"]: "+t+", tstart: "+start+", tend: "+tend);
 				if((t>tend && duration==0)) {		// single-point case
 					ctd.add(Tprev, Dprev.getBytes());
 //					System.err.println("d=0 grab t: "+t+", ptime: "+Tprev+", d: "+Dprev+", j: "+j+", count: "+count);
@@ -173,6 +173,8 @@ public class CTdata {
 			if(time >= tend) break;
 		}
 		
+		CTinfo.debugPrint("ctd.size: "+ctd.size());
+
 		return ctd;
 	}
 	
@@ -230,11 +232,18 @@ public class CTdata {
 			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time+", count: "+count);
 
 			if(wordSize <= 1 || count<=1) {							// full intact frames 
+				
+				if(duration==0 && nframe==1) {		// special single-frame intact-frame case (e.g. images) MJM 8/16
+					ctd.add(timelist.get(i), datalist.get(i));
+					break;
+				}
+				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				if(tmode.equals("prev")) { start = end; end = start - duration; }		// mjm 4/27/16
 				
 				if(time < start) continue;
-				if(duration == 0) {						// single-point case, just return first one after start time
+				/*
+				if(duration == 0) {						// single-point case, just return first one after start time 
 					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
 					if(tmode.equals("next")) {
 						if((time == start) && i<(nframe-1)) ctd.add(timelist.get(i+1), datalist.get(i+1));		
@@ -243,6 +252,17 @@ public class CTdata {
 					else if(i==0 || (!tmode.equals("prev") && start==time))
 															ctd.add(timelist.get(i), datalist.get(i));			// first is already past, just grab it
 					else									ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
+					break;
+				} 
+				*/
+				if(duration == 0) {						// single-point case, just return first one BEFORE start time 
+					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
+					if(tmode.equals("next")) {
+						ctd.add(timelist.get(i), datalist.get(i));			// index "i" is one past start
+					}
+					else if((i==0) || (start==time))
+								ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
+					else		ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
 					break;
 				} 
 
@@ -313,7 +333,7 @@ public class CTdata {
 				
 				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count);
 				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
-					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", dt: "+dt);
+//					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", dt: "+dt);
 //					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
 					if(time < start) continue;
 					else if(time <= end) {
