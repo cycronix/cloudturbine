@@ -1,12 +1,14 @@
-// simple CloudTurbine CTwriter example
+
 
 import cycronix.ctlib.*;
 
-public class CTsource {
-	static int nsamp = 1000;			// number of data samples per chan
+public class CTblocktest {
+	static int nsamp = 1000;			// total number of data samples (per chan)
 	static int nchan = 10;				// number of channels 
-	static long dt = 1000L;				// msec per point
-	static long blockPts=100;			// flush once per N points
+//	static long dt = 1000L;				// msec per point
+	static double dt = 1.;				// sec per point
+	static long blockPts=10;			// points per block
+	static long segBlocks=10;			// blocks per segment (was 10)
 	
 	public static void main(String[] args) {
 		// run each permutation of blockMode, zipMode, numMode
@@ -18,21 +20,21 @@ public class CTsource {
 		runTest("CTblocknum",	true,	false,	true);
 		runTest("CTblockzipnum",true,	true,	true);
 		runTest("CTzipnum",		false,	true,	true);
-		System.err.println("Done.  Output nsamp: "+nsamp+", nchan: "+nchan+", points/block: "+blockPts);
+		System.err.println("Done. nsamp: "+nsamp+", nchan: "+nchan+", pts/block: "+blockPts+", blocks/segment: "+segBlocks);
 	}
 	
 	static void runTest(String modeName, boolean blockMode, boolean zipMode, boolean numMode) {
 		try {
 			CTwriter ctw = new CTwriter("CTsource/"+modeName);		// new CTwriter at root/source folder
 
-			ctw.setBlockMode(blockMode,zipMode,blockPts*dt); 		// pack into binary blocks? (linear timestamps per block)
-//			ctw.setTimeRelative(true);								// use relative timestamps?
-//			ctw.setZipMode(zipMode);
+			ctw.setBlockMode(blockMode,zipMode); 		// pack into binary blocks? (linear timestamps per block)
+			ctw.autoFlush(blockPts*dt, segBlocks);		// autoflush blocks and segments
+
 			CTinfo.setDebug(false);
-//			ctw.autoFlush(blockPts*dt); 				// auto-flush every N sec 
 			
 //			long iTime = System.currentTimeMillis();
-			long iTime = 1460000000000L;						// msec resolution
+//			long iTime = 1460000000000L;					// msec 
+			double iTime = 1460000000.;						// sec 
 
 			// loop and write some output
 			for(int i=1; i<=nsamp; i++,iTime+=dt) {				// output to nfile
@@ -43,8 +45,8 @@ public class CTsource {
 					else		ctw.putData("c"+j+".f32", new Float(i+j));		// binary format
 				}
 
-//				if((i%blockPts)==0) 		// flush one per N (no-op if not block/zip/rel mode)
-//					ctw.flush();			// implicitly let blockDuration = (lastTime-firstTime)
+//				if((i%blockPts)==0) ctw.flush();		// flush one per N (no-op if not block/zip/rel mode)								
+//				Thread.sleep(10);			// minimum sleep per loop
 			}
 			ctw.flush();										// clean up
 
