@@ -1,5 +1,5 @@
 /*
-Copyright 2014 Cycronix
+Copyright 2016 Cycronix
 
 Licensed under the Apache License, Version 2.0 (the "License"); 
 you may not use this file except in compliance with the License. 
@@ -24,7 +24,6 @@ limitations under the License.
 package ctandroid;
 
 import cycronix.ctlib.*;
-
 import com.example.ctandroid.R;
 
 import android.hardware.Sensor;
@@ -139,10 +138,11 @@ public class CTandroidACL extends Activity {
 				ctw = new CTftp(sourceFolder);
 				ctw.login(ftpHost,ftpUser,ftpPassword);			// needs to be from GUI or anononymous ftp...
  
-				ctw.setZipMode(true);					// bundle to zip files
-				ctw.autoFlush(rateList[rateIndex]);		// bundle at intervals
+//				ctw.setZipMode(true);						// bundle to zip files
+				ctw.setBlockMode(true,true);				// zip 'n pack
+				ctw.autoFlush(rateList[rateIndex],100);		// flush at intervals, 100 blocks/segment
 				ctw.setDebug(false);
-				ctw.setBlockMode(true);			// block data with one timestamp per glump (at each flush)
+//				ctw.setBlockMode(true);			// block data with one timestamp per glump (at each flush)
 			
 				sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 				HandlerThread mHandlerThread = new HandlerThread("AccelListener");

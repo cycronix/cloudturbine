@@ -60,7 +60,7 @@ public class CTwriter {
 	private long segmentTime=0;				// segment time, block subfolders relative to this.  
 	private String baseTimeStr="";			// string representation of sourceTime/segementTime
 	private boolean rebaseFlag=false;		// auto-rebase segmentTime
-	private long blocksPerSegment=100;		// auto new segment every so many blocks
+	private long blocksPerSegment=0;		// auto new segment every so many blocks (default=off)
 	private long flushCount=0;				// keep track of flushes
 	private boolean initBaseTime = true;	// first-time startup init flag
 
@@ -242,7 +242,7 @@ public class CTwriter {
 			 	
 		rebaseFlag = false;					// defer taking effect until full-block on flush
 		initBaseTime = false;
-		CTinfo.debugPrint("setBaseTime: "+destPath+baseTimeStr);
+		CTinfo.debugPrint("setBaseTime: baseTimeStr: "+baseTimeStr+", destPath: ["+destPath+"]");
 	}
 	
 	//------------------------------------------------------------------------------------------------

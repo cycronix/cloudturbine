@@ -1,7 +1,7 @@
 package ctandroid;
 
 /*
-Copyright 2015 Cycronix
+Copyright 2016 Cycronix
 
 Licensed under the Apache License, Version 2.0 (the "License"); 
 you may not use this file except in compliance with the License. 
@@ -403,8 +403,9 @@ public class CTandroidAV extends Activity  {
 				ctw = new CTftp(sourceFolder);
 				ctw.login(ftpHost,ftpUser,ftpPassword);		// need to get user/password out of hardcoded
 
-				ctw.setZipMode(true);			// bundle to zip files
-				//		ctw.autoFlush(flushDur);		// flush at intervals
+	//			ctw.setZipMode(true);			// bundle to zip files
+				ctw.setBlockMode(false,true);	// no data packing, yes zip files
+				ctw.autoFlush(0,100);			// no autoflush, segments
 				ctw.setDebug(debug);
 				//		ctw.setBlockMode(false);		// blockmode needs to be per-channel, or new addData vs blockmode/putdata... ??
 

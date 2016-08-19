@@ -12,7 +12,7 @@ public class CTbigtest {
 	static int Nsource = 4;					// number of sources (e.g. 400)
 	static int rateFactor = 100;			// run faster than RT (e.g. 100)
 	static long baseTime = 1460000000000L;	// base start time (round number)
-	static int blocksPerSegment = 1000;		// new segment every this many blocks (default=100)
+	static int blocksPerSegment = 100;		// new segment every this many blocks (default=100)
 
 	private static class RunSource
 	implements Runnable {

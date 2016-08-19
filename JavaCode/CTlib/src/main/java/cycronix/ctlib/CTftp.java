@@ -47,7 +47,7 @@ public class CTftp extends CTwriter {
 		client.setFileType(FTPClient.BINARY_FILE_TYPE);
 		
 		loginDir = client.printWorkingDirectory();
-		CTinfo.debugPrint("FTP login, u: "+user+", pw: "+pw);
+		CTinfo.debugPrint("FTP login, u: "+user+", pw: "+pw+", loginDir: "+loginDir);
 	}
 
 	public void logout() {
@@ -102,16 +102,27 @@ public class CTftp extends CTwriter {
 		//tokenize the string and attempt to change into each directory level.  If you cannot, then start creating.
 		String[] directories = dirTree.split("/");
 		for (String dir : directories ) {
+
 			if (!dir.isEmpty() ) {
-				if (dirExists) dirExists = client.changeWorkingDirectory(dir);
-				if (!dirExists) {
-					if (!client.makeDirectory(dir))
-						throw new IOException("Unable to create remote directory '" + dir + "'.  error='" + client.getReplyString()+"'");
-					if (!client.changeWorkingDirectory(dir)) 
-						throw new IOException("Unable to change into newly created remote directory '" +dir+ "'. error='" + client.getReplyString()+"'");
+				if (dirExists) {
+					dirExists = client.changeWorkingDirectory(dir);
 				}
-			}
-		}     
+
+				if (!dirExists) {
+					try {
+						if (!client.makeDirectory(dir)) {
+							throw new IOException("Unable to create remote directory: " + dir + ", error=" + client.getReplyString());
+						}
+						if (!client.changeWorkingDirectory(dir)) {
+							throw new IOException("Unable to change into newly created remote directory: " +dir+ ", error=" + client.getReplyString());
+						}
+					}
+					catch(IOException ioe) {
+						System.err.println("ftpCreateDir exception on dirTree: "+dirTree+", dir: "+dir+", error: "+ioe.getMessage());
+						throw ioe;
+					}
+				}
+			}     
+		}
 	}
-	
 }
