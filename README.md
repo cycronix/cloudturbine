@@ -1,17 +1,11 @@
-<<<<<<< HEAD
 # cloudturbine
-CloudTurbine:  streaming data via cloud file sharing!
+CloudTurbine is free and open source middleware for streaming any type of data via cloud file sharing!
 
-Utilities, apps, and API libraries related to CloudTurbine software.
+This repository contains utilities, apps, and API libraries related to CloudTurbine software.
 
 Some highlights:
 
 <li>CTlib - Java API interface to read/write CT files
 <li>CTserver - HTTP interface to CT data files (compatible with WebScan)
 
-
-
-=======
-# CloudTurbineGradle
-Test a gradle-based build system for CloudTurbine
->>>>>>> origin/master
+For complete details, see http://cloudturbine.com/.
