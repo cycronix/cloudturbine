@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # cloudturbine
 CloudTurbine:  streaming data via cloud file sharing!
 
@@ -10,3 +11,7 @@ Some highlights:
 
 
 
+=======
+# CloudTurbineGradle
+Test a gradle-based build system for CloudTurbine
+>>>>>>> origin/master

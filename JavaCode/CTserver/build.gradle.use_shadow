@@ -1,0 +1,93 @@
+
+// This version of the Gradle build file creates a "fat" JAR using the
+// Shadow plugin.  This is one solution to solving a problem we had where
+// the JAR file wasn't being rebuilt if there were changes in the dependencies
+// (such as a change in CTlib).
+//
+// Can read about the issue we were having here:
+// https://discuss.gradle.org/t/make-new-fat-jar-with-every-build/18452
+//
+// Can read about Shadow plugin here:
+// http://imperceptiblethoughts.com/shadow/
+//
+// Using the Shadow plugin somewhat simplifies how to create a "fat" JAR
+// compared to our solution (compare to what we have in build.gradle).
+// However, Matt was reluctant to use this additional/external plugin and
+// instead embraced the approach to just force a "clean" before every "build".
+
+defaultTasks 'build'
+
+apply plugin: 'java'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+// CTserver.jar will be used in building one or more Android programs;
+// since Android Studio doesn't fully support Java 8, include the following
+// compatibility flags for Java 7.
+targetCompatibility = '1.7'
+sourceCompatibility = '1.7'
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'ctserver.CTserver'
+    }
+}
+
+shadowJar {
+    baseName = 'CTserver'
+    classifier = null
+    version = null
+}
+
+repositories {
+    flatDir {
+    	// Location of CTlib.jar
+    	dirs "$rootProject.projectDir/CTlib/build/libs"
+    }
+}
+
+dependencies {
+	// Build CTlib project first, because we use CTlib.jar
+	compile project(':CTlib')
+	// Specify that we use CTlib.jar
+    compile name: 'CTlib'
+}
+
+// Not sure it is needed, but we have the copy done last (specified by using
+// "<<") to make sure the new jar file gets copied, not the old/original one 
+build << {
+	String fromLoc = "${buildDir}/libs/CTserver.jar"
+	String toLoc = "../../CloudTurbineAndroid/Common"
+	println "Copy library from " + fromLoc + " to " + toLoc
+	copy {
+		from fromLoc
+        into toLoc
+	}
+}
+
+// Here's how to change the default destination directory for the JAR file;
+// we won't do this (ie, we'll keep the default directory structure in place);
+// instead, we'll copy the JAR file to a top level "Distribute" folder
+// tasks.withType(Jar) {
+//     destinationDir = file("$rootDir/Distribute")
+// }
+// Copy the JAR file to a top level "Distribute" folder; do this last so we
+// make sure to get the new JAR file that we just built
+build << {
+	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
+	String toLoc = "../Distribute"
+	copy {
+		from fromLoc
+        into toLoc
+	}
+}
+

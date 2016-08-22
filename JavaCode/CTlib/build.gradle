@@ -1,0 +1,24 @@
+
+// CTlib.jar will be used in building one or more Android programs;
+// since Android Studio doesn't fully support Java 8, include the following
+// compatibility flags for Java 7.
+targetCompatibility = '1.7'
+sourceCompatibility = '1.7'
+
+dependencies {
+    // Could also use the following:
+    // compile 'commons-net:commons-net:3.5'
+	compile group: 'commons-net', name: 'commons-net', version: '3.5'
+}
+
+// Copy JAR file to the AndroidCode folder
+build << {
+	String fromLoc = "${buildDir}/libs/CTlib.jar"
+	String toLoc = "../../AndroidCode/Common"
+	println "Copy library from " + fromLoc + " to " + toLoc
+	copy {
+		from fromLoc
+        into toLoc
+	}
+}
+

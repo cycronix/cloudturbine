@@ -1,0 +1,111 @@
+
+apply plugin: 'java'
+
+// The following buildscript block is for configuring Gradle; don't include
+// dependency information in this block for the Android application itself; that
+// is in a separate section.
+
+buildscript {
+
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+    	// The following specifies the version of the Android Plugin for Gradle
+		classpath 'com.android.tools.build:gradle:2.1.2'
+    }
+}
+
+subprojects {
+	// Need to apply plugin com.android.application here in order to have the
+	// overridden tasks defined below to work correctly
+    apply plugin: 'com.android.application'
+    
+    //
+    // Automatically execute clean before build
+    //
+    // This gets around a problem we had with making our "fat" JAR files;
+    // namely, if there was a change in a dependency (in a CTlib file, for
+    // instance) but no change in any source files of the current project, then
+    // the JAR file wasn't being rebuilt.  To get around this, whenever a user
+    // asks to do a "build" we force a "clean" to be executed first.
+    //
+    // NOTE: Include the line to specify that "clean" is run before "preBuild";
+    //       otherwise, what was happening is that "clean" was run right before
+    //       "build" - so the build directory was being deleted!  See Kunal's
+    //       forum response at:
+    //       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
+    //
+    // Another way to do this is by creating a new task which will call the two
+    // existing tasks.  Still need to include the "preBuild.mustRunAfter clean"
+    // line when doing it this way.
+    // task clean_build {
+    // 	dependsOn clean, build
+    // }
+    //
+    build.dependsOn clean
+    preBuild.mustRunAfter clean
+    
+    android {
+    	// To locate the SDK version and build tools, define an environment var
+    	// called ANDROID_HOME and set it to the home directory of the Android SDK
+    	// installation (for example, for JPW this is C:\Users\johnw\android-sdks).
+    	// Then add the following directories to the path environment variable:
+    	//     - %ANDROID_HOME%\platform-tools
+    	//     - %ANDROID_HOME%\tools
+    	// Android SDK versions are at %ANDROID_HOME%\platforms
+    	compileSdkVersion 23
+    	// Android build tool versions are at %ANDROID_HOME%\build-tools
+    	buildToolsVersion "23.0.3"
+    }
+    
+    // The following is based on http://stackoverflow.com/questions/29162899/how-to-use-gradle-to-generate-javadoc-in-android-studio
+    // This supports "variants" of the build, such as debug and release
+    android.applicationVariants.all { variant ->
+    	task("generate${variant.name.capitalize()}Javadoc", type: Javadoc) {
+    		description "Generates Javadoc for $variant.name."
+    		source = variant.javaCompile.source
+    		ext.androidJar = "${android.sdkDirectory}/platforms/${android.compileSdkVersion}/android.jar"
+    		classpath = files(variant.javaCompile.classpath.files) + files(ext.androidJar)
+    		options.links("http://docs.oracle.com/javase/8/docs/api/");
+    		options.links("https://developer.android.com/reference/");
+    		destinationDir = new File("$rootDir/JavaDoc/" + project.name)
+    		// To include everything from private level and up in the documentation
+    		// options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PRIVATE
+    		// Can exclude certain files, for example:
+    		// exclude '**/R.java'
+    	}
+    }
+    
+    // The following is based on https://medium.com/@hamen/android-library-aar-and-javadoc-6859898cad28#.d3gcepuic
+    task javadoc(type: Javadoc) {
+    	description "Generates Javadoc."
+    	failOnError false
+    	source = android.sourceSets.main.java.sourceFiles
+    	classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    	classpath += configurations.compile
+    	options.links("http://docs.oracle.com/javase/8/docs/api/");
+    	options.links("https://developer.android.com/reference/");
+    	destinationDir = new File("$rootDir/JavaDoc/" + project.name)
+    	// To include everything from private level and up in the documentation
+    	// options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PRIVATE
+    	// Can exclude certain files, for example:
+    	// exclude '**/R.java'
+    }
+}
+
+// As part of the clean, delete some extra files and directories
+clean.doFirst {
+	// From Distribute folder: delete all JAR files
+	// delete fileTree("$rootProject.projectDir/Distribute") {
+    //     include '**/*.jar'
+    // }
+    // From JavaDoc fodler: delete all subfolders and their content
+    def dirName = "$rootProject.projectDir/JavaDoc"
+    file( dirName ).list().each{
+        f -> 
+            delete "${dirName}/${f}"
+    }
+}
+

@@ -1,0 +1,124 @@
+apply plugin: 'java'
+
+defaultTasks 'build'
+
+// An example of how to change the default source directory
+// sourceSets.main.java.srcDirs = ['src/java']
+
+// If we want to define something for ALL projects, put it in here
+//allprojects {
+    // task intro_msg << {task -> println "Task: $task.project.name" }
+//}
+
+subprojects {
+	// Need to apply plugin java here in order to have the overridden
+	// tasks defined below to work correctly
+	apply plugin: 'java'
+	
+    // Define a common Third_Party library directory that all projects can share
+    repositories {
+        flatDir {
+            dirs "$rootProject.projectDir/Third_Party"
+            // For those projects which depend on CTlib.jar, we also need to
+            // tell them where to find commons-net-3.5, because they need to
+            // access all the dependencies of CTlib.jar.  This is explained by
+            // the following quote:
+            // https://docs.gradle.org/current/userguide/multi_project_builds.html
+            //     "A 'lib' dependency is a special form of an execution
+            //      dependency. It causes the other project to be built first
+            //      and adds the jar with the classes of the other project to
+            //      the classpath. It also adds the dependencies of the other
+            //      project to the classpath."
+            // Thus, the *transitive dependencies* are also added to the
+            // classpath (i.e., the classes that CTlib.jar depended upon for
+            // its build).  Ideally, all we really need to add is CTlib.jar,
+            // but I haven't been able to figure out the dependencies to do that.
+            dirs "$rootProject.projectDir/Third_Party/commons-net-3.5"
+        }
+        // Optionally, can also find external libraries from Maven repository
+        // mavenCentral()
+    }
+    
+    //
+    // Automatically execute clean before build
+    //
+    // This gets around a problem we had with making our "fat" JAR files;
+    // namely, if there was a change in a dependency (in a CTlib file, for
+    // instance) but no change in any source files of the current project, then
+    // the JAR file wasn't being rebuilt.  To get around this, whenever a user
+    // asks to do a "build" we force a "clean" to be executed first.
+    //
+    // NOTE: Include the line to specify that "clean" is run before
+    //       "compileJava"; otherwise, what was happening is that the Java
+    //       files would be compiled and then "clean" was run right before
+    //       "build" - so the build directory was being deleted!  See Kunal's
+    //       forum response at:
+    //       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
+    //
+    // Another way to do this is by creating a new task which will call the two
+    // existing tasks.  Still need to include the "compileJava.mustRunAfter clean"
+    // line when doing it this way.
+    // task clean_build {
+    // 	dependsOn clean, build
+    // }
+    //
+    build.dependsOn clean
+    compileJava.mustRunAfter clean
+    
+    // Here's how to change the default destination directory for the JAR file;
+    // we won't do this (ie, we'll keep the default directory structure in place);
+    // instead, we'll copy the JAR file to a top level "Distribute" folder
+    // tasks.withType(Jar) {
+    //     destinationDir = file("$rootDir/Distribute")
+    // }
+    // Copy the JAR file to a top level "Distribute" folder; do this last so we
+    // make sure to get the new JAR file that we just built
+    build << {
+    	task -> println "Built $task.project.name"
+    	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
+    	String toLoc = "../Distribute"
+    	copy {
+    		from fromLoc
+    		into toLoc
+    	}
+    }
+    
+    // Here's a different approach for copying the JAR file; problem with this
+    // is that the user would need to specifically execute the 'buildLibrary'
+    // task to have this done.
+    // defaultTasks 'buildLibrary'
+    // task copyJarToDestination(type:Copy,dependsOn:[build]) {
+    //     from "${buildDir}/libs/CTlib.jar"
+    //     into "../../AndroidCode/Common"
+    // }
+    // task buildLibrary (dependsOn: [build, copyJarToDestination])
+    
+    // Javadoc specifications
+    javadoc {
+        source = sourceSets.main.allJava
+        destinationDir = new File("$rootDir/JavaDoc/" + project.name)
+	    options.links("http://docs.oracle.com/javase/8/docs/api/");
+	    // Exclude NanoHTTPD.java (used in CTserver project) for two reasons:
+        //   1. It produces Javadoc errors (when using Java 8)
+        //   2. We don't want to imply that we support NanoHTTPD.java, even
+        //      though it is distributed with the CloudTurbine software
+        exclude "**/NanoHTTPD.java"
+	    // To include everything from private level and up in the documentation
+	    // options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PRIVATE
+    }
+}
+
+// As part of the clean, delete some extra files and directories
+clean.doFirst {
+	// From Distribute folder: delete all JAR files
+	delete fileTree("$rootProject.projectDir/Distribute") {
+        include '**/*.jar'
+    }
+    // From JavaDoc fodler: delete all subfolders and their content
+    def dirName = "$rootProject.projectDir/JavaDoc"
+    file( dirName ).list().each{
+        f -> 
+            delete "${dirName}/${f}"
+    }
+}
+

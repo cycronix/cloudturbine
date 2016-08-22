@@ -1,0 +1,6 @@
+local.properties
+.idea/
+*.iml
+Common/CTlib.jar
+Common/CTserver.jar
+

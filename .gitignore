@@ -1,4 +1,15 @@
 *.bak
 *.class
 *.apk
+<<<<<<< HEAD
+=======
+*~
+.project
+.classpath
+bin/
+build/
+.gradle/
+.settings/
+JavaDoc/
+>>>>>>> origin/master
 
