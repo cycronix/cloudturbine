@@ -22,31 +22,6 @@ subprojects {
 	// overridden tasks defined below to work correctly
     apply plugin: 'com.android.application'
     
-    //
-    // Automatically execute clean before build
-    //
-    // This gets around a problem we had with making our "fat" JAR files;
-    // namely, if there was a change in a dependency (in a CTlib file, for
-    // instance) but no change in any source files of the current project, then
-    // the JAR file wasn't being rebuilt.  To get around this, whenever a user
-    // asks to do a "build" we force a "clean" to be executed first.
-    //
-    // NOTE: Include the line to specify that "clean" is run before "preBuild";
-    //       otherwise, what was happening is that "clean" was run right before
-    //       "build" - so the build directory was being deleted!  See Kunal's
-    //       forum response at:
-    //       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
-    //
-    // Another way to do this is by creating a new task which will call the two
-    // existing tasks.  Still need to include the "preBuild.mustRunAfter clean"
-    // line when doing it this way.
-    // task clean_build {
-    // 	dependsOn clean, build
-    // }
-    //
-    build.dependsOn clean
-    preBuild.mustRunAfter clean
-    
     android {
     	// To locate the SDK version and build tools, define an environment var
     	// called ANDROID_HOME and set it to the home directory of the Android SDK
@@ -93,19 +68,41 @@ subprojects {
     	// Can exclude certain files, for example:
     	// exclude '**/R.java'
     }
-}
-
-// As part of the clean, delete some extra files and directories
-clean.doFirst {
-	// From Distribute folder: delete all JAR files
-	// delete fileTree("$rootProject.projectDir/Distribute") {
-    //     include '**/*.jar'
-    // }
-    // From JavaDoc fodler: delete all subfolders and their content
-    def dirName = "$rootProject.projectDir/JavaDoc"
-    file( dirName ).list().each{
-        f -> 
-            delete "${dirName}/${f}"
+    
+    // For each subproject clean, remove the Javadoc folder
+    clean.doFirst {
+        def dirObj = new File("$rootDir/JavaDoc/" + project.name)
+        dirObj.deleteDir()
     }
+    
+    build << {
+    	task -> println "Built $task.project.name"
+    }
+    
+    //
+    // Automatically execute clean before build
+    // Also, have Javadoc built at the same time we run the build task
+    //
+    // This gets around a problem we had with making our "fat" JAR files;
+    // namely, if there was a change in a dependency (in a CTlib file, for
+    // instance) but no change in any source files of the current project, then
+    // the JAR file wasn't being rebuilt.  To get around this, whenever a user
+    // asks to do a "build" we force a "clean" to be executed first.
+    //
+    // NOTE: Include the line to specify that "clean" is run before "preBuild";
+    //       otherwise, what was happening is that "clean" was run right before
+    //       "build" - so the build directory was being deleted!  See Kunal's
+    //       forum response at:
+    //       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
+    //
+    // Another way to do this is by creating a new task which will call the two
+    // existing tasks.  Still need to include the "preBuild.mustRunAfter clean"
+    // line when doing it this way.
+    // task clean_build {
+    // 	dependsOn clean, build
+    // }
+    //
+    build.dependsOn clean,javadoc
+    preBuild.mustRunAfter clean
 }
 

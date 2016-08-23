@@ -41,6 +41,7 @@ subprojects {
     
     //
     // Automatically execute clean before build
+    // Also, have Javadoc built at the same time we run the build task
     //
     // This gets around a problem we had with making our "fat" JAR files;
     // namely, if there was a change in a dependency (in a CTlib file, for
@@ -62,7 +63,7 @@ subprojects {
     // 	dependsOn clean, build
     // }
     //
-    build.dependsOn clean
+    build.dependsOn clean,javadoc
     compileJava.mustRunAfter clean
     
     // Here's how to change the default destination directory for the JAR file;
@@ -106,19 +107,15 @@ subprojects {
 	    // To include everything from private level and up in the documentation
 	    // options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PRIVATE
     }
-}
-
-// As part of the clean, delete some extra files and directories
-clean.doFirst {
-	// From Distribute folder: delete all JAR files
-	delete fileTree("$rootProject.projectDir/Distribute") {
-        include '**/*.jar'
-    }
-    // From JavaDoc fodler: delete all subfolders and their content
-    def dirName = "$rootProject.projectDir/JavaDoc"
-    file( dirName ).list().each{
-        f -> 
-            delete "${dirName}/${f}"
+    
+    // For each subproject clean, remove the JAR file and Javadoc folder
+    clean.doFirst {
+	    // Delete this project's JAR file from the Distribute folder
+	    def jarObj = new File("$rootDir/Distribute/" + project.name + ".jar")
+	    jarObj.delete()
+        // Delete this project's Javadoc from the JavaDoc fodler
+        def dirObj = new File("$rootDir/JavaDoc/" + project.name)
+        dirObj.deleteDir()
     }
 }
 
