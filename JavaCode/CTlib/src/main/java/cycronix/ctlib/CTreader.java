@@ -435,12 +435,14 @@ public class CTreader {
 			// one-pass, gather list of candidate folders
 			for(int i=0; i<listOfFolders.length; i++) {						// find range of eligible folders 
 				CTFile folder = listOfFolders[i];
-//				CTinfo.debugPrint("CTreader checking folder: "+folder.getMyPath()+", start: "+getftime+", end: "+endtime);
+				CTinfo.debugPrint("CTreader checking folder: "+folder.getMyPath()+", start: "+getftime+", end: "+endtime);
 //				if(!recurse) {		// push thru all lower-level recursive checks
 					if(i>1) {													// after end check
 						double priorftime;	
-						if(duration == 0.) 	priorftime = listOfFolders[i].fileTime();	// can't be any following if duration is zero
-						else 				priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?
+//						if(duration == 0. && !rmode.equals("next")) 	
+//									priorftime = listOfFolders[i].fileTime();	// can't be any following if duration is zero
+//						else 		priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?				
+						priorftime = listOfFolders[i-1].fileTime();	// go 2 past to bracket "next/prev" points in candidate list
 						if(priorftime > endtime) break;							// done	
 					}
 
@@ -465,7 +467,7 @@ public class CTreader {
 				}
 				else {
 					gotdata += gatherFiles(folder, ctmap);		// data-file folder
-					CTinfo.debugPrint("got file folder: "+folder+", gotdata: "+gotdata);
+					CTinfo.debugPrint("gathered file folder: "+folder+", gotdata: "+gotdata);
 				}
 			}
 

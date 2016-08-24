@@ -257,18 +257,17 @@ public class CTdata {
 				*/
 				if(duration == 0) {						// single-point case, just return first one BEFORE start time 
 					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
-					if(tmode.equals("next")) {
-						ctd.add(timelist.get(i), datalist.get(i));			// index "i" is one past start
-					}
-					else if((i==0) || (start==time))
-								ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
-					else		ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
+					if(tmode.equals("next") && i<(nframe-1)) 
+							ctd.add(timelist.get(i+1), datalist.get(i+1));		// index "i" is current point
+					else if((i>0) && ((start!=time) || tmode.equals("prev")))
+							ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
+					else	ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
 					break;
 				} 
 
 				if(time > end) break;
 				
-				ctd.add(time, datalist.get(i));
+				ctd.add(time, datalist.get(i));			// add current frame
 			}
 			else {			//  multi-point blocks
 				int waveHeader = filelist.get(i).getName().endsWith(".wav")?44:0;		// skip audio.wav header (44 bytes)
