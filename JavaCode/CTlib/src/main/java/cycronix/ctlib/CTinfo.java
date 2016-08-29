@@ -69,7 +69,7 @@ public class CTinfo {
 	 * @see #fileType(String,char)
 	 */
 	public static char fileType(String fname) {
-		return fileType(fname, 'n');			// was 's'
+		return fileType(fname, 'N');			// was 'n'
 	}
 	
 	/**
@@ -95,6 +95,7 @@ public class CTinfo {
 		else if	(fName.endsWith(".i64")) fType = 'I';
 		else if (fName.endsWith(".Num")) fType = 'N';
 		else if (fName.endsWith(".num")) fType = 'n';
+		else if (fName.endsWith(".csv")) fType = 'N';		// default
 		return(fType);
 	}
 	
