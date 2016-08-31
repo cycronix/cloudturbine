@@ -395,7 +395,8 @@ public class CTwriter {
 	 */
 	public synchronized void putData(String outName, byte[] bdata) throws Exception {
 		// TO DO?:  deprecate following, use addData vs putData/blockmode?
-		if(blockMode) {				// in block mode, delay putData logic until full queue
+//		if(blockMode) {				// in block mode, delay putData logic until full queue
+		if(blockMode && CTinfo.wordSize(outName)>1) {	// don't merge byteArrays (keep intact)
 			CTinfo.debugPrint("addData at blockTime: "+blockTime+", thisFtime: "+thisFtime);
 			addData(outName, bdata);
 			return;

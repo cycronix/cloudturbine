@@ -27,11 +27,10 @@ public class CTpack {
 	String rootFolder = "CTdata";
 	String packFolder = "CTpack";
 	
-	boolean blockMode=true;
-	boolean zipMode=true;
-	static long blockPts=10;			// points per block
+	boolean blockMode=true;				// warning:  non-block audio is deadly inefficient
+	boolean zipMode=true;				// zip on by default
 	static long segBlocks=10;			// blocks per segment (was 10)
-	static double timePerBlock=1.;		// time interval per block on output
+	static double timePerBlock=10.;		// time interval per block on output
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -43,17 +42,24 @@ public class CTpack {
 		
 		
     	if(args.length == 0) {
-    		System.err.println("CTpack -x -p <packFolder> rootFolder");
+    		System.err.println("CTpack -x -z -b -p <packFolder> -t <timePerBlock> -s <segBlocks> rootFolder");
     	}
     	
      	int dirArg = 0;
      	while((dirArg<args.length) && args[dirArg].startsWith("-")) {		// arg parsing
      		if(args[dirArg].equals("-x")) 	debug = true;
+     		if(args[dirArg].equals("-z")) 	zipMode = false;				// turn OFF zip
+     		if(args[dirArg].equals("-b")) 	blockMode = false;				// turn OFF packed blocks
+
      		if(args[dirArg].equals("-p"))  	packFolder = args[++dirArg]; 
+     		if(args[dirArg].equals("-t"))  	timePerBlock = Double.parseDouble(args[++dirArg]); 
+     		if(args[dirArg].equals("-s"))  	segBlocks = Integer.parseInt(args[++dirArg]); 
+
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];  	
-		
+     	if(!blockMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
+     	
 		// setup CTreader
 		
      	try {
@@ -63,27 +69,30 @@ public class CTpack {
      		for(String source:ctr.listSources()) {
          		boolean done = false;
  				System.err.println("Source: "+source);
-
-     			for(double thisTime=0.; done==false; thisTime+=timePerBlock) {
+ 				
+ 				// setup CTwriter for each root source
+ 				CTwriter ctw = new CTwriter(packFolder+"/"+source);		// new CTwriter at root/source folder
+ 				ctw.setBlockMode(blockMode,zipMode); 					// pack into binary blocks (linear timestamps per block)
+ 				ctw.autoFlush(0, segBlocks);							// autoflush segments
+ 				
+     			for(double thisTime=0.; true; thisTime+=timePerBlock) {
      				System.err.println("thisTime: "+thisTime);
-     				ArrayList<String>chanList = new ArrayList<String>();
-     				chanList = ctr.listChans(source);
-     				ArrayList<byte[][]> dataList = new ArrayList<byte[][]>();
-     				ArrayList<double[]> timeList = new ArrayList<double[]>();
-     				
-     				for(String chan:chanList) {
+
+     				for(String chan:ctr.listChans(source)) {
      					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "oldest");		// get next chunk
      					double[] t = data.getTime();
      					byte[][] d = data.getData();
-     					timeList.add(t);
-     					dataList.add(d);
-     					System.err.println("Chan: "+chan+", data.size: "+d.length+", time.size: "+t.length);
+
+     					System.err.println("+Chan: "+chan+", data.size: "+d.length+", time.size: "+t.length);
+     					for(int j=0; j<data.size(); j++) {		// re-write in same chunks as root source
+     						ctw.setTime(t[j]);
+     						ctw.putData(chan, d[j]);
+     					}
      					if(d.length == 0) done=true;
      				}
-
-//     				CTwriter ctw = new CTwriter(packFolder+"/"+source);		// new CTwriter at root/source folder
-//     				ctw.setBlockMode(blockMode,zipMode); 					// pack into binary blocks? (linear timestamps per block)
-//     				ctw.autoFlush(timePerBlock, segBlocks);					// autoflush blocks and segments
+     				ctw.flush();								// manually flush each timePerBlock
+     				
+     				if(done) break;		// break after all chans written
      			}
      		}
      	}

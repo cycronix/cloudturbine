@@ -112,8 +112,14 @@ public class CTinfo {
 		case 'j':	return 2;
 		case 'i':	return 4;
 		case 'I':	return 8;
+		case 'N':	return 8;
+		case 'n':	return 4;
 		default:	return 1;	
 		}
+	}
+	
+	public static int wordSize(String fname) {
+		return wordSize(fileType(fname)); 
 	}
 	
 }

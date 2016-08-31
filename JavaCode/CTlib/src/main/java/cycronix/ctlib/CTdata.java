@@ -109,7 +109,7 @@ public class CTdata {
 		switch(wordType) {
 			case 'n':
 			case 'N':
-				return timeRangeNumeric(wordType, start, duration, tmode);
+				return timeRangeNumeric(start, duration, tmode);
 			default:
 				return timeRange(CTinfo.wordSize(wordType), 0., start, duration, tmode);
 		}
@@ -122,7 +122,7 @@ public class CTdata {
 	//			- generalize extract String[] vs  byte[] chunks
 	//			- incTimeI is defunct?
 	
-	CTdata timeRangeNumeric(int wordSize, double start, double duration, String tmode) { 
+	CTdata timeRangeNumeric(double start, double duration, String tmode) { 
 		// Note:  start, duration is requested time, versus timelist being actual available time
 
 		double tend = start + duration;		// for ref
@@ -334,6 +334,8 @@ public class CTdata {
 				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
 //					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", dt: "+dt);
 //					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
+					if(duration==0 && j==(count-1)) time = end;		// tweek for +=dt round off error
+
 					if(time < start) continue;
 					else if(time <= end) {
 						int idx = j + waveHeader/wordSize;
