@@ -58,24 +58,27 @@ public class CTpack {
 		
      	try {
      		CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
-
+     		
      		// loop and read what source(s) and chan(s) are available
      		for(String source:ctr.listSources()) {
-     			for(double thisTime=0.; thisTime<Double.MAX_VALUE; thisTime+=timePerBlock) {
-     				
+         		boolean done = false;
+ 				System.err.println("Source: "+source);
+
+     			for(double thisTime=0.; done==false; thisTime+=timePerBlock) {
+     				System.err.println("thisTime: "+thisTime);
      				ArrayList<String>chanList = new ArrayList<String>();
      				chanList = ctr.listChans(source);
      				ArrayList<byte[][]> dataList = new ArrayList<byte[][]>();
      				ArrayList<double[]> timeList = new ArrayList<double[]>();
      				
-     				System.err.println("Source: "+source);
      				for(String chan:chanList) {
-     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "oldest");		// get it all
+     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "oldest");		// get next chunk
      					double[] t = data.getTime();
      					byte[][] d = data.getData();
      					timeList.add(t);
      					dataList.add(d);
      					System.err.println("Chan: "+chan+", data.size: "+d.length+", time.size: "+t.length);
+     					if(d.length == 0) done=true;
      				}
 
 //     				CTwriter ctw = new CTwriter(packFolder+"/"+source);		// new CTwriter at root/source folder
