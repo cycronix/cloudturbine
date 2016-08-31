@@ -271,7 +271,7 @@ public class CTreader {
 	
 	//---------------------------------------------------------------------------------	
 	// listSources:  build list of sources (folders at top level rootFolder)
-
+/*
 	public ArrayList<String> listSources() {
 		ArrayList<String> SourceList = new ArrayList<String>();		// for registration
 		CTFile[] listOfFolders = new CTFile(rootFolder).listFiles();
@@ -289,8 +289,13 @@ public class CTreader {
 //		if(SourceList.size() == 0) SourceList.add(new File(rootFolder).getName());		// root source
 		return SourceList;
 	}
-	
+*/	
+	@Deprecated
 	public ArrayList<String> listSourcesRecursive() throws IOException {
+		return listSources();
+	}
+	
+	public ArrayList<String> listSources() throws IOException {
 		final ArrayList<String> SourceList = new ArrayList<String>();		// for registration
 		final Path rootPath = new CTFile(rootFolder).toPath();
 		final int nroot = rootPath.getNameCount();

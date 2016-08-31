@@ -193,8 +193,8 @@ public class CTserver extends NanoHTTPD {
     			printHeader(response,request,"/");
     			ArrayList<String> slist = new ArrayList<String>();
     			
-//    			if(sourceFolder == null) slist = ctreader.listSources();
-    			if(sourceFolder == null) slist = ctreader.listSourcesRecursive();
+    			if(sourceFolder == null) slist = ctreader.listSources();
+//    			if(sourceFolder == null) slist = ctreader.listSourcesRecursive();
     			else					 slist.add(sourceFolder);
     			
     			if(slist==null || slist.size()==0) response.append("No Sources!");
