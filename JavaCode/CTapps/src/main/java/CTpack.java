@@ -1,4 +1,5 @@
 
+import java.io.File;
 import java.util.ArrayList;
 
 //---------------------------------------------------------------------------------	
@@ -64,35 +65,41 @@ public class CTpack {
 		
      	try {
      		CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
-     		
      		// loop and read what source(s) and chan(s) are available
-     		for(String source:ctr.listSources()) {
-         		boolean done = false;
+     		for(String source:ctr.listSources()) {							// {Loop by Source}
+//         		boolean done = false;
+         		String sourcePath = rootFolder + File.separator + source;
  				System.err.println("Source: "+source);
+ 	     		double oldTime = ctr.oldTime(sourcePath);		// go absolute time oldest to newest (straddling gaps)
+ 	     		double newTime = ctr.newTime(sourcePath);
+ 				System.err.println("source oldTime: "+oldTime+", newTime: "+newTime);
  				
  				// setup CTwriter for each root source
  				CTwriter ctw = new CTwriter(packFolder+"/"+source);		// new CTwriter at root/source folder
  				ctw.setBlockMode(blockMode,zipMode); 					// pack into binary blocks (linear timestamps per block)
  				ctw.autoFlush(0, segBlocks);							// autoflush segments
  				
-     			for(double thisTime=0.; true; thisTime+=timePerBlock) {
-     				System.err.println("thisTime: "+thisTime);
+//     			for(double thisTime=0.; true; thisTime+=timePerBlock) {		// {Loop by Time}
+         		for(double thisTime=oldTime; thisTime<=newTime; thisTime+=timePerBlock) {		// {Loop by Time}
+//     				System.err.println("thisTime: "+thisTime);
 
-     				for(String chan:ctr.listChans(source)) {
-     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "oldest");		// get next chunk
+     				for(String chan:ctr.listChans(source)) {				// {Loop by Chan}
+//     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "oldest");		// get next chunk
+     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "absolute");	// get next chunk
+
      					double[] t = data.getTime();
      					byte[][] d = data.getData();
 
-     					System.err.println("+Chan: "+chan+", data.size: "+d.length+", time.size: "+t.length);
+//     					System.err.println("+Chan: "+chan+", data.size: "+d.length+", time.size: "+t.length);
      					for(int j=0; j<data.size(); j++) {		// re-write in same chunks as root source
      						ctw.setTime(t[j]);
      						ctw.putData(chan, d[j]);
      					}
-     					if(d.length == 0) done=true;
+//     					if(d.length == 0) done=true;
      				}
      				ctw.flush();								// manually flush each timePerBlock
      				
-     				if(done) break;		// break after all chans written
+//     				if(done) break;		// break after all chans written
      			}
      		}
      	}

@@ -96,7 +96,9 @@ class CTFile extends File {
 	private CTFile(String path, String myzipfile, String mypath) {
 		super(path);
 		myPath = new String(mypath);		// note:  here myPath is short zip-entry name (inconsistent)
-//		myPath = myzipfile.substring(0,myzipfile.lastIndexOf('.')) + File.separator + myPath;	// full effective zip entry path for relative timestamps to work
+		
+		// following to give usable path so that fileTime works.  but other places breaks ??!!
+		myPath = myzipfile.substring(0,myzipfile.lastIndexOf('.')) + File.separator + myPath;	// full effective zip entry path for relative timestamps to work
 
 		myZipFile = myzipfile;
 //		isFile = true;
@@ -184,6 +186,7 @@ class CTFile extends File {
 			//		else if(isFile) {
 			//			System.err.println("p3: "+Paths.get(myPath).getFileName()+", p4: "+fileName(myPath));
 			//			return Paths.get(myPath).getFileName().toString();
+//			System.err.println("getName ZFILE, myPath: "+myPath+", fileName: "+fileName(myPath));
 			return fileName(myPath);					// Java 1.6 compat XX
 			//		}
 		case TFILE:
@@ -203,7 +206,7 @@ class CTFile extends File {
 	public CTFile[] listFiles() {
 		CTFile[] clist = null;
 		
-//		System.err.println("listFiles, fileType: "+fileType);
+//		System.err.println("listFiles for: "+myPath+", fileType: "+fileType);
 		switch(fileType) {
 		case ZIP:				// top level file.zip
 			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
@@ -212,6 +215,7 @@ class CTFile extends File {
 			clist = new CTFile[sfiles.length];
 
 			for(int i=0; i<sfiles.length; i++) {
+//				System.err.println("ZIP file: "+sfiles[i]+", zipmap.get: "+zipMap.get(sfiles[i]));
 				String[] files = zipMap.get(sfiles[i]);
 				clist[i] = new CTFile((String) sfiles[i], files, myZipFile);	
 			}
@@ -221,14 +225,14 @@ class CTFile extends File {
 //			for(CTFile c:clist) System.err.println(c);
 			return clist;
 
-		case ZENTRY:				// zip folder
+		case ZENTRY:				// embedded zip folder
 			if(myFiles==null) return null;
 			clist = new CTFile[myFiles.length];
 
 			for(int i=0; i<myFiles.length; i++) {
 				//				String fname = Paths.get(myFiles[i]).getName(0).toString();	
 				String fname = myFiles[i].split(File.pathSeparator)[0];		// Java 1.6 compat
-//				System.err.println("myFiles["+i+"]: "+myFiles[i]+", fname: "+fname);
+//				System.err.println("ZENTRY, myFiles["+i+"]: "+myFiles[i]+", fname: "+fname);
 				clist[i] = new CTFile(fname,myZipFile,myFiles[i]);
 			}
 			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
@@ -250,6 +254,7 @@ class CTFile extends File {
 			Arrays.sort(clist, fileTimeComparator);					// make sure sorted (newTime etc presumes)
 			return clist;		// wrap in CTFile class
 		}
+		
 	}
 
 	/**
@@ -272,6 +277,26 @@ class CTFile extends File {
 		return prunedlist;
 	}
 
+	/**
+	 * file-list pruned to only include folders containing CTmap channel(s)
+	 * @return CTfile[] array of folders
+	 */
+	// file-list pruned to only include folders (inefficient?)
+	CTFile[] listFolders(CTmap ctmap) {
+		CTFile[] filelist = this.listFiles();
+		if(filelist == null) {
+//			System.err.println("CTFile: Empty folder-list!");
+			return null;
+		}
+		CTFile[] folderlist = new CTFile[filelist.length];
+		int count=0;
+		for(CTFile f:filelist) if(f.isDirectory() && f.containsFile(ctmap)) folderlist[count++]=f;
+		CTFile[] prunedlist = new CTFile[count];
+		System.arraycopy(folderlist, 0, prunedlist, 0, count);
+//		Arrays.sort(prunedlist, fileTimeComparator);		// listFiles already sorted
+		return prunedlist;
+	}
+	
 	public boolean isDirectory() {
 		switch(fileType) {
 		case ZIP:		return true;
@@ -338,6 +363,7 @@ class CTFile extends File {
 		long len=0;
 		switch(fileType) {
 		case ZIP:	
+			if(zipMap==null) return 0;
 			//		if(isZip) {
 			len = zipMap.size();
 			break;
@@ -401,28 +427,14 @@ class CTFile extends File {
 //		if(isFile) {		
 			try {
 				ZipFile zfile = new ZipFile(myZipFile);
-				// note:  myPath for zip-entry is not full-path as it is with other CTFile...
+				// note:  myPath for zip-entry is not full-path as it is with other CTFile...  <---FIXED and adjusted right below!
 				String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
 				
-/*		// doesn't seem to help.  MJM 8/14/15
-				// pro-actively read and cache all zip-entries here?  extra work if don't need, may help with many-chans per zip performance
-				int numEntries = zfile.size();		// convert to array, easier loop control
-				if((DataCache.size()+numEntries) < MAX_ENTRIES) {
-					System.err.println("precache numEntries: "+numEntries+", zipfile: "+myZipFile+", thisChan: "+myPath);
-					Enumeration<? extends ZipEntry> zenum = zfile.entries();
-					for(int i=0; i<numEntries; i++) {
-						ZipEntry ze = zenum.nextElement();
-						int zsize = (int)ze.getSize();
-						data = new byte[zsize];
-						InputStream zis = zfile.getInputStream(ze);
-						int len, nread=0;
-						while ((len = zis.read(data,nread,zsize-nread)) > 0) nread+=len;
-						String ck = myZipFile+":"+ze.getName();
-						if(data!=null && data.length <= MAX_FILESIZE) DataCache.put(ck, data);
-//						System.err.println("precache zip data, ck: "+ck+", cacheKey: "+cacheKey);
-					}
-				}
-*/				
+				// strip leading file path to get just the zip-entry part!  always will be time/name format.
+				String[] subDirs = mypathfs.split(Pattern.quote("/"));	
+				if(subDirs.length >= 2) mypathfs = subDirs[subDirs.length-2] + "/" + subDirs[subDirs.length-1];
+				else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
+				
 				ZipEntry ze = zfile.getEntry(mypathfs);			// need fullpath!
 				if(ze == null) {
 					zfile.close();
@@ -659,6 +671,9 @@ class CTFile extends File {
   	double baseTime() {
 //  		System.err.println("baseTime, fname: "+getName()+", thisPath: "+getPath()+", getParent: "+getParent()+", myPath: "+myPath);
 //  		return fileTime(this.getPath(), true);
+
+  		if(CTinfo.wordSize(getName())==1) return fileTime();			// intact (non-packed) data types 
+  		
   		if(fileType == FileType.FILE) 
   				return fileTime(this.getParentFile().getParent());		// grandparent for regular folders
   		else	return fileTime(this.getParent());						// zipfile itself for embedded zentries
@@ -799,4 +814,25 @@ class CTFile extends File {
   	    	return( Double.compare(filea.fileTime(), fileb.fileTime()) );
   	    }
   	};
+  	
+  	
+	//--------------------------------------------------------------------------------------------------------
+	// containsFile:  see if folder contains a file (channel) in ctmap
+
+	public boolean containsFile(CTmap cm) {
+		if(!this.isDirectory()) return false;
+		
+		CTFile[] listOfFiles = this.listFiles();
+		if(listOfFiles == null) return false;
+		for(int j=0; j<listOfFiles.length; j++) {
+			CTFile file = listOfFiles[j];
+			if(file.isFile()) {
+				String fileName =  file.getName();
+//				System.err.println("cm.checkName: "+fileName+", t/f: "+cm.checkName(fileName));
+				if(cm.checkName(fileName)) return true;		// got a match 
+			} 
+			else if(file.containsFile(cm)) return true;		// recurse
+		}
+		return false;
+	}
 }

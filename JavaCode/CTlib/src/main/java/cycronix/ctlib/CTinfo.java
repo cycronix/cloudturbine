@@ -85,6 +85,7 @@ public class CTinfo {
 		if		(fName.endsWith(".bin")) fType = 'B';
 		else if	(fName.endsWith(".jpg")) fType = 'B';
 		else if	(fName.endsWith(".wav")) fType = 'j';		// was 'B'
+		else if	(fName.endsWith(".pcm")) fType = 'j';		// was 'B'
 		else if	(fName.endsWith(".mp3")) fType = 'B';
 		else if	(fName.endsWith(".pcm")) fType = 'j';		// FFMPEG s16sle audio
 		else if	(fName.endsWith(".txt")) fType = 's';	

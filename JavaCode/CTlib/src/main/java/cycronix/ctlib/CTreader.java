@@ -131,21 +131,29 @@ public class CTreader {
 			if(files == null) continue;
 			if(files.length == 0) continue;
 
-			for(int j=0; j<files.length; j++) {
-				if(files[j].isDirectory()) ftime = oldTime(files, ctmap);	// recurse
-				if(ftime > 0.) {
-					CTinfo.debugPrint("oldTime, ftime: "+ftime+", folderTime: "+listOfFolders[idx].fileTime());
-					return listOfFolders[idx].fileTime();		// return parent folder containing file as oldTime (could precede block-endTime)
+			for(int j=0; j<files.length; j++) {	
+//				System.err.println("oldTime check file: "+files[j].getPath());
+				if(files[j].isDirectory()) 	ftime = oldTime(new CTFile[] {files[j]}, ctmap);	// recurse
+				else {
+//					System.err.println("fileTime: "+files[j].fileTime()+", baseTime: "+files[j].baseTime());
+//					if(ctmap == null || containsFile(files, ctmap)) ftime = files[j].baseTime();
+					if(ctmap == null || listOfFolders[idx].containsFile(ctmap)) ftime = files[j].baseTime();
 				}
+				if(ftime > 0.) return ftime;
 			}
 
+			// fall through to here if no folders at this level
+//			System.err.println("oldTime skip past folder: "+listOfFolders[idx].getAbsolutePath());
+/*
 			if(files[0].length() <= 0) continue;
 			if((ctmap != null) && !containsFile(files, ctmap)) continue;		// only folders with chan(s)
 			
 			ftime = listOfFolders[idx].fileTime();			// try
 			if(ftime == 0.) continue;						// oldest is first timed file
 			break;
+*/
 		}
+//		System.err.println("oldTime got ftime: "+ftime);
 		return ftime;
 	}
 	
@@ -180,29 +188,22 @@ public class CTreader {
 			if(files == null) continue;
 			if(files.length == 0) continue;
 
-			for(int j=0; j<files.length; j++) {
-				if(files[j].isDirectory()) {
-					ftime = newTime(files, ctmap);	// recurse
+			int j = files.length-1;
+			for(; j>=0; j--) {
+//				System.err.println("newTime check file: "+files[j].getMyPath());
+				if(files[j].isDirectory()) ftime = newTime(new CTFile[] {files[j]}, ctmap);	// recurse
+				else {
+//					System.err.println("newTime got fileTime: "+files[j].fileTime()+", containsFile: "+listOfFolders[idx].containsFile(ctmap));
+//					if(ctmap == null || containsFile(files, ctmap)) ftime = files[jdx].fileTime();
+					if(ctmap == null || listOfFolders[idx].containsFile(ctmap)) ftime = files[j].fileTime();
 				}
+			
 				if(ftime > 0.) return ftime;
 			}
-
-			if((ctmap != null) && !containsFile(files, ctmap)) continue;	// only folders with chan(s)
-
-			for(int j=0; j<files.length; j++) {
-				if(files[j].isDirectory()) {
-					double trytime = files[j].fileTime();
-					if(trytime > ftime) {
-						ftime = trytime;
-//						newFile = files[j];		// for efficient external ref (cluge)
-					}
-				}
-			}
-			double trytime = listOfFolders[idx].fileTime();				// try
-			if(trytime > ftime) ftime = trytime;
-			if(ftime == 0.) continue;
-			break;
+//			System.err.println("newTime skip past folder: "+listOfFolders[idx].getAbsolutePath());
 		}
+		
+//		System.err.println("newTime got ftime: "+ftime);
 		return ftime;
 	}
 
@@ -221,7 +222,8 @@ public class CTreader {
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null || listOfFiles.length < 1) return null;
 
-		int expedite=expediteLimit(sfolder,listOfFiles.length, 10);		// segments
+		int expedite=expediteLimit(sfolder,listOfFiles.length, 100);		// segments
+//		expedite = 1;	// ???
 		for(int i=0; i<listOfFiles.length;i+=expedite) {
 			CTFile thisFile = listOfFiles[i];
 			if(!thisFile.isDirectory() || thisFile.fileTime()==0) continue;		// this isn't a channel-folder
@@ -240,13 +242,13 @@ public class CTreader {
 		if(listOfFiles == null) return;
 //		System.err.println("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
-		int expedite=expediteLimit(sourceFolder.getName(),listOfFiles.length, 10);		// blocks
+		int expedite=expediteLimit(sourceFolder.getName(),listOfFiles.length, 1000);		// blocks
 		for(int i=0; i<listOfFiles.length; i+=expedite) {
 			CTFile thisFile=listOfFiles[i];
-//			CTinfo.debugPrint("buildChanList(), thisFile: "+thisFile+", isFile: "+thisFile.isFile()+", len: "+thisFile.length());
 			if(thisFile.isFile() && thisFile.length() <= 0) continue;
+			CTinfo.debugPrint("buildChanList(), thisFile: "+thisFile+", isFile: "+thisFile.isFile()+", len: "+thisFile.length());
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
-//				CTinfo.debugPrint("buildChanList got folder: "+thisFile+", recurse: "+thisFile);
+				CTinfo.debugPrint("buildChanList got folder: "+thisFile+", recurse: "+thisFile);
 				buildChanList(thisFile,ChanList);		// recursive ?
 			}
 			else {
@@ -254,7 +256,7 @@ public class CTreader {
 				String fname = listOfFiles[i].getName();
 				if(ChanList.indexOf(fname) < 0)  {
 					ChanList.add(fname);	// add if not already there
-//					CTinfo.debugPrint("Chanlist.add: "+fname);
+					CTinfo.debugPrint("Chanlist.add: "+fname);
 				}
 			}
 		}
@@ -263,7 +265,7 @@ public class CTreader {
 	//---------------------------------------------------------------------------------	
 	private int expediteLimit(String sfolder, int flen, int limit) {
 		if(flen > 2*limit) {
-//			System.err.println("Expedited channel list for source "+sfolder+"! nfiles: "+flen);
+			System.err.println("Expedited channel list for source "+sfolder+"! nfiles: "+flen+", limited to: "+(flen/limit));
 			return(flen/limit);			// limit to at most 10 per level ?!
 		}
 		else			return 1;
@@ -404,7 +406,8 @@ public class CTreader {
 		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 		try {
 			// get updated list of folders
-			CTFile[] listOfFolders = rootfolder.listFolders();	// folders only here
+			CTFile[] listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only
+//			System.err.println("getDataMap, listOfFolders.length: "+listOfFolders.length);
 //			System.err.println("getDataMap, old: "+oldTime(listOfFolders, ctmap)+", new: "+newTime(listOfFolders,ctmap));
 
 			if(listOfFolders == null || listOfFolders.length < 1) return ctmap;
@@ -415,6 +418,7 @@ public class CTreader {
 			}
 			else if(rmode.equals("oldest")) {				// convert relative to absolute time
 				getftime = oldTime(listOfFolders, ctmap) + getftime;
+				CTinfo.debugPrint("getDataMap, oldTime: "+getftime);
 				rmode = "absolute";
 			}
 			else if(rmode.equals("newest")) {
@@ -517,7 +521,7 @@ public class CTreader {
 		}
 		return hasdata;
 	}
-	
+/*	
 	//--------------------------------------------------------------------------------------------------------
 	// containsFile:  see if folder contains a file (channel) in ctmap
 
@@ -534,7 +538,7 @@ public class CTreader {
 		}
 		return false;
 	}
-	
+*/	
 }
 
 

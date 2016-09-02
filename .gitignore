@@ -2,6 +2,7 @@
 *.class
 *.apk
 *~
+.DS_Store
 .project
 .classpath
 bin/
