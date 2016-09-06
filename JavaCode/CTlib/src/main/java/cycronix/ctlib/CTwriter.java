@@ -63,7 +63,8 @@ public class CTwriter {
 	private long blocksPerSegment=0;		// auto new segment every so many blocks (default=off)
 	private long flushCount=0;				// keep track of flushes
 	private boolean initBaseTime = true;	// first-time startup init flag
-
+	private boolean packFlush=false;		// pack single flush into top level zip
+	
 	private long autoFlush=Long.MAX_VALUE;	// auto-flush subfolder time-delta (msec)
 	private long lastFtime=0;
 	private long thisFtime=0;
@@ -242,7 +243,14 @@ public class CTwriter {
 			 	
 		rebaseFlag = false;					// defer taking effect until full-block on flush
 		initBaseTime = false;
-		CTinfo.debugPrint("setBaseTime: baseTimeStr: "+baseTimeStr+", destPath: ["+destPath+"]");
+//		System.err.println("segmentTime: baseTimeStr: "+baseTimeStr+", blocksPerSegment: "+blocksPerSegment);
+	}
+	
+	/**
+	 * Force a new time segment
+	 */
+	public void newSegment() {
+		rebaseFlag = true;
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -322,10 +330,14 @@ public class CTwriter {
 				writeData(prevFtime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
 			}
 			blockData.clear();
-
+			
 			if(zos != null) {		// zip mode writes once per flush; non-zip files written every update
 				zos.close();	zos = null;
-				writeToStream(destName, baos.toByteArray());
+				if(packFlush) 	{
+					destName = destPath + baseTimeStr + ".zip";		// write all data to single zip
+					packFlush = false;								// careful:  can't packFlush same source more than once!
+				}
+				writeToStream(destName, baos.toByteArray());	
 			}
 			
 			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
@@ -354,6 +366,15 @@ public class CTwriter {
 			e.printStackTrace(); 
 			throw new IOException("FTP flush failed: " + e.getMessage());
 		} 
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// special case:  pack baseTime/0/0.zip to baseTime.zip for single-block data
+	
+	public void packFlush() throws IOException {
+		if(!zipFlag || !blockMode) throw new IOException("packFlush only works for block/zip files");
+		packFlush = true;
+		flush();			// flush and close (no more writes this source!)
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -476,8 +497,7 @@ public class CTwriter {
 					zos = new ZipOutputStream(baos);
 					zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
 				}
-//				zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
-
+				
 				if(timeRelative) time = time - blockTime;		// relative timestamps
 				
 				String name = time+"/"+outName;			// always use subfolders in zip files
@@ -485,8 +505,9 @@ public class CTwriter {
 				try {
 					zos.putNextEntry(entry);
 				} catch(IOException e) {
-					CTinfo.debugPrint("zip entry exception: "+e);
-					throw e;
+					CTinfo.warnPrint("zip entry exception: "+e);
+					return;	
+//					throw e;		
 				}
 
 				zos.write(bdata); 

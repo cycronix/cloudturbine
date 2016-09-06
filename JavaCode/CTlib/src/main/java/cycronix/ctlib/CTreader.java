@@ -246,9 +246,9 @@ public class CTreader {
 		for(int i=0; i<listOfFiles.length; i+=expedite) {
 			CTFile thisFile=listOfFiles[i];
 			if(thisFile.isFile() && thisFile.length() <= 0) continue;
-			CTinfo.debugPrint("buildChanList(), thisFile: "+thisFile+", isFile: "+thisFile.isFile()+", len: "+thisFile.length());
+//			CTinfo.debugPrint("buildChanList(), thisFile: "+thisFile+", isFile: "+thisFile.isFile()+", len: "+thisFile.length());
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
-				CTinfo.debugPrint("buildChanList got folder: "+thisFile+", recurse: "+thisFile);
+//				CTinfo.debugPrint("buildChanList got folder: "+thisFile+", recurse: "+thisFile);
 				buildChanList(thisFile,ChanList);		// recursive ?
 			}
 			else {

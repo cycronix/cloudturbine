@@ -32,6 +32,7 @@ public class CTpack {
 	boolean zipMode=true;				// zip on by default
 	static long segBlocks=10;			// blocks per segment (was 10)
 	static double timePerBlock=10.;		// time interval per block on output
+	boolean singleFolder = false;		// pack everything into single zip file
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -43,7 +44,7 @@ public class CTpack {
 		
 		
     	if(args.length == 0) {
-    		System.err.println("CTpack -x -z -b -p <packFolder> -t <timePerBlock> -s <segBlocks> rootFolder");
+    		System.err.println("CTpack -x -z -b -1 -p <packFolder> -t <timePerBlock> -s <segBlocks> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -55,13 +56,22 @@ public class CTpack {
      		if(args[dirArg].equals("-p"))  	packFolder = args[++dirArg]; 
      		if(args[dirArg].equals("-t"))  	timePerBlock = Double.parseDouble(args[++dirArg]); 
      		if(args[dirArg].equals("-s"))  	segBlocks = Integer.parseInt(args[++dirArg]); 
+     		
+     		if(args[dirArg].equals("-1")) 	singleFolder = true;
 
      		dirArg++;
      	}
+     	CTinfo.setDebug(debug);
      	if(args.length > dirArg) rootFolder = args[dirArg++];  	
      	if(!blockMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
      	
 		// setup CTreader
+		if(singleFolder) {
+			timePerBlock = Double.MAX_VALUE;
+			zipMode = true;
+			blockMode = true;
+			segBlocks = 0;
+		}
 		
      	try {
      		CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
@@ -97,7 +107,8 @@ public class CTpack {
      					}
 //     					if(d.length == 0) done=true;
      				}
-     				ctw.flush();								// manually flush each timePerBlock
+     				if(singleFolder) ctw.packFlush();
+     				else 			 ctw.flush();								// manually flush each timePerBlock
      				
 //     				if(done) break;		// break after all chans written
      			}
