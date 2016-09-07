@@ -1,3 +1,16 @@
+
+// The following plugins and buildScan sections enable Gradle Build Scans;
+// from command line, run "gradle build -Dscan" to have the scan created
+// when building the code.  At the end of the compile, a URL is presented
+// to view build information online.
+plugins {
+    id 'com.gradle.build-scan' version '1.0'
+}
+buildScan {
+    licenseAgreementUrl = 'https://gradle.com/terms-of-service'
+    licenseAgree = 'yes'
+}
+
 apply plugin: 'java'
 
 defaultTasks 'build'
