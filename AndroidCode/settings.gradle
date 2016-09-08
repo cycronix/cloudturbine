@@ -1,2 +1,2 @@
-include ':CT2DB',':CTandroidACL',':CTandroidAV',':CTAserver'
+include ':CTandroidACL',':CTandroidAV',':CTAserver'
 
