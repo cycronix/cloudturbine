@@ -372,7 +372,7 @@ public class CTwriter {
 	// special case:  pack baseTime/0/0.zip to baseTime.zip for single-block data
 	
 	public void packFlush() throws IOException {
-		if(!zipFlag || !blockMode) throw new IOException("packFlush only works for block/zip files");
+		if(!zipFlag /* || !blockMode */) throw new IOException("packFlush only works for block/zip files");
 		packFlush = true;
 		flush();			// flush and close (no more writes this source!)
 	}

@@ -222,6 +222,7 @@ public class CTdata {
 		prevtime = 0;
 		String oldZipFile=null;
 		
+		// step through elements of timelist, datalist Arrays
 		for(int i=0; i<nframe; i++) {					// multiple frames per arraylist element
 			double time = timelist.get(i);
 

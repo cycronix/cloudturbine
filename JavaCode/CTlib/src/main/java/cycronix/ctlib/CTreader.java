@@ -313,7 +313,7 @@ public class CTreader {
 					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
 							throws IOException
 					{
-//						System.err.println("walkFileTree file: "+file);
+						// System.err.println("walkFileTree file: "+file);
 						return FileVisitResult.CONTINUE;
 					}
 
@@ -322,66 +322,21 @@ public class CTreader {
 							throws IOException
 					{
 						for(File file:dir.toFile().listFiles()) {
-//							if(file.isFile()) {			// folder with at least one file is a candidate source
+							//							if(file.isFile()) {			// folder with at least one file is a candidate source
 							if((new CTFile(file.getName()).fileTime())>0.) {		// folder with a "timed" folder/file is a candidate source
-
-								//				if(dir.toFile().listFiles().length > 0) {		// folder with files: consider it to be a leaf node timestamp
 								if ( dir.equals( rootPath ) ) return FileVisitResult.CONTINUE;
+								int npath = dir.getNameCount();
+								String thisPath = dir.getName(npath-1).toString();
+								for(int i=(npath-2); i>=nroot; i--) thisPath = dir.getName(i) + File.separator + thisPath; 	// skip rootPath
 
-//								String thisFolder = dir.getFileName().toString();
-//								try {
-//									Long.parseLong(thisFolder);
-//								} catch(NumberFormatException en) {
-//									System.err.println("walkFileTree dir, Source: "+dir);
-									int npath = dir.getNameCount();
-									String thisPath = dir.getName(npath-1).toString();
-									for(int i=(npath-2); i>=nroot; i--) thisPath = dir.getName(i) + File.separator + thisPath; 	// skip rootPath
-
-									if(thisPath.length() >0) {
-										SourceList.add(thisPath);		// only add if not a time-number name
-//										System.err.println("walkFileTree add: "+thisPath);
-									}
-//								}
+								if(thisPath.length() >0) {
+									SourceList.add(thisPath);		// only add if not a time-number name
+								}
 
 								return FileVisitResult.SKIP_SUBTREE;
 							} }
 						return FileVisitResult.CONTINUE;			// folder without any files
 					}
-
-					/*
-			@Override
-			public FileVisitResult postVisitDirectory(final Path dir, IOException e)
-					throws IOException
-			{
-				if (e == null) {
-		            if ( dir.equals( rootPath ) ) return FileVisitResult.CONTINUE;
-
-					String thisFolder = dir.getFileName().toString();
-			  		try {
-			  			Long.parseLong(thisFolder);
-			  			System.err.println("walkFileTree dir, Long: "+dir);
-			  		} catch(NumberFormatException en) {
-			  			System.err.println("walkFileTree dir, notLong: "+dir);
-
-//			  			System.err.println("dir: "+dir+",rootFolder: "+rootFolder+", nroot: "+nroot);
-			  			int npath = dir.getNameCount();
-			  			String thisPath = dir.getName(npath-1).toString();
-			  			for(int i=(npath-2); i>=nroot; i--) thisPath = dir.getName(i) + File.separator + thisPath; 	// skip rootPath
-
-			  			if(thisPath.length() >0) {
-			  				SourceList.add(thisPath);		// only add if not a time-number name
-//							System.err.println("walkFileTree add: "+thisPath);
-			  			}
-			  		}
-
-					return FileVisitResult.CONTINUE;
-				} else {
-					// directory iteration failed
-					throw e;
-				}
-
-			}
-					 */
 				});
 			}
 		}
