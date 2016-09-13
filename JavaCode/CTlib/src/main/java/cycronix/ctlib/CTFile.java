@@ -6,6 +6,7 @@ package cycronix.ctlib;
 //02/18/2014
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -245,13 +246,19 @@ class CTFile extends File {
 			return clist;
 			
 		default:				// conventional file...
-			File[] flist = super.listFiles();
+//			File[] flist = super.listFiles();
+			File[] flist = super.listFiles(new FileFilter() {
+			    @Override
+			    public boolean accept(File file) {
+			        return !file.isHidden();			// skip hidden files
+			    }
+			});
 			if(flist == null) return null;
 			clist = new CTFile[flist.length];
 			for(int i=0; i<clist.length; i++) {
 				clist[i] = new CTFile(flist[i].getPath());
 			}
-			Arrays.sort(clist, fileTimeComparator);					// make sure sorted (newTime etc presumes)
+			Arrays.sort(clist, fileTimeComparator);		// make sure sorted (newTime etc presumes)
 			return clist;		// wrap in CTFile class
 		}
 		
@@ -620,20 +627,18 @@ class CTFile extends File {
   	 */
   	
   	private double fileTime(String fname) {
-  		
+//  		System.err.println("fileTime: "+fname);
   		// special logic for TFOLDER (e.g. camera time.jpg files)
   		if(fileType==FileType.TFOLDER) return tfolderTime(fname);
 	
   		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
-//    	int idot = fname.lastIndexOf('.');					// strip trailing suffix (e.g. .zip)
-//    	if(idot > 0) fname = fname.substring(0,idot);
     	
 		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
 		String[] pathparts = fname.split(Pattern.quote(File.separator));
 		Long sumtime = 0L;
 		double ftime = 0.;
 		
-		for(int i=pathparts.length-1; i>=0; i--) {
+		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
 			String thispart = pathparts[i];
 			Long thistime = 0L;
 			try {
@@ -646,12 +651,12 @@ class CTFile extends File {
 
 			if(thistime >= 1000000000000L) {	// absolute msec
 				ftime = (double)sumtime / 1000.;
-//				System.err.println("******fileTime: "+ftime);
+//				System.err.println("******msec fileTime: "+ftime);
 				return ftime;
 			}
 			if(thistime >= 1000000000L) {		// absolute sec
 				ftime = (double)sumtime;
-//				System.err.println("******fileTime: "+ftime);
+//				System.err.println("******sec fileTime: "+ftime);
 				return ftime;
 			}
 		}
@@ -665,48 +670,24 @@ class CTFile extends File {
   	 * the time of the parent containing folder or zipfile
   	 * this is used for block-mode timestamps, basetime is start time of block
   	 * and lowest-level file time is end-time of block.
+  	 * Warning:  this logic only works for multi-point (packed) blocks
   	 * @param fname name of file to parse
   	 * @return double time in seconds
   	 */
   	double baseTime() {
-//  		System.err.println("baseTime, fname: "+getName()+", thisPath: "+getPath()+", getParent: "+getParent()+", myPath: "+myPath);
-//  		return fileTime(this.getPath(), true);
+//  		System.err.println("baseTime, fname: "+getName()+", thisPath: "+getPath()+", getParent: "+getParent()+", wordSize: "+CTinfo.wordSize(getName()));
 
-  		if(CTinfo.wordSize(getName())==1) return fileTime();			// intact (non-packed) data types 
-  		
-  		if(fileType == FileType.FILE) 
-  				return fileTime(this.getParentFile().getParent());		// grandparent for regular folders
-  		else	return fileTime(this.getParent());						// zipfile itself for embedded zentries
-  		
-//  		if(myZipFile==null) return baseTime(myPath);		// bleh getMyPath should be good for zipEntries
-//  		else				return baseTime(myZipFile);
-  	}
-/*  	
-  	double baseTime(String fname) {
-  		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
-  		String[] pathparts = fname.split(Pattern.quote(File.separator));
-		Long thistime = 0L;
-		boolean gotatime=false;
-		
-  		for(int i=pathparts.length-1; i>=0; i--) {
-  			String thispart = pathparts[i];
-//  			System.err.println("fileTime fname: "+fname+", thispart: "+thispart);
-  			try {
-  				thistime = Long.parseLong(thispart);
-  				gotatime=true;
-//  				System.err.println("thisTime: "+thistime);
-  			} catch(NumberFormatException e) {
-  				if(gotatime) {		// grab highest level contiguous time after first one
-  			  		if(thistime >= 1000000000000L) 	return (double)thistime / 1000.;	// msec
-  					if(thistime >= 1000000000L) 	return (double)thistime;			// sec
-  				}
-  				continue;		// keep going 
-  			}
+  		if(CTinfo.wordSize(getName())==1) return fileTime();			// intact (non-packed) data types (NG, need to recognize packed data)
+  		  		
+  		if(fileType == FileType.FILE) {
+  			double tryTime = fileTime(this.getParentFile().getParent());	// grandparent for regular folders (block/point/chan)
+  			if(tryTime == 0.) tryTime = fileTime(this.getParent());			// unpacked data, just need parent
+  			return tryTime;
+//  				return fileTime(this.getParentFile().getParent());		// grandparent for regular folders (block/point/chan)
   		}
-
-  		return 0.;	
+  		else	return fileTime(this.getParent());						// zipfile itself for embedded zentries
   	}
-*/  	
+
     //---------------------------------------------------------------------------------	
   	// special TFILE parsing (e.g. for camera JPEG photos)
   	// clunky logic, needs to be generalized

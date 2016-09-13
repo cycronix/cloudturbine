@@ -49,7 +49,7 @@ public class CTwriter {
 	protected String destName;
 
 	protected boolean zipFlag=false;
-	protected boolean blockMode=false;
+	protected boolean packFlag=false;
 	protected boolean byteSwap=false;		// false: Intel little-endian, true: Java/network big-endian
 	
 	private boolean gzipFlag=false;
@@ -72,7 +72,7 @@ public class CTwriter {
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
-//	private long blockDuration=0;			// if non-zero, blockMode block-duration (msec)
+//	private long blockDuration=0;			// if non-zero, packMode block-duration (msec)
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
@@ -165,7 +165,7 @@ public class CTwriter {
 	}
 	
 	/**
-	 * Set binary packed block mode output.
+	 * Set packed/zipped block mode options.
 	 * <p>  
 	 * A "block" is comprised of all putData (per channel) up to each <code>flush()</code>. 
 	 * The point times in a block are linearly interpolated start-to-end over block.
@@ -173,15 +173,13 @@ public class CTwriter {
 	 * The start time of a block is the <code>setTime()</code> at the first <code>putData()</code>.
 	 * The end time of a block is the <code>setTime()</code> at the <code>flush()</code>.
 	 * <p>
-	 * Known issue:  back-to-back block times may overlap/gap...  needs to be reviewed.
-	 * <p>
-	 * @param bflag true/false set block mode (default: false)
+	 * @param pflag true/false set pack mode (default: false)
 	 */
-	public void setBlockMode(boolean bflag) {
-		setBlockMode(bflag, true);
+	public void setBlockMode(boolean pflag) {
+		setBlockMode(pflag, true);
 	}
-	public void setBlockMode(boolean bflag, boolean zflag) {
-		blockMode = bflag;
+	public void setBlockMode(boolean pflag, boolean zflag) {
+		packFlag = pflag;
 		zipFlag = zflag;
 	}
 	
@@ -236,10 +234,14 @@ public class CTwriter {
 		if(initBaseTime) sourceTime = iSegmentTime;		// one-time set overall source time
 		segmentTime = iSegmentTime;
 		baseTimeStr = "";
-		if(timeRelative) {
-			if(blocksPerSegment <= 0) 	baseTimeStr = File.separator+sourceTime;		// disable segments
-			else						baseTimeStr = File.separator+sourceTime+File.separator+(segmentTime-sourceTime);
+		//		if(timeRelative) {
+		if(blocksPerSegment <= 0) 	baseTimeStr = File.separator+sourceTime;		// disable segments
+		//			else						baseTimeStr = File.separator+sourceTime+File.separator+(segmentTime-sourceTime);
+		else {
+			if(timeRelative) baseTimeStr = File.separator+sourceTime+File.separator+(segmentTime-sourceTime);
+			else			 baseTimeStr = File.separator+sourceTime+File.separator+segmentTime;
 		}
+		//		}
 			 	
 		rebaseFlag = false;					// defer taking effect until full-block on flush
 		initBaseTime = false;
@@ -350,7 +352,7 @@ public class CTwriter {
 			lastFtime = thisFtime;						// remember last time flushed
 			
 			// default next folder-blockTime next point for gapless time
-			if(gapless && blockMode && (bcount>1) && (thisFtime>blockTime)) {
+			if(gapless && packFlag && (bcount>1) && (thisFtime>blockTime)) {
 				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
 				blockTime = thisFtime+dt;			
 			}
@@ -372,7 +374,7 @@ public class CTwriter {
 	// special case:  pack baseTime/0/0.zip to baseTime.zip for single-block data
 	
 	public void packFlush() throws IOException {
-		if(!zipFlag /* || !blockMode */) throw new IOException("packFlush only works for block/zip files");
+		if(!zipFlag /* || !packMode */) throw new IOException("packFlush only works for block/zip files");
 		packFlush = true;
 		flush();			// flush and close (no more writes this source!)
 	}
@@ -415,9 +417,9 @@ public class CTwriter {
 	 * @param bdata Byte array of data 
 	 */
 	public synchronized void putData(String outName, byte[] bdata) throws Exception {
-		// TO DO?:  deprecate following, use addData vs putData/blockmode?
-//		if(blockMode) {				// in block mode, delay putData logic until full queue
-		if(blockMode && CTinfo.wordSize(outName)>1) {	// don't merge byteArrays (keep intact)
+		// TO DO?:  deprecate following, use addData vs putData/packMode?
+//		if(packMode) {				// in block mode, delay putData logic until full queue
+		if(packFlag && CTinfo.wordSize(outName)>1) {	// don't merge byteArrays (keep intact)
 			CTinfo.debugPrint("addData at blockTime: "+blockTime+", thisFtime: "+thisFtime);
 			addData(outName, bdata);
 			return;
@@ -448,7 +450,7 @@ public class CTwriter {
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// queue data for blockMode
+	// queue data for packMode
 	private HashMap<String, ByteArrayOutputStream>blockData = new HashMap<String, ByteArrayOutputStream>();
 
 	private synchronized void addData(String name, byte[] bdata) throws Exception {
@@ -479,7 +481,7 @@ public class CTwriter {
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// separate parts of putData so blockMode flush can call without being recursive
+	// separate parts of putData so packMode flush can call without being recursive
 	
 //	private void writeData(long time, String outName, byte[] bdata) throws Exception {		// sync makes remote writes pace slow???
 	private synchronized void writeData(long time, String outName, byte[] bdata) throws Exception {
@@ -491,16 +493,19 @@ public class CTwriter {
 			//  zip mode:  queue up data in ZipOutputStream
 			if(zipFlag) {
 				if(zos == null) {    			
-					destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
+					if(timeRelative) destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
+					else			 destName = destPath + baseTimeStr + File.separator + blockTime  + ".zip";
+
 					CTinfo.debugPrint("create destName: "+destName);
 					baos = new ByteArrayOutputStream();
 					zos = new ZipOutputStream(baos);
 					zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
 				}
+								
+				String name = "";
+				if(timeRelative) 	name = (time-blockTime) + "/" + outName;	// always use subfolders in zip files
+				else				name = time + "/" + outName;
 				
-				if(timeRelative) time = time - blockTime;		// relative timestamps
-				
-				String name = time+"/"+outName;			// always use subfolders in zip files
 				ZipEntry entry = new ZipEntry(name);
 				try {
 					zos.putNextEntry(entry);
@@ -520,13 +525,17 @@ public class CTwriter {
 				// put first putData to rootFolder 
 				String dpath;
 				//				System.err.println("blockTime: "+blockTime+", time: "+time);
-				if(blockTime == time && !timeRelative) {		// top-level folder unless new time?
-					dpath = destPath + File.separator + time;
-					if(!blockMode) flush();	// absolute, non-zip, non-block data flush to individual top-level time-folders?
-				} else	{
-					if(timeRelative) time = time - blockTime;		// relative timestamps
-					dpath = destPath + baseTimeStr + File.separator + (blockTime-segmentTime) +  File.separator + time;
-				}
+//				if(blockTime == time && !timeRelative) {		// top-level folder unless new time?
+//					dpath = destPath + File.separator + time;
+//					if(!packFlag) flush();	// absolute, non-zip, non-block data flush to individual top-level time-folders?
+//				} else	{
+					if(timeRelative) {			// relative timestamps
+						dpath = destPath + baseTimeStr + File.separator + (blockTime-segmentTime) +  File.separator + (time - blockTime);
+					}
+					else {
+						dpath = destPath + baseTimeStr + File.separator + blockTime +  File.separator + time;
+					}
+//				}
 
 //				new File(dpath).mkdirs();		// move to writeToStream
 				destName = dpath + File.separator + outName;
@@ -541,7 +550,7 @@ public class CTwriter {
 
 	//------------------------------------------------------------------------------------------------
 	// putData:  put data in various forms to (zip) file
-	// these handle various binary formats in, non-blockmode data is written as String format out
+	// these handle various binary formats in, non-packMode data is written as String format out
 	// use putData(byte[]) for raw binary data output
 	
 	/**
@@ -551,7 +560,7 @@ public class CTwriter {
 	 * @throws Exception
 	 */
 	public void putData(String outName, String data) throws Exception {
-		if(blockMode)	addData(outName, data);						
+		if(packFlag)	addData(outName, data);						
 		else			putData(outName, data.getBytes());
 	}
 	private void addData(String outName, String data) throws Exception {
@@ -569,7 +578,7 @@ public class CTwriter {
 	 */
 	public void putData(String outName, double data) throws Exception {	
 		if(outName.endsWith(".f64")) {			// enforce binary mode
-			if(blockMode)	addData(outName, data);		
+			if(packFlag)	addData(outName, data);		
 			else			putData(outName, orderedByteArray(8).putDouble(data).array());
 		}
 		else {
@@ -592,7 +601,7 @@ public class CTwriter {
 	 */
 	public void putData(String outName, float data) throws Exception {
 		if(outName.endsWith(".f32")) {			// enforce binary mode
-			if(blockMode)	addData(outName, data);		
+			if(packFlag)	addData(outName, data);		
 			else			putData(outName, orderedByteArray(4).putFloat(data).array());
 		}
 		else {
@@ -615,7 +624,7 @@ public class CTwriter {
 	 */
 	public void putData(String outName, long data) throws Exception {
 		if(outName.endsWith(".i64")) {			// enforce binary mode
-			if(blockMode)	addData(outName, data);		
+			if(packFlag)	addData(outName, data);		
 			else			putData(outName, orderedByteArray(8).putLong(data).array());
 		}
 		else				putData(outName, Long.valueOf(data).toString());
@@ -635,7 +644,7 @@ public class CTwriter {
 	 */
 	public void putData(String outName, int data) throws Exception {
 		if(outName.endsWith(".i32")) {			// enforce binary mode
-				if(blockMode)	addData(outName, data);		
+				if(packFlag)	addData(outName, data);		
 				else			putData(outName, orderedByteArray(4).putInt(data).array());
 		}
 		else					putData(outName, Integer.valueOf(data).toString());
@@ -654,7 +663,7 @@ public class CTwriter {
 	 */
 	public void putData(String outName, short data) throws Exception {
 		if(outName.endsWith(".i16")) {			// enforce binary mode
-			if(blockMode)	addData(outName, data);		
+			if(packFlag)	addData(outName, data);		
 			else			putData(outName, orderedByteArray(2).putShort(data).array());
 		}
 		else				putData(outName, Short.valueOf(data).toString());

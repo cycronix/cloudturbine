@@ -1,6 +1,22 @@
+/**
+ * CloudTurbine demo data-packaging utility
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 09/09/2016
+ * 
+*/
+
+/*
+* Copyright 2016 Cycronix
+* All Rights Reserved
+*
+*   Date      By	Description
+* MM/DD/YYYY
+* ----------  --	-----------
+* 09/09/2016  MJM	Created.
+*/
 
 import java.io.File;
-import java.util.ArrayList;
 
 //---------------------------------------------------------------------------------	
 // CTpack:  read and re-write CT files into specified structure
@@ -101,7 +117,7 @@ public class CTpack {
      		Large gaps (e.g. discontinuous data) can cause large time-errors
      	Options:
      	- Don't merge across segments, presuming discontinuous data in unique segments (how to detect?)
-     	- Detect time-gaps from getData timestamps, auto-split into new blocks (heuristic?)
+     	- Detect time-gaps when getData timestamps jump, auto-split into new blocks (heuristic?)
      */
      					double[] t = data.getTime();
      					byte[][] d = data.getData();

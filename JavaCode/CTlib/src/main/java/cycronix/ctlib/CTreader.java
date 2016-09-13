@@ -136,22 +136,11 @@ public class CTreader {
 				if(files[j].isDirectory()) 	ftime = oldTime(new CTFile[] {files[j]}, ctmap);	// recurse
 				else {
 //					System.err.println("fileTime: "+files[j].fileTime()+", baseTime: "+files[j].baseTime());
-//					if(ctmap == null || containsFile(files, ctmap)) ftime = files[j].baseTime();
 					if(ctmap == null || listOfFolders[idx].containsFile(ctmap)) ftime = files[j].baseTime();
+//					if(ctmap == null || listOfFolders[idx].containsFile(ctmap)) ftime = files[j].fileTime();	// first file is oldest
 				}
 				if(ftime > 0.) return ftime;
 			}
-
-			// fall through to here if no folders at this level
-//			System.err.println("oldTime skip past folder: "+listOfFolders[idx].getAbsolutePath());
-/*
-			if(files[0].length() <= 0) continue;
-			if((ctmap != null) && !containsFile(files, ctmap)) continue;		// only folders with chan(s)
-			
-			ftime = listOfFolders[idx].fileTime();			// try
-			if(ftime == 0.) continue;						// oldest is first timed file
-			break;
-*/
 		}
 //		System.err.println("oldTime got ftime: "+ftime);
 		return ftime;
@@ -222,7 +211,7 @@ public class CTreader {
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null || listOfFiles.length < 1) return null;
 
-		int expedite=expediteLimit(sfolder,listOfFiles.length, 100);		// segments
+		int expedite=expediteLimit(sfolder, listOfFiles.length, 1000);		// segments
 //		expedite = 1;	// ???
 		for(int i=0; i<listOfFiles.length;i+=expedite) {
 			CTFile thisFile = listOfFiles[i];
@@ -242,7 +231,7 @@ public class CTreader {
 		if(listOfFiles == null) return;
 //		System.err.println("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
-		int expedite=expediteLimit(sourceFolder.getName(),listOfFiles.length, 1000);		// blocks
+		int expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 10000);		// blocks
 		for(int i=0; i<listOfFiles.length; i+=expedite) {
 			CTFile thisFile=listOfFiles[i];
 			if(thisFile.isFile() && thisFile.length() <= 0) continue;
@@ -265,7 +254,7 @@ public class CTreader {
 	//---------------------------------------------------------------------------------	
 	private int expediteLimit(String sfolder, int flen, int limit) {
 		if(flen > 2*limit) {
-			System.err.println("Expedited channel list for source "+sfolder+"! nfiles: "+flen+", limited to: "+(flen/limit));
+			System.err.println("Expedited channel list for source "+sfolder+"! nfiles: "+flen+", limited to: "+limit);
 			return(flen/limit);			// limit to at most 10 per level ?!
 		}
 		else			return 1;
