@@ -24,26 +24,27 @@ public class CTsource {
 		if(args.length > 0) dstFolder = args[0];
 		else				dstFolder = "CTsource";
 
-		long blockPts = 5;			// points per block flush
+		long blockPts = 10;			// points per block flush
 		
 		try {
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(dstFolder);
-			CTinfo.setDebug(true);
+			CTinfo.setDebug(false);
 			ctw.setBlockMode(true,false);
 			ctw.autoFlush(0,0);					// no autoflush, no segments
 			
-			double time = 1460000000.;	
+			double time = 1460000000.;			// round-number starting time
 			double dt = 1.;
 			
 			// loop and write some output
-			for(int i=0; i<10; i++) {
+			for(int i=0; i<96; i++) {
 				ctw.setTime(time);				
-				ctw.putData("foo.txt", (char)('a'+i));		// character data
+				ctw.putData("foo.txt", (char)(' '+i));	// character data starting at first printable char
 				if(((i+1)%blockPts)==0) ctw.flush();
 				System.err.println("flushed: "+i);
 				time += dt;
 			}
+			ctw.flush(); 	// wrap up
 		} catch(Exception e) {
 			System.err.println("CTsource exception: "+e);
 			e.printStackTrace();

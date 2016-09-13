@@ -525,7 +525,7 @@ public class CTwriter {
 			else {
 				// put first putData to rootFolder 
 				String dpath;
-System.err.println("blockTime: "+blockTime+", time: "+time+", segmentTime: "+segmentTime);
+				// System.err.println("blockTime: "+blockTime+", time: "+time+", segmentTime: "+segmentTime);
 
 //				if(blockTime == time && !timeRelative) {		// top-level folder unless new time?
 //					dpath = destPath + File.separator + time;
