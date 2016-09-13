@@ -25,13 +25,16 @@ public class CTsourceftp {
 		String dstFolder = "";
 		if(args.length > 0) dstFolder = args[0];
 		else				dstFolder = "Documents/Test/FTP/CTperf";
-//		else				dstFolder = "/Users/mattmiller/Documents/Test/FTP/CTperf";
 
+		String host = "localhost";
+		String user = "user";		// need to parse as args
+		String pw = "pw";
+		
 		try {
 			// setup CTwriter
 //			CTwriter ctw = new CTwriter(dstFolder);
 			CTftp ctftp = new CTftp(dstFolder);
-			ctftp.login("192.168.1.3","mattmiller","barkley");
+			ctftp.login(host,user,pw);
 			CTwriter ctw = ctftp;			// upcast to common reference
 			
 			ctw.setZipMode(true);			// bundle to zip files

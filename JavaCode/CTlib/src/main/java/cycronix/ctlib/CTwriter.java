@@ -329,6 +329,7 @@ public class CTwriter {
 			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {		// entry keys are by name; full block per channel per flush
 				CTinfo.debugPrint("flush block: "+e.getKey()+" at time: "+thisFtime);
 //				writeData(thisFtime, e.getKey(), e.getValue().toByteArray());
+				if(bcount == 1) prevFtime = thisFtime;		// no prior data!
 				writeData(prevFtime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
 			}
 			blockData.clear();
@@ -524,7 +525,8 @@ public class CTwriter {
 			else {
 				// put first putData to rootFolder 
 				String dpath;
-				//				System.err.println("blockTime: "+blockTime+", time: "+time);
+System.err.println("blockTime: "+blockTime+", time: "+time+", segmentTime: "+segmentTime);
+
 //				if(blockTime == time && !timeRelative) {		// top-level folder unless new time?
 //					dpath = destPath + File.separator + time;
 //					if(!packFlag) flush();	// absolute, non-zip, non-block data flush to individual top-level time-folders?
@@ -674,6 +676,21 @@ public class CTwriter {
 		addData(cname, orderedByteArray(2).putShort(data).array());
 	}
 	
+	/**
+	 * putData as char
+	 * @param outName parameter name
+	 * @param data parameter data
+	 * @throws Exception
+	 */
+	public void putData(String outName, char data) throws Exception {
+		if(packFlag)	addData(outName, data);			// packed characters
+		else			putData(outName, ""+data);		// CSV strings
+	}
+	private void addData(String outName, char data) throws Exception {
+		addData(outName, orderedByteArray(2).putChar(data).array());
+	}
+	
+	// orderedByteArray:  allocate bytebuffer with word order
 	private ByteBuffer orderedByteArray(int size) {
 		if(byteSwap) return ByteBuffer.allocate(size).order(ByteOrder.BIG_ENDIAN);
 		else		 return ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN);
