@@ -115,7 +115,7 @@ public class CTinfo {
 		case 'I':	return 8;
 		case 'N':	return 8;
 		case 'n':	return 4;
-		default:	return 1;	
+		default:	return 1;		// wordsize=1, implies indivisible (non-packed) data
 		}
 	}
 	

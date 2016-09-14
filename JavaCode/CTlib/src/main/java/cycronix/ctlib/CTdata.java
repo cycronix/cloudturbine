@@ -243,19 +243,7 @@ public class CTdata {
 				if(tmode.equals("prev")) { start = end; end = start - duration; }		// mjm 4/27/16
 				
 				if(time < start) continue;
-				/*
-				if(duration == 0) {						// single-point case, just return first one after start time 
-					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
-					if(tmode.equals("next")) {
-						if((time == start) && i<(nframe-1)) ctd.add(timelist.get(i+1), datalist.get(i+1));		
-						else 								ctd.add(timelist.get(i), datalist.get(i));			// index "i" is one past start
-					}
-					else if(i==0 || (!tmode.equals("prev") && start==time))
-															ctd.add(timelist.get(i), datalist.get(i));			// first is already past, just grab it
-					else									ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
-					break;
-				} 
-				*/
+
 				if(duration == 0) {						// single-point case, just return first one BEFORE start time 
 					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
 					if(tmode.equals("next") && i<(nframe-1)) 
@@ -320,11 +308,7 @@ public class CTdata {
 					dt = incTime;		// backup way for old multi-block PCM frames
 					CTinfo.debugPrint("CTdata, blockdata zero dt, using backup incTime: "+incTime+", count: "+count);
 				}
-				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");
-				
-//				CTinfo.debugPrint("time: "+time+", dt: "+dt+", adjTime: "+(time - dt*count));
-//				double endBlock = time;		// for ref (round off error)
-				
+				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");	
 //				time -= dt*count;		// adjust to start of multi-point block
 //				time -= dt*(count-1);	// adjust to start of multi-point block
 				time = refTime;		// MJM 7/28/16:  blocks start at 0-relative time for consistency with non-block times
