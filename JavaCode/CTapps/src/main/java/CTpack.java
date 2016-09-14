@@ -101,7 +101,8 @@ public class CTpack {
  				// setup CTwriter for each root source
  				CTwriter ctw = new CTwriter(packFolder+"/"+source);		// new CTwriter at root/source folder
  				ctw.setBlockMode(blockMode,zipMode); 					// pack into binary blocks (linear timestamps per block)
- 				ctw.autoFlush(0, segBlocks);							// autoflush segments
+ 				ctw.autoFlush(0);							
+ 				ctw.autoSegment(segBlocks);								// auto create segments
  				
          		for(double thisTime=oldTime; thisTime<=newTime; thisTime+=timePerBlock) {		// {Loop by Time}
 //     				System.err.println("thisTime: "+thisTime);

@@ -29,7 +29,8 @@ public class CTbigtest {
 //				source = new CTwriter(sname,trimTime);			// TO DO:  test ring buffer trim
 				source = new CTwriter(sname);
 				source.setBlockMode(true,true);		
-				source.autoFlush(blockInterval, blocksPerSegment);			
+				source.autoFlush(blockInterval);	
+				source.autoSegment(blocksPerSegment);
 			} catch(Exception e) {
 				System.err.println("RunSource constructor exception: "+e);
 			}

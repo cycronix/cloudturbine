@@ -47,8 +47,8 @@ public class CTblocktest {
 
 			ctw.setTimeRelative(relativeTime); 			// relative (vs absolute) timestamps
 			ctw.setBlockMode(packMode,zipMode); 		// pack multiple points per block? (linear timestamps per block)
-			ctw.autoFlush(blockPts*dt, segBlocks);		// autoflush blocks and segments
-
+			ctw.autoFlush(blockPts*dt);					// autoflush blocks and segments
+			ctw.autoSegment(segBlocks);
 			CTinfo.setDebug(false);
 			
 //			long iTime = System.currentTimeMillis();

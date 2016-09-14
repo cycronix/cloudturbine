@@ -31,7 +31,8 @@ public class CTsource {
 			CTwriter ctw = new CTwriter(dstFolder);
 			CTinfo.setDebug(false);
 			ctw.setBlockMode(true,false);
-			ctw.autoFlush(0,0);					// no autoflush, no segments
+			ctw.autoFlush(0);					// no autoflush, no segments
+			ctw.autoSegment(0);
 			
 			double time = 1460000000.;			// round-number starting time
 			double dt = 1.;

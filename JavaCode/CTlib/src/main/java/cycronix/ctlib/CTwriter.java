@@ -119,41 +119,30 @@ public class CTwriter {
 		CTinfo.setDebug(dflag);
 //		debug = dflag;
 	}
-
-	/**
-	 * Automatically flush data blocks
-	 * @param timePerBlock interval (msec) at which to flush data to new zip file
-	 */
-	public void autoFlush(long timePerBlock) {
-		autoFlush(timePerBlock, blocksPerSegment);
-	}
 	
 	/** 
 	 * Automatically flush data blocks
 	 * @param timePerBlock interval (sec) at which to flush data to new zip file
 	 */
 	public void autoFlush(double timePerBlock) {
-		autoFlush(timePerBlock, blocksPerSegment);
+		autoFlush((long)(timePerBlock*1000.));
+	}
+	
+	/**
+	 * Automatically create data segments
+	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
+	 */
+	public void autoSegment(long iblocksPerSegment) {
+		blocksPerSegment = iblocksPerSegment;
 	}
 	
 	/**
 	 * Automatically flush data blocks
 	 * @param timePerBlock interval (msec) at which to flush data to new zip file
-	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
 	 */
-	public void autoFlush(double timePerBlock, long iblocksPerSegment) {
-		autoFlush((long)(timePerBlock * 1000.), iblocksPerSegment);			// convert to msec	
-	}
-	
-	/**
-	 * Automatically flush data blocks
-	 * @param timePerBlock interval (msec) at which to flush data to new zip file
-	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
-	 */
-	public void autoFlush(long timePerBlock, long iblocksPerSegment) {
+	public void autoFlush(long timePerBlock) {
 		if(timePerBlock == 0) 	autoFlush = Long.MAX_VALUE;
 		else					autoFlush = timePerBlock;				// msec
-		blocksPerSegment = iblocksPerSegment;
 	}
 	
 	/**
