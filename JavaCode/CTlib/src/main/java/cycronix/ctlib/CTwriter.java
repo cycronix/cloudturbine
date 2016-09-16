@@ -17,6 +17,8 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map.Entry;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -120,14 +122,6 @@ public class CTwriter {
 //		debug = dflag;
 	}
 	
-	/** 
-	 * Automatically flush data blocks
-	 * @param timePerBlock interval (sec) at which to flush data to new zip file
-	 */
-	public void autoFlush(double timePerBlock) {
-		autoFlush((long)(timePerBlock*1000.));
-	}
-	
 	/**
 	 * Automatically create data segments
 	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
@@ -136,13 +130,40 @@ public class CTwriter {
 		blocksPerSegment = iblocksPerSegment;
 	}
 	
+	/** 
+	 * Automatically flush data blocks
+	 * @param timePerBlock interval (sec) at which to flush data to new zip file
+	 */
+	public void autoFlush(double timePerBlock) {
+		autoFlush((long)(timePerBlock*1000.), false);
+	}
+	public void autoFlush(double timePerBlock, boolean asyncFlag) {
+		autoFlush((long)(timePerBlock*1000.), asyncFlag);
+	}
+	
 	/**
 	 * Automatically flush data blocks
 	 * @param timePerBlock interval (msec) at which to flush data to new zip file
 	 */
 	public void autoFlush(long timePerBlock) {
+		autoFlush(timePerBlock, false);
+	}
+	
+	Timer flushTimer = new Timer(true);
+	public void autoFlush(long timePerBlock, boolean asyncFlag) {
 		if(timePerBlock == 0) 	autoFlush = Long.MAX_VALUE;
 		else					autoFlush = timePerBlock;				// msec
+		
+		
+		if(asyncFlag) {		// setup async flush timer thread
+			flushTimer.scheduleAtFixedRate(
+			    new TimerTask() {
+			      public void run() { 
+//			    	  System.err.println("flushTimer!"); 
+			    	  try{ flush(); } catch(Exception e){}; }
+			    }, 0, timePerBlock);
+		}
+		else	flushTimer.cancel();
 	}
 	
 	/**
@@ -781,6 +802,7 @@ public class CTwriter {
 	public void close() {
 		try {
 			flush();
+			autoFlush(0,false);		// turn off async flush
 		} catch(Exception e) {
 			System.err.println("Exception on close!");
 		}
