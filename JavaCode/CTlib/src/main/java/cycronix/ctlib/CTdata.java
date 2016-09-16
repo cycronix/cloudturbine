@@ -242,13 +242,14 @@ public class CTdata {
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				if(tmode.equals("prev")) { start = end; end = start - duration; }		// mjm 4/27/16
 				
-				if(time < start) continue;
+				if(time < start && i<(nframe-1)) continue;			// check last frame for duration=0 case
 
 				if(duration == 0) {						// single-point case, just return first one BEFORE start time 
 					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
 					if(tmode.equals("next") && i<(nframe-1)) 
 							ctd.add(timelist.get(i+1), datalist.get(i+1));		// index "i" is current point
-					else if((i>0) && ((start!=time) || tmode.equals("prev")))
+//					else if((i>0) && ((start!=time) || tmode.equals("prev")))
+					else if((i>0) && (tmode.equals("prev")))
 							ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
 					else	ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
 					break;

@@ -94,9 +94,10 @@ public class CTarchive {
     	CTwriter ctw = null;
     	try {
     		ctw = new CTwriter(dropFolder,trimTime);
-    		ctw.setZipMode(true);
     		CTinfo.setDebug(false);
     		ctw.autoFlush(flushTime);				// autoflush @ flushTime
+    		ctw.autoSegment(100);
+    		ctw.setBlockMode(true,true);			// zip, pack
     	} catch(Exception e) {
     		System.err.println("Error setting up CTwriter");
     		System.exit(0);
