@@ -217,7 +217,6 @@ public class CTwriter {
 	 * set whether output files are to be zipped.  
 	 * @param zipflag zip files true/false (default: true)
 	 */
-	@Deprecated
 	public void setZipMode(boolean zipflag) {
 		zipFlag = zipflag;
 	}

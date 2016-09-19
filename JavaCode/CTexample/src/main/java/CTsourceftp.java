@@ -22,14 +22,17 @@ import cycronix.ctlib.*;
  
 public class CTsourceftp {
 	public static void main(String[] args) {
-		String dstFolder = "";
-		if(args.length > 0) dstFolder = args[0];
-		else				dstFolder = "Documents/Test/FTP/CTperf";
-
+		String dstFolder = "CTsource";
 		String host = "localhost";
 		String user = "user";		// need to parse as args
 		String pw = "pw";
 		
+		if(args.length > 0) dstFolder = args[0];
+		if(args.length > 1) host = args[1];
+		if(args.length > 2) user = args[2];
+		if(args.length > 3) pw = args[3];
+		System.err.println("folder: "+dstFolder+", host: "+host+", user: "+user+", pw: "+pw);
+
 		try {
 			// setup CTwriter
 //			CTwriter ctw = new CTwriter(dstFolder);
