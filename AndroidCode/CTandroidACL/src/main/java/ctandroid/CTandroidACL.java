@@ -140,7 +140,8 @@ public class CTandroidACL extends Activity {
  
 //				ctw.setZipMode(true);						// bundle to zip files
 				ctw.setBlockMode(true,true);				// zip 'n pack
-				ctw.autoFlush(rateList[rateIndex],100);		// flush at intervals, 100 blocks/segment
+				ctw.autoFlush(rateList[rateIndex]);		// flush at intervals, 100 blocks/segment
+				ctw.autoSegment(100);
 				ctw.setDebug(false);
 //				ctw.setBlockMode(true);			// block data with one timestamp per glump (at each flush)
 			

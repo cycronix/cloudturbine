@@ -405,7 +405,8 @@ public class CTandroidAV extends Activity  {
 
 	//			ctw.setZipMode(true);			// bundle to zip files
 				ctw.setBlockMode(false,true);	// no data packing, yes zip files
-				ctw.autoFlush(0,100);			// no autoflush, segments
+				ctw.autoFlush(0);				// no autoflush, segments
+				ctw.autoSegment(100);
 				ctw.setDebug(debug);
 				//		ctw.setBlockMode(false);		// blockmode needs to be per-channel, or new addData vs blockmode/putdata... ??
 
