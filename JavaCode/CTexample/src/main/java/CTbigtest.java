@@ -19,16 +19,16 @@ public class CTbigtest {
 		CTwriter source;
 		String sname="";
 		int snum=0;
-		double trimTime = 1. + totalSamps*sampInterval/1000.;	// automatically trim files older than this (sec relative to newest)
+//		double trimTime = 1. + totalSamps*sampInterval/1000.;	// automatically trim files older than this (sec relative to newest)
 		int sampsPerSegment = blocksPerSegment * blockInterval / sampInterval;
 		
 		public RunSource(int iname) {
 			snum = iname;
 			try {
 				sname = "S"+iname;
-//				source = new CTwriter(sname,trimTime);			// TO DO:  test ring buffer trim
+//				source = new CTwriter(sname,trimTime);			// TO DO:  (re)test ring buffer trim
 				source = new CTwriter(sname);
-				source.setBlockMode(true,true);		
+				source.setBlockMode(true,true);					// pack, zip
 				source.autoFlush(blockInterval);	
 				source.autoSegment(blocksPerSegment);
 			} catch(Exception e) {
