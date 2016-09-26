@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import cycronix.ctlib.*;
@@ -28,7 +29,7 @@ public class CTsource {
 		if(args.length > 0) dstFolder = args[0];
 		else				dstFolder = "CTsource";
 
-		long blockPts = 1;			// points per block flush
+		long blockPts = 5;			// points per block flush
 		
 		try {
 			// setup CTwriter
@@ -40,10 +41,10 @@ public class CTsource {
 			
 			double time = 1460000000.;			// round-number starting time
 			double dt = 1.;
-			Map<String,Object>cmap = new HashMap<String,Object>();
+			Map<String,Object>cmap = new LinkedHashMap<String,Object>();
 			
 			// loop and write some output
-			for(int i=0; i<10; i++) {
+			for(int i=0; i<100; i++) {
 				ctw.setTime(time);				
 				cmap.clear(); 
 				cmap.put("c0", i+0);
