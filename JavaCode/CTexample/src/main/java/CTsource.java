@@ -1,3 +1,7 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 import cycronix.ctlib.*;
 
 /**
@@ -24,25 +28,33 @@ public class CTsource {
 		if(args.length > 0) dstFolder = args[0];
 		else				dstFolder = "CTsource";
 
-		long blockPts = 10;			// points per block flush
+		long blockPts = 1;			// points per block flush
 		
 		try {
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(dstFolder);
-			CTinfo.setDebug(false);
-			ctw.setBlockMode(true,false);
+			CTinfo.setDebug(true);
+			ctw.setBlockMode(false,true);		// no pack, no zip
 			ctw.autoFlush(0);					// no autoflush, no segments
 			ctw.autoSegment(0);
 			
 			double time = 1460000000.;			// round-number starting time
 			double dt = 1.;
+			Map<String,Object>cmap = new HashMap<String,Object>();
 			
 			// loop and write some output
-			for(int i=0; i<96; i++) {
+			for(int i=0; i<10; i++) {
 				ctw.setTime(time);				
-				ctw.putData("foo.txt", (char)(' '+i));	// character data starting at first printable char
-				if(((i+1)%blockPts)==0) ctw.flush();
-				System.err.println("flushed: "+i);
+				cmap.clear(); 
+				cmap.put("c0", i+0);
+				cmap.put("c1", i+100);
+				cmap.put("c2", i+200);
+				ctw.putData(cmap);
+				
+				if(((i+1)%blockPts)==0) {
+					ctw.flush();
+					System.err.println("flushed: "+i);
+				}
 				time += dt;
 			}
 			ctw.flush(); 	// wrap up

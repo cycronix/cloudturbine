@@ -4,7 +4,7 @@ import java.io.File;
 import cycronix.ctlib.*;
 
 /**
- * CloudTurbine demo source
+ * CloudTurbine demo source, performance test
  * <p>
  * @author Matt Miller (MJM), Cycronix
  * @version 2014/03/10

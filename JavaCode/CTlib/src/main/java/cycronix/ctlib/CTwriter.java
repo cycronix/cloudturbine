@@ -14,9 +14,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.GZIPOutputStream;
@@ -343,7 +346,7 @@ public class CTwriter {
 			}
 			blockData.clear();
 			
-			if(zos != null) {		// zip mode writes once per flush; non-zip files written every update
+			if(zos != null) {		// zip mode writes once per flush; non-zip files were written every update
 				zos.close();	zos = null;
 				if(packFlush) 	{
 					destName = destPath + baseTimeStr + ".zip";		// write all data to single zip
@@ -409,7 +412,7 @@ public class CTwriter {
 				bos.close();
 			}
 			else {				// conventional file (zip or not)
-				FileOutputStream fos = new FileOutputStream(fname);	
+				FileOutputStream fos = new FileOutputStream(fname, false);		// append if there?	
 				fos.write(bdata);
 				fos.close();
 			}
@@ -459,6 +462,26 @@ public class CTwriter {
 		writeData(thisFtime, outName, bdata);
 	}
 
+	//------------------------------------------------------------------------------------------------
+	/** Map form of putData.  Does synchronized putData of all map entries; good for ensuring 
+	 * no async autoFlush splits channel group between zip files.
+	 * @param cmap Map of name,value pairs.  Value class determined via instanceof operator.
+	 */
+	
+	public synchronized void putData(Map<String,Object>cmap) throws Exception {
+		for (Map.Entry<String, Object> entry : cmap.entrySet()) {		// loop for all map entries
+			Object data = entry.getValue();
+			if		(data instanceof Integer) 	putData(entry.getKey(), (Integer)data);
+			else if	(data instanceof Float) 	putData(entry.getKey(), (Float)data);
+			else if	(data instanceof Double) 	putData(entry.getKey(), (Double)data);
+			else if	(data instanceof Short) 	putData(entry.getKey(), (Short)data);
+			else if	(data instanceof String) 	putData(entry.getKey(), (String)data);
+			else if	(data instanceof Long) 		putData(entry.getKey(), (Long)data);
+			else if	(data instanceof Character) putData(entry.getKey(), (Character)data);
+			else throw new IOException("putData: unrecognized object type: "+entry.getKey());
+		}
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	// queue data for packMode
 	private HashMap<String, ByteArrayOutputStream>blockData = new HashMap<String, ByteArrayOutputStream>();
