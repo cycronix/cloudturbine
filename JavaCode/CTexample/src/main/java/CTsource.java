@@ -33,7 +33,7 @@ public class CTsource {
 		try {
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(dstFolder);
-			CTinfo.setDebug(true);
+			CTinfo.setDebug(false);
 			ctw.setBlockMode(false,true);		// no pack, no zip
 			ctw.autoFlush(0);					// no autoflush, no segments
 			ctw.autoSegment(0);
@@ -47,8 +47,8 @@ public class CTsource {
 				ctw.setTime(time);				
 				cmap.clear(); 
 				cmap.put("c0", i+0);
-				cmap.put("c1", i+100);
-				cmap.put("c2", i+200);
+				cmap.put("c1.f32", (float)(i+100));
+				cmap.put("c2.txt", ""+i);
 				ctw.putData(cmap);
 				
 				if(((i+1)%blockPts)==0) {
