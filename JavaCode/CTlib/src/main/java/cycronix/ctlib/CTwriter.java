@@ -14,12 +14,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.GZIPOutputStream;
@@ -73,7 +71,7 @@ public class CTwriter {
 	private long autoFlush=Long.MAX_VALUE;	// auto-flush subfolder time-delta (msec)
 	private long lastFtime=0;
 	private long thisFtime=0;
-	private long prevFtime=0;				// prior frame time (for autoflush)
+//	private long prevFtime=0;				// prior frame time (for autoflush)
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
@@ -338,13 +336,15 @@ public class CTwriter {
 //			if(bcount > 1 && blockEndTime > 0) thisFtime = blockEndTime;		
 
 			// if data has been queued in blocks, write it out once per channel before normal flush
-			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {		// entry keys are by name; full block per channel per flush
-				CTinfo.debugPrint("flush block: "+e.getKey()+" at time: "+thisFtime);
+			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {	// entry keys are by name; full block per channel per flush
+				long thisTime = timeData.get(e.getKey());			// per packed-channel end-time
+				CTinfo.debugPrint("flush block: "+e.getKey()+" at time: "+thisTime);
 //				writeData(thisFtime, e.getKey(), e.getValue().toByteArray());
-				if(bcount == 1) prevFtime = thisFtime;		// no prior data!
-				writeData(prevFtime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
+//				if(bcount == 1) prevFtime = thisFtime;		// no prior data!
+//				writeData(prevFtime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
+				writeData(thisTime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
 			}
-			blockData.clear();
+			blockData.clear(); timeData.clear();
 			
 			if(zos != null) {		// zip mode writes once per flush; non-zip files were written every update
 				zos.close();	zos = null;
@@ -384,8 +384,17 @@ public class CTwriter {
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// special case:  pack baseTime/0/0.zip to baseTime.zip for single-block data
-	
+	/*
+    *
+    *   Date      By	Description
+    * MM/DD/YYYY
+    * ----------  --	-----------
+    * 09/01/2016  MJM	Created.
+    */
+	/**
+	 * Special case:  pack baseTime/0/0.zip to baseTime.zip for single-block data
+	 * @throws IOException
+	 */	
 	public void packFlush() throws IOException {
 		if(!zipFlag /* || !packMode */) throw new IOException("packFlush only works for block/zip files");
 		packFlush = true;
@@ -442,7 +451,7 @@ public class CTwriter {
 		// thisFtime:  this frame-entry time, set to fTime each entry
 		// blockTime:  parent folder (zip) time, set to match first add/put frame-entry time
 //		if(fTime == 0) setTime(System.currentTimeMillis());		// side effect to init baseTime
-		prevFtime = thisFtime;
+//		prevFtime = thisFtime;
 		thisFtime = fTime;
 		if(thisFtime == 0) {
 			thisFtime = System.currentTimeMillis();
@@ -485,9 +494,10 @@ public class CTwriter {
 	//------------------------------------------------------------------------------------------------
 	// queue data for packMode
 	private HashMap<String, ByteArrayOutputStream>blockData = new HashMap<String, ByteArrayOutputStream>();
+	private HashMap<String, Long>timeData = new HashMap<String, Long>();
 
 	private synchronized void addData(String name, byte[] bdata) throws Exception {
-		prevFtime = thisFtime;
+//		prevFtime = thisFtime;
 		thisFtime = fTime;
 		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
 
@@ -508,6 +518,7 @@ public class CTwriter {
 				blockData.put(name, bstream);
 			}
 			bstream.write(bdata);		// append blockData into named hashmap byteArray entry
+			timeData.put(name,  thisFtime);		// prevFtime?
 		} catch(Exception e) {
 			e.printStackTrace();
 		}

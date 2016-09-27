@@ -43,7 +43,7 @@ public class CTblocktest {
 	
 	static void runTest(String modeName, boolean packMode, boolean zipMode, boolean numMode) {
 		try {
-			CTwriter ctw = new CTwriter("CTsource/"+modeName);		// new CTwriter at root/source folder
+			CTwriter ctw = new CTwriter("CTblocktest/"+modeName);		// new CTwriter at root/source folder
 
 			ctw.setTimeRelative(relativeTime); 			// relative (vs absolute) timestamps
 			ctw.setBlockMode(packMode,zipMode); 		// pack multiple points per block? (linear timestamps per block)
