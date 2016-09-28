@@ -394,7 +394,6 @@ public class CTandroidAV extends Activity  {
 			}
 		}
 		
-		
 		//-----------------------------------------------------------------------------------------------------------
 		// (re)setup for recording
 		private void setup() throws Exception {

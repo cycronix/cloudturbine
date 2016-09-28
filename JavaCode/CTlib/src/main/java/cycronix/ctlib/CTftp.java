@@ -1,5 +1,7 @@
 package cycronix.ctlib;
 
+import java.io.File;
+
 //---------------------------------------------------------------------------------	
 // CTftp:  push files to FTP server
 // Matt Miller, Cycronix
@@ -61,6 +63,9 @@ public class CTftp extends CTwriter {
 	// over-ride CTwriter method to replace file-writes with FTP write
 	protected void writeToStream(String pathname, byte[] bdata) throws IOException {
 		try { 
+			if(!File.separator.equals("/")) {		// replace Windows back-slash with slash for hopefully universal FTP syntax
+				pathname.replace(File.separator.charAt(0), '/');
+			}
 			int delim = pathname.lastIndexOf('/');
 			String filename = pathname.substring(delim+1);
 			String filepath = pathname.substring(0,delim);
@@ -71,8 +76,10 @@ public class CTftp extends CTwriter {
 				ftpCreateDirectoryTree(client,filepath);								// mkdirs as needed, leaves working dir @ new
 				currentDir = filepath;
 			}
-//			boolean success = client.storeFile(filename, fis); 
-			OutputStream ostream = client.storeFileStream(filename+".tmp");
+
+//			OutputStream ostream = client.storeFileStream(filename+".tmp");
+			OutputStream ostream = client.storeFileStream(filename);				// try without tmp file
+
 			CTinfo.debugPrint("ftp pathname: "+pathname+", filename: "+filename+", filepath: "+filepath);
 			if(ostream==null) {
 				throw new IOException("Unable to FTP file: " + client.getReplyString());
@@ -83,8 +90,8 @@ public class CTftp extends CTwriter {
 			if(!client.completePendingCommand())
 				throw new IOException("Unable to FTP file: " + client.getReplyString());
 			
-			if(!client.rename(filename+".tmp", filename)) 
-				throw new IOException("Unable to rename file: " + client.getReplyString());
+//			if(!client.rename(filename+".tmp", filename)) 
+//				throw new IOException("Unable to rename file: " + client.getReplyString());
 
 		} catch (Exception e) {
 			e.printStackTrace();
