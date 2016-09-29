@@ -64,7 +64,7 @@ public class CTftp extends CTwriter {
 	protected void writeToStream(String pathname, byte[] bdata) throws IOException {
 		try { 
 			if(!File.separator.equals("/")) {		// replace Windows back-slash with slash for hopefully universal FTP syntax
-				pathname.replace(File.separator.charAt(0), '/');
+				pathname = pathname.replace(File.separator.charAt(0), '/');
 			}
 			int delim = pathname.lastIndexOf('/');
 			String filename = pathname.substring(delim+1);
