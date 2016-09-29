@@ -26,6 +26,7 @@ limitations under the License.
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -71,7 +72,7 @@ import android.hardware.Camera.Size;
 
 public class CTandroidAV extends Activity  {
 
-	String sourceFolder = "CTdata/AndroidAV";		// FTP remote folder (not local sdcard)
+	String sourceFolder = "AndroidAV";		// FTP remote folder (not local sdcard)
 	String ftpHost = "cloudturbine.net";
 	String ftpUser = "cloudturbine";
 	String ftpPassword = "rbnb";
@@ -99,13 +100,15 @@ public class CTandroidAV extends Activity  {
 	int flushDur = 0;
 
 	TextView tv;
-	CTftp ctw = null;
+	CTftp ctw = null;					// separate CTwriters audio/video (async FTP)
 //	CTremote.remoteSelect remoteMode = CTremote.remoteSelect.FTP;			// FILE, DROPBOX, FTP
 	
 	private Camera mCamera=null;
 	private CameraPreview mPreview;
-	private byte[] currentPreview=null;			// current value of preview image
-	private Display mDisplay = null;
+    private LimitedQueue<TimeValue> imageQueue;     // queue of images ready to store
+    private  int maxQ=20;                           // max queue length
+
+    private Display mDisplay = null;
 	private long bytesWritten=0;
 	private Activity thisActivity = this;
 	SharedPreferences sharedPref;
@@ -235,7 +238,7 @@ public class CTandroidAV extends Activity  {
 	
 	
 	private void allocate() {
-		currentPreview = null;
+//		currentPreview = null;
 		if(mCamera != null) mCamera.release();
 		mCamera = getCameraInstance();
         mPreview = new CameraPreview(getApplicationContext(), mCamera);
@@ -265,8 +268,8 @@ public class CTandroidAV extends Activity  {
 		editor.putInt("avMode", avMode);
 		editor.commit();
 	}
-	
-	
+
+
 	// this needs to run Async so network IO (i.e. FTP) will run without throwing exception
 	private class collectAudio extends AsyncTask<Void, Void, Void> {
 		int icount = 0;
@@ -296,11 +299,11 @@ public class CTandroidAV extends Activity  {
 							setup();
 							if(avMode != 1) audioRecord.startRecording();											// start audio
 							if(avMode != 2) {
-								timeTask = new Timer();
+                                if(debug) Log.i(TAG,"Starting Timer!!!!");
 								VideoTask videoTask = new VideoTask();
-								if(debug) Log.i(TAG,"Starting Timer!!!!");
-//								timeTask.scheduleAtFixedRate(videoTask,  0,  videoRateList[rateIndex]);
-								timeTask.schedule(videoTask,  0,  videoRateList[rateIndex]);		// drop if can't keep up
+								new Timer().schedule(videoTask,  0,  videoRateList[rateIndex]/4);	        // go 4x faster to catch up with Q
+                                CameraTask cameraTask = new CameraTask(maxQ);
+								new Timer().scheduleAtFixedRate(cameraTask,  0,  videoRateList[rateIndex]); // fixed rate
 							}
 							recording = true;
 						}
@@ -342,7 +345,7 @@ public class CTandroidAV extends Activity  {
 //									long time = System.currentTimeMillis();
 									ctw.setTime(time);
 									if(waveFormat) 	ctw.putData("audio.wav", addWaveHeader(dataBuffer, frequency));	// don't need blockmode, one-audio block flush per file
-									else			ctw.putData("audio.pcm", dataBuffer);	
+									else			ctw.putData("audio.pcm", dataBuffer);
 									if(debug) Log.i(TAG,"audio flush!");
 //									ctw.flush(true); 							// gapless flag
 								}
@@ -385,7 +388,7 @@ public class CTandroidAV extends Activity  {
 					audioRecord.release();
 					audioRecord = null;
 				}
-				ctw.close();	
+				ctw.close();
 				mCamera.stopPreview();
 				mCamera.release();
 				mCamera = null;
@@ -393,7 +396,7 @@ public class CTandroidAV extends Activity  {
 				Log.w(TAG,"exception on shutDown: "+e);
 			}
 		}
-		
+
 		//-----------------------------------------------------------------------------------------------------------
 		// (re)setup for recording
 		private void setup() throws Exception {
@@ -425,6 +428,34 @@ public class CTandroidAV extends Activity  {
 		}
 
 		//-----------------------------------------------------------------------------------------------------------
+        // CameraTask simply snags preview snapshots at timer rate
+        // run async from VideoTask to overlap camera-capture with IO
+        class CameraTask extends TimerTask {
+
+            CameraTask(int maxQ) {
+                imageQueue = new LimitedQueue(maxQ);      // queue up to maxQ images
+            }
+
+            //			@Override public synchronized void run() {
+            @Override
+            public void run() {
+                if (!Running || mCamera == null) {                // handled by shutDown()
+                    this.cancel();
+                    return;
+                }
+
+                mCamera.setOneShotPreviewCallback(new PreviewCallback() {
+                    public void onPreviewFrame(byte[] data, Camera camera) {
+//                        currentPreview = data;
+                        long t = System.currentTimeMillis();
+                        imageQueue.add(new TimeValue(t, data));
+                        if(debug) Log.i(TAG,"CameraTask, time: "+t);
+                    }
+                });
+            }
+        }
+
+        // VideoTask grabs most recent camera snapshot and puts it to CT
 		class VideoTask extends TimerTask {
 			long vcount=0;
 			long modflush=1;
@@ -434,18 +465,30 @@ public class CTandroidAV extends Activity  {
 			
 //			@Override public synchronized void run() {
 			@Override public void run() {
+                byte[] currentPreview=null;			// current value of preview image
+                long currentTime=0;                 // time of currentPreview
 
 				if(debug) Log.i(TAG,"TimerTask, Running: "+Running);
 				if(!Running || mCamera==null) {				// handled by shutDown()
 					this.cancel();
 					return;
 				}
-				
+/*
 				mCamera.setOneShotPreviewCallback(new PreviewCallback() {
 					public void onPreviewFrame(byte[] data, Camera camera) { 
-						currentPreview = data; 
+						currentPreview = data;
+                        currentTime = System.currentTimeMillis();
 					};
 				});
+*/
+                try {
+                    TimeValue tv = imageQueue.pop();
+                    currentTime = tv.time;
+                    currentPreview = tv.value;
+                    if(debug) Log.i(TAG,"VideoTask, time: "+currentTime);
+                }
+                catch(Exception e) { return; }       // empty queue
+
 				if(currentPreview == null) return;		// startup
 
 //				long time = System.currentTimeMillis();
@@ -488,8 +531,8 @@ public class CTandroidAV extends Activity  {
 
 					if(debug) Log.i(TAG,"converted raw: "+currentPreview.length+" to: "+jpeg.length);
 					synchronized(TAG) {		// don't let an image slip in between audio put and flush
-//						ctw.setTime(time);
-						ctw.setTime(System.currentTimeMillis());			// for in-frame times, just set it here
+						ctw.setTime(currentTime);
+//						ctw.setTime(System.currentTimeMillis());			// for in-frame times, just set it here
 						ctw.putData("image.jpg", jpeg);
 					}
 					bytesWritten += jpeg.length;
@@ -734,5 +777,30 @@ public class CTandroidAV extends Activity  {
 
     return buffer;
   }
+
+    public class LimitedQueue<E> extends LinkedList<E> {
+        private int limit;
+
+        public LimitedQueue(int limit) {
+            this.limit = limit;
+        }
+
+        @Override
+        public boolean add(E o) {
+            super.add(o);
+            while (size() > limit) { super.remove(); }
+            return true;
+        }
+    }
+
+    private class TimeValue {
+        private long time;
+        private byte[] value;
+
+        public TimeValue(long t, byte[] v) {
+            time = t;
+            value = v;
+        }
+    }
 
 }
