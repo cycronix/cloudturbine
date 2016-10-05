@@ -58,17 +58,20 @@ public class CTwriter {
 	private boolean gzipFlag=false;
 	private long fTime=0;
 	private long blockTime=0;				// parent (zip) folder time, sets start of block interval
+	private long prevblockTime=0;
 	
 	private long sourceTime=0;				// top-level absolute time for entire source (msec)
 	private long segmentTime=0;				// segment time, block subfolders relative to this.  
 	private String baseTimeStr="";			// string representation of sourceTime/segementTime
-	private boolean rebaseFlag=false;		// auto-rebase segmentTime
+//	private boolean rebaseFlag=false;		// auto-rebase segmentTime
 	private long blocksPerSegment=0;		// auto new segment every so many blocks (default=off)
-	private long flushCount=0;				// keep track of flushes
+	private long blockCount=0;				// keep track of flushes
 	private boolean initBaseTime = true;	// first-time startup init flag
 	private boolean packFlush=false;		// pack single flush into top level zip
 	
 	private long autoFlush=Long.MAX_VALUE;	// auto-flush subfolder time-delta (msec)
+	private boolean asyncFlush=false;		// async timer to flush each block 
+	
 	private long lastFtime=0;
 	private long thisFtime=0;
 //	private long prevFtime=0;				// prior frame time (for autoflush)
@@ -150,12 +153,15 @@ public class CTwriter {
 		autoFlush(timePerBlock, false);
 	}
 	
-	Timer flushTimer = new Timer(true);
+//	Timer flushTimer = new Timer(true);
 	public void autoFlush(long timePerBlock, boolean asyncFlag) {
-		if(timePerBlock == 0) 	autoFlush = Long.MAX_VALUE;
-		else					autoFlush = timePerBlock;				// msec
-		
-		
+		asyncFlush = asyncFlag;
+		autoFlush = timePerBlock;
+/*
+		if(timePerBlock == 0 || asyncFlag) 	
+				autoFlush = Long.MAX_VALUE;
+		else	autoFlush = timePerBlock;				// msec
+				
 		if(asyncFlag) {		// setup async flush timer thread
 			flushTimer.scheduleAtFixedRate(
 			    new TimerTask() {
@@ -165,6 +171,7 @@ public class CTwriter {
 			    }, 0, timePerBlock);
 		}
 		else	flushTimer.cancel();
+*/
 	}
 	
 	/**
@@ -244,25 +251,23 @@ public class CTwriter {
 		if(initBaseTime) sourceTime = iSegmentTime;		// one-time set overall source time
 		segmentTime = iSegmentTime;
 		baseTimeStr = "";
-		//		if(timeRelative) {
-		if(blocksPerSegment <= 0) 	baseTimeStr = File.separator+sourceTime;		// disable segments
-		//			else						baseTimeStr = File.separator+sourceTime+File.separator+(segmentTime-sourceTime);
+		if(blocksPerSegment <= 0) baseTimeStr = File.separator+sourceTime;		// disable segments
 		else {
 			if(timeRelative) baseTimeStr = File.separator+sourceTime+File.separator+(segmentTime-sourceTime);
 			else			 baseTimeStr = File.separator+sourceTime+File.separator+segmentTime;
 		}
-		//		}
 			 	
-		rebaseFlag = false;					// defer taking effect until full-block on flush
+//		rebaseFlag = false;					// defer taking effect until full-block on flush
 		initBaseTime = false;
-//		System.err.println("segmentTime: baseTimeStr: "+baseTimeStr+", blocksPerSegment: "+blocksPerSegment);
+		System.err.println("segmentTime: baseTimeStr: "+baseTimeStr+", blocksPerSegment: "+blocksPerSegment);
 	}
 	
 	/**
 	 * Force a new time segment
 	 */
 	public void newSegment() {
-		rebaseFlag = true;
+//		rebaseFlag = true;
+		segmentTime(blockTime);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -330,8 +335,8 @@ public class CTwriter {
 		flush(false);
 	}
 
-	public synchronized void flush(boolean gapless) throws IOException {		
-		try {
+	public synchronized void flush(boolean gapless) throws IOException {
+		try {	
 			long bcount = blockData.size();								// zero-based block counter:
 //			if(bcount > 1 && blockEndTime > 0) thisFtime = blockEndTime;		
 
@@ -352,7 +357,9 @@ public class CTwriter {
 					destName = destPath + baseTimeStr + ".zip";		// write all data to single zip
 					packFlush = false;								// careful:  can't packFlush same source more than once!
 				}
-				writeToStream(destName, baos.toByteArray());	
+				if(baos.size() > 0) {
+					writeToStream(destName, baos.toByteArray());	
+				}
 			}
 			
 			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
@@ -369,17 +376,16 @@ public class CTwriter {
 				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
 				blockTime = thisFtime+dt;			
 			}
-			else	blockTime = 0;						// reset to new root folder		
+			else	blockTime = 0;						// reset to new block folder		
 			
-			flushCount++;
-			
-			if((blocksPerSegment>0) && ((flushCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
-				rebaseFlag = true;
+//			blockCount++;				// new block per flush
+//			if((blocksPerSegment>0) && ((blockCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
+//				rebaseFlag = true;
 		} 
 		catch(Exception e) { 
 			System.err.println("flush failed"); 
 			e.printStackTrace(); 
-			throw new IOException("FTP flush failed: " + e.getMessage());
+			throw new IOException("CT flush failed: " + e.getMessage());
 		} 
 	}
 	
@@ -450,8 +456,6 @@ public class CTwriter {
 		// fTime:  manually set time (0 if use autoTime)
 		// thisFtime:  this frame-entry time, set to fTime each entry
 		// blockTime:  parent folder (zip) time, set to match first add/put frame-entry time
-//		if(fTime == 0) setTime(System.currentTimeMillis());		// side effect to init baseTime
-//		prevFtime = thisFtime;
 		thisFtime = fTime;
 		if(thisFtime == 0) {
 			thisFtime = System.currentTimeMillis();
@@ -461,12 +465,12 @@ public class CTwriter {
 		CTinfo.debugPrint("putData: "+outName+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime);
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize
-		else if((thisFtime - lastFtime) >= autoFlush) {
+		else if(!asyncFlush && ((thisFtime - lastFtime) >= autoFlush)) {
 			CTinfo.debugPrint("putData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
 		if(blockTime == 0) blockTime = thisFtime;
-		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
+//		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
 
 		writeData(thisFtime, outName, bdata);
 	}
@@ -502,12 +506,12 @@ public class CTwriter {
 		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize	
-		else if((thisFtime - lastFtime) >= autoFlush) {			// autoFlush prior data (at prior thisFtime!)
+		else if(!asyncFlush && ((thisFtime - lastFtime) >= autoFlush)) {			// autoFlush prior data (at prior thisFtime!)
 			CTinfo.debugPrint("addData autoFlush at: "+thisFtime+" ********************************");
 			flush();
 		}
 		if(blockTime == 0) blockTime = thisFtime;
-		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
+//		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
 		
 		CTinfo.debugPrint("addData: "+name+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime);
 
@@ -526,12 +530,34 @@ public class CTwriter {
 	
 	//------------------------------------------------------------------------------------------------
 	// separate parts of putData so packMode flush can call without being recursive
+	Timer flushTimer = null;
 	
 //	private void writeData(long time, String outName, byte[] bdata) throws Exception {		// sync makes remote writes pace slow???
 	private synchronized void writeData(long time, String outName, byte[] bdata) throws Exception {
 		
 		CTinfo.debugPrint("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", blockTime: "+blockTime);
 		try {
+			
+			// block/segment logic:
+			if(blockTime > prevblockTime) {
+				System.err.println("writeData; blockCount: "+blockCount+", blocksPerSegment: "+blocksPerSegment);
+				if((blocksPerSegment>0) && ((blockCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
+					segmentTime(blockTime);
+				prevblockTime = blockTime;
+				blockCount++;
+				
+				if(asyncFlush) {	// async flush autoFlush_msec after each new block
+					if(flushTimer!=null) flushTimer.cancel();			// cancel any overlap
+					flushTimer = new Timer(true);
+					flushTimer.schedule(
+					    new TimerTask() {
+					      public void run() { 
+					    	  System.err.println("flushTimer!"); 
+					    	  try{ flush(); } catch(Exception e){}; }
+					    }, autoFlush);
+				}
+			}
+			
 //			if(todoBaseTime) setBaseTime(time);				// ensure baseTime initialized
 			
 			//  zip mode:  queue up data in ZipOutputStream
@@ -589,6 +615,7 @@ public class CTwriter {
 			}
 		} catch(Exception e) {
 			System.err.println("writeData exception: "+e);
+			e.printStackTrace();
 			throw e;
 		}
 	}
