@@ -259,7 +259,7 @@ public class CTwriter {
 			 	
 //		rebaseFlag = false;					// defer taking effect until full-block on flush
 		initBaseTime = false;
-		System.err.println("segmentTime: baseTimeStr: "+baseTimeStr+", blocksPerSegment: "+blocksPerSegment);
+		CTinfo.debugPrint("segmentTime: baseTimeStr: "+baseTimeStr+", blocksPerSegment: "+blocksPerSegment);
 	}
 	
 	/**
@@ -540,7 +540,7 @@ public class CTwriter {
 			
 			// block/segment logic:
 			if(blockTime > prevblockTime) {
-				System.err.println("writeData; blockCount: "+blockCount+", blocksPerSegment: "+blocksPerSegment);
+				CTinfo.debugPrint("writeData; blockCount: "+blockCount+", blocksPerSegment: "+blocksPerSegment);
 				if((blocksPerSegment>0) && ((blockCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
 					segmentTime(blockTime);
 				prevblockTime = blockTime;
@@ -552,7 +552,7 @@ public class CTwriter {
 					flushTimer.schedule(
 					    new TimerTask() {
 					      public void run() { 
-					    	  System.err.println("flushTimer!"); 
+					    	  CTinfo.debugPrint("flushTimer!"); 
 					    	  try{ flush(); } catch(Exception e){}; }
 					    }, autoFlush);
 				}
