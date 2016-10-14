@@ -148,6 +148,8 @@ public class CTpack {
      					}
      				}
      				
+     				// write data to disk.  all-at-once, or once per block.  
+     				// TO DO:  add replay-timer for replay at natural pace
      				if(singleFolder) {
      					ctw.packFlush();			// one long block, pack all into single file
      					break;

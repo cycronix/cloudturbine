@@ -32,11 +32,11 @@ public class CTblocktest {
 		// run each permutation of packMode, zipMode, numMode
 		runTest("CTbin",		false,	false,	false);
 		runTest("CTpackbin",	true,	false,	false);
-		runTest("CTpackzipbin",true,	true,	false);
+		runTest("CTpackzipbin", true,	true,	false);
 		runTest("CTzipbin",		false,	true,	false);
 		runTest("CTnum",		false,	false,	true);
 		runTest("CTpacknum",	true,	false,	true);
-		runTest("CTpackzipnum",true,	true,	true);
+		runTest("CTpackzipnum", true,	true,	true);
 		runTest("CTzipnum",		false,	true,	true);
 		System.err.println("Done. nsamp: "+nsamp+", nchan: "+nchan+", pts/block: "+blockPts+", blocks/segment: "+segBlocks);
 	}

@@ -154,6 +154,16 @@ public class CTwriter {
 	}
 	
 //	Timer flushTimer = new Timer(true);
+	/** 
+	 * Set auto-flush data to disk
+	 * <p>
+	 * Note that async flush runs off a system timer, 
+	 * otherwise flushes occur at each putData whenever given time exceeds autoFlush interval.
+	 * In non-async mode, there can be a partial-block waiting to be flushed until a cleanup flush() is called.
+	 * 
+	 * @param timePerBlock Time (msec) between automatically flushed blocks
+	 * @param asyncFlag True/False set asynchronous timer flush.  
+	 */
 	public void autoFlush(long timePerBlock, boolean asyncFlag) {
 		asyncFlush = asyncFlag;
 		autoFlush = timePerBlock;
