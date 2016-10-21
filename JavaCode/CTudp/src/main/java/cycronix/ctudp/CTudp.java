@@ -8,6 +8,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import org.apache.commons.cli.*;
 
 import cycronix.ctlib.*;
 
@@ -32,7 +33,7 @@ public class CTudp {
 	boolean debug=false;
 	double autoFlush=1.;			// flush interval (sec)	
 	long autoFlushMillis;			// flush interval (msec)
-	double trimTime;				// trimtime (sec)	
+	double trimTime=0.;				// trimtime (sec)	
 	String srcName 	= 	new String("CTudp");
 	static int numSock = 0;
 	CTwriter ctw;
@@ -49,6 +50,60 @@ public class CTudp {
 		double			dt[] = new double[32];
 		int numChan = 0;
 		
+	// Argument processing using Apache Commons CLI
+		// 1. Setup command line options
+		Options options = new Options();
+		options.addOption("h", "help", false, "Print this message");
+		options.addOption(Option.builder("s").argName("source name").hasArg().desc("name of source to write packets to").build());
+		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("name of channel to write packets to").build());
+		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("multicast UDP address (224.0.0.1 to 239.255.255.255)").build());
+		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("port number to listen for UDP packets on").build());
+		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("fixed delta-time (msec) between frames (dt=0 for arrival-times)").build());
+		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile)").build());
+		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite)").build());
+		options.addOption("x", "debug", false, "debug mode");
+
+		// 2. Parse command line options
+		CommandLineParser parser = new DefaultParser();
+		CommandLine line = null;
+		try {	line = parser.parse( options, arg );	}
+		catch( ParseException exp ) {	// oops, something went wrong
+			System.err.println( "Command line argument parsing failed: " + exp.getMessage() );
+			return;
+		}
+		
+		// 3. Retrieve the command line values
+		if (line.hasOption("help")) {			// Display help message and quit
+			HelpFormatter formatter = new HelpFormatter();
+			formatter.setWidth(120);
+			formatter.printHelp( "CTudp", options );
+			return;
+		}
+
+		srcName = line.getOptionValue("s",srcName);
+
+		String chanNameL = line.getOptionValue("c","udpchan");
+		chanName = chanNameL.split(","); 
+		numChan = chanName.length;
+
+		multiCast = line.getOptionValue("m",multiCast);
+
+		String nss=line.getOptionValue("p", "4445");
+		String[] ssnums = nss.split(",");
+		numSock=ssnums.length;
+		for(int i=0; i<numSock; i++) ssNum[i]=Integer.parseInt(ssnums[i]);
+
+		String sdt=line.getOptionValue("d","0");				
+		String[] ssdt = sdt.split(",");
+		for(int i=0; i<ssdt.length; i++) dt[i]=Double.parseDouble(ssdt[i]);
+
+		autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlush));
+		
+		trimTime = Double.parseDouble(line.getOptionValue("t","0"));
+
+		debug = line.hasOption("debug");
+		
+/*		// old ArgHandler implementation
 		try {
 	//	    System.err.println("");
 			ArgHandler ah=new ArgHandler(arg);
@@ -121,7 +176,7 @@ public class CTudp {
 			System.err.println("                default : "+trimTime);
 			System.exit(0);
 		}
-		
+*/		
 		if(numSock != numChan) {
 			System.err.println("Error:  must specify same number of channels and ports!");
 			System.exit(0);

@@ -18,12 +18,13 @@
 
 import java.io.File;
 import java.util.ArrayList;
+import cycronix.ctlib.*;
+import org.apache.commons.cli.*;
 
 //---------------------------------------------------------------------------------	
 // CTpack:  read and re-write CT files into specified structure
 // Matt Miller, Cycronix
 
-import cycronix.ctlib.*;
 
 /*
 * Copyright 2016 Cycronix
@@ -59,7 +60,49 @@ public class CTpack {
 	//--------------------------------------------------------------------------------------------------------
 	public CTpack(String[] args) {
 		
+	// Argument processing using Apache Commons CLI
+		// 1. Setup command line options
+		Options options = new Options();
+		options.addOption("h", "help", false, "Print this message");
+		options.addOption("x", "debug", false, "debug mode"+", default: "+debug);
+		options.addOption("z", "zipmode", false, "zip mode"+", default: "+zipMode);
+		options.addOption("p", "packmode", false, "pack mode"+", default: "+packMode);
+		options.addOption("1", "singleFile", false, "single zip file mode"+", default: "+singleFolder);
+
+		options.addOption(Option.builder("o").argName("packFolder").hasArg().desc("name of output folder"+", default: "+packFolder).build());
+		options.addOption(Option.builder("t").argName("timePerBlock").hasArg().desc("time per output block (sec)"+", default: "+timePerBlock).build());
+		options.addOption(Option.builder("s").argName("segBlocks").hasArg().desc("blocks per segment"+", default: "+segBlocks).build());
+
+		// 2. Parse command line options
+		CommandLineParser parser = new DefaultParser();
+		CommandLine line = null;
+		try {	line = parser.parse( options, args );	}
+		catch( ParseException exp ) {	// oops, something went wrong
+			System.err.println( "Command line argument parsing failed: " + exp.getMessage() );
+			return;
+		}
+
+		// 3. Retrieve the command line values
+		String extraArgs[] = line.getArgs();
+		if(extraArgs!=null && extraArgs.length>0) rootFolder = extraArgs[0];
 		
+		if (line.hasOption("help")) {			// Display help message and quit
+			HelpFormatter formatter = new HelpFormatter();
+			formatter.setWidth(120);
+			formatter.printHelp( "CTpack [options] sourceFolder (default: "+rootFolder+"), where [options] can be: ", options );
+			return;
+		}
+
+		debug 		 = line.hasOption("debug");
+		zipMode 	 = !line.hasOption("zipmode"); 				// flag turns OFF mode
+		packMode 	 = !line.hasOption("packmode");
+		singleFolder = line.hasOption("singleFile");
+		
+		packFolder = line.getOptionValue("o",packFolder);
+		timePerBlock = Double.parseDouble(line.getOptionValue("t",""+timePerBlock));
+		segBlocks = Integer.parseInt(line.getOptionValue("s",""+segBlocks));
+
+/*		// old ArgHandler way
     	if(args.length == 0) {
     		System.err.println("CTpack -x -z -p -1 -o <outFolder> -t <timePerBlock> -s <segBlocks> rootFolder");
     	}
@@ -78,8 +121,11 @@ public class CTpack {
 
      		dirArg++;
      	}
+     	if(args.length > dirArg) rootFolder = args[dirArg++];  
+*/	
+
      	CTinfo.setDebug(debug);
-     	if(args.length > dirArg) rootFolder = args[dirArg++];  	
+     	System.err.println("CTpack output to "+packFolder+", zipMode: "+zipMode+", packMode: "+packMode+", singleFolder: "+singleFolder+", timeperBlock: "+timePerBlock+", segBlocks: "+segBlocks);
      	if(!packMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
      	
 		// setup CTreader
@@ -118,10 +164,11 @@ public class CTpack {
  				ctw.autoSegment(segBlocks);								// auto create segments
  				
          		for(double thisTime=oldTime; thisTime<=newTime; thisTime+=timePerBlock) {		// {Loop by Time}
-//     				System.err.println("thisTime: "+thisTime);
+     				if(debug) System.err.println("thisTime: "+thisTime);
 					ctw.setTime(thisTime);			// write per request time?
 
      				for(String chan:ctr.listChans(source)) {				// {Loop by Chan}
+     					if(debug) System.err.println("thisChan: "+chan);
      					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "absolute");	// get next chunk
      /*		
      	NOTES: 
@@ -135,16 +182,22 @@ public class CTpack {
      	- Detect time-gaps when getData timestamps jump, auto-split into new blocks (heuristic?)
      */
      					double[] t = data.getTime();
-     					byte[][] d = data.getData();
-     					if(t.length==0 || d.length==0) {
+     					String[] sd=null;
+     					byte[][] bd=null;
+     					boolean numType = (CTinfo.fileType(chan)=='N');		// need to treat numeric data as such (needs CSV commas)
+     					if(numType) 	sd = data.getDataAsString(CTinfo.fileType(chan));	// numeric types
+     					else			bd = data.getData();								// all other types
+     					System.err.println("chan: "+chan+", numType: "+numType+", fileType: "+CTinfo.fileType(chan));
+     					if(t.length==0) {
      						System.err.println("Warning, zero data for chan: "+chan+", at time: "+thisTime+":"+(thisTime+timePerBlock));
      						continue;
      					}
      					
-//     					System.err.println("+Chan: "+chan+", data.size: "+d.length+", time.size: "+t.length+", first bytearray length: "+d[0].length);
+     					System.err.println("+Chan: "+chan+", size: "+t.length);
      					for(int j=0; j<data.size(); j++) {		// re-write fetched data per CTpack settings
      						ctw.setTime(t[j]);
-     						ctw.putData(chan, d[j]);
+     						if(numType) 	ctw.putData(chan, sd[j]);
+     						else			ctw.putData(chan, bd[j]);
      					}
      				}
      				

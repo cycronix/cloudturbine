@@ -127,7 +127,7 @@ public class CTwriter {
 	}
 	
 	/**
-	 * Automatically create data segments
+	 * Automatically create data segments.
 	 * @param iblocksPerSegment number of blocks (flushes) per segment, 0 means no segments
 	 */
 	public void autoSegment(long iblocksPerSegment) {
@@ -135,18 +135,23 @@ public class CTwriter {
 	}
 	
 	/** 
-	 * Automatically flush data blocks
+	 * Automatically flush data blocks.  See {@link #autoFlush(long,boolean)}.
 	 * @param timePerBlock interval (sec) at which to flush data to new zip file
 	 */
 	public void autoFlush(double timePerBlock) {
 		autoFlush((long)(timePerBlock*1000.), false);
 	}
+	
+	/**
+	 * Automatically flush data blocks.  See {@link #autoFlush(long,boolean)}.
+	 * @param timePerBlock interval (msec) at which to flush data to new zip file
+	 */
 	public void autoFlush(double timePerBlock, boolean asyncFlag) {
 		autoFlush((long)(timePerBlock*1000.), asyncFlag);
 	}
 	
 	/**
-	 * Automatically flush data blocks
+	 * Automatically flush data blocks.  See {@link #autoFlush(long,boolean)}.
 	 * @param timePerBlock interval (msec) at which to flush data to new zip file
 	 */
 	public void autoFlush(long timePerBlock) {
@@ -155,11 +160,12 @@ public class CTwriter {
 	
 //	Timer flushTimer = new Timer(true);
 	/** 
-	 * Set auto-flush data to disk
+	 * Set auto-flush data to disk.
 	 * <p>
 	 * Note that async flush runs off a system timer, 
 	 * otherwise flushes occur at each putData whenever given time exceeds autoFlush interval.
 	 * In non-async mode, there can be a partial-block waiting to be flushed until a cleanup flush() is called.
+	 * <p>Recommend {@link #putData(Map)} in multi-channel async mode to ensure autoFlush doesn't split groups of channels.
 	 * 
 	 * @param timePerBlock Time (msec) between automatically flushed blocks
 	 * @param asyncFlag True/False set asynchronous timer flush.  
@@ -167,11 +173,11 @@ public class CTwriter {
 	public void autoFlush(long timePerBlock, boolean asyncFlag) {
 		asyncFlush = asyncFlag;
 		autoFlush = timePerBlock;
-/*
+
 		if(timePerBlock == 0 || asyncFlag) 	
 				autoFlush = Long.MAX_VALUE;
 		else	autoFlush = timePerBlock;				// msec
-				
+/*				
 		if(asyncFlag) {		// setup async flush timer thread
 			flushTimer.scheduleAtFixedRate(
 			    new TimerTask() {
@@ -501,6 +507,7 @@ public class CTwriter {
 			else if	(data instanceof String) 	putData(entry.getKey(), (String)data);
 			else if	(data instanceof Long) 		putData(entry.getKey(), (Long)data);
 			else if	(data instanceof Character) putData(entry.getKey(), (Character)data);
+			else if	(data instanceof byte[]) 	putData(entry.getKey(), (byte[])data);
 			else throw new IOException("putData: unrecognized object type: "+entry.getKey());
 		}
 	}
