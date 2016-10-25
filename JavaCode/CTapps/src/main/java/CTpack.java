@@ -51,6 +51,8 @@ public class CTpack {
 	static long segBlocks=10;			// blocks per segment (was 10)
 	static double timePerBlock=10.;		// time interval per block on output
 	boolean singleFolder = false;		// pack everything into single zip file
+	boolean binaryMode = false;			// convert CSV to float-binary?
+	int binaryFmt = 32;				// convert to f32 or f64
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -66,6 +68,7 @@ public class CTpack {
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption("x", "debug", false, "debug mode"+", default: "+debug);
 		options.addOption("z", "zipmode", false, "zip mode"+", default: "+zipMode);
+		options.addOption("f", "binarymode", true, "convert CSV to float binary, -f32, -f64");
 		options.addOption("p", "packmode", false, "pack mode"+", default: "+packMode);
 		options.addOption("1", "singleFile", false, "single zip file mode"+", default: "+singleFolder);
 
@@ -101,7 +104,11 @@ public class CTpack {
 		packFolder = line.getOptionValue("o",packFolder);
 		timePerBlock = Double.parseDouble(line.getOptionValue("t",""+timePerBlock));
 		segBlocks = Integer.parseInt(line.getOptionValue("s",""+segBlocks));
-
+		if(line.hasOption("binarymode")) {
+			binaryMode = true;
+			binaryFmt = Integer.parseInt(line.getOptionValue("f",""+32));
+		}
+		
 /*		// old ArgHandler way
     	if(args.length == 0) {
     		System.err.println("CTpack -x -z -p -1 -o <outFolder> -t <timePerBlock> -s <segBlocks> rootFolder");
@@ -169,7 +176,7 @@ public class CTpack {
 
      				for(String chan:ctr.listChans(source)) {				// {Loop by Chan}
      					if(debug) System.err.println("thisChan: "+chan);
-     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock, "absolute");	// get next chunk
+     					CTdata data = ctr.getData(source, chan, thisTime, timePerBlock-0.000001, "absolute");	// get next chunk (less 1us no-overlap?)
      /*		
      	NOTES: 
      	getData returns point-by-point CTdata with interpolated times per as-written blocks.
@@ -184,19 +191,41 @@ public class CTpack {
      					double[] t = data.getTime();
      					String[] sd=null;
      					byte[][] bd=null;
+     					float[] fd=null;
+     					double[] dd=null;
      					boolean numType = (CTinfo.fileType(chan)=='N');		// need to treat numeric data as such (needs CSV commas)
-     					if(numType) 	sd = data.getDataAsString(CTinfo.fileType(chan));	// numeric types
+     					if(numType) {
+     						if(binaryMode) {
+     							if(binaryFmt == 32) {
+     								if(chan.endsWith(".csv")) chan = chan.replace(".csv",  ".f32");
+     								else if(!chan.endsWith(".f32")) chan += ".f32";
+     								fd = data.getDataAsNumericF32();
+     							}
+     							else {
+     								if(chan.endsWith(".csv")) chan = chan.replace(".csv",  ".f64");
+     								else if(!chan.endsWith(".f64")) chan += ".f64";
+     								dd = data.getDataAsNumericF64();
+     							}
+     						}
+     						sd = data.getDataAsString(CTinfo.fileType(chan));	// numeric types
+     					}
      					else			bd = data.getData();								// all other types
-     					System.err.println("chan: "+chan+", numType: "+numType+", fileType: "+CTinfo.fileType(chan));
+//     					System.err.println("chan: "+chan+", numType: "+numType+", fileType: "+CTinfo.fileType(chan));
      					if(t.length==0) {
      						System.err.println("Warning, zero data for chan: "+chan+", at time: "+thisTime+":"+(thisTime+timePerBlock));
      						continue;
      					}
      					
-     					System.err.println("+Chan: "+chan+", size: "+t.length);
+     					System.err.println("putChan: "+chan+", at time[0]: "+t[0]+", dataSize: "+data.size());
      					for(int j=0; j<data.size(); j++) {		// re-write fetched data per CTpack settings
      						ctw.setTime(t[j]);
-     						if(numType) 	ctw.putData(chan, sd[j]);
+     						if(numType) {
+     							if(binaryMode) {
+     								if(binaryFmt==32) ctw.putData(chan, fd[j]);
+     								else			  ctw.putData(chan, dd[j]);
+     							}
+     							else 				  ctw.putData(chan, sd[j]);
+     						}
      						else			ctw.putData(chan, bd[j]);
      					}
      				}
