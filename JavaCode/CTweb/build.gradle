@@ -1,0 +1,57 @@
+
+// JAR settings
+// Specify ".doFirst" to force this to run in the Execution phase.  Without
+// this specification, this would be run during the Configuration phase, which
+// would fail if CTlib.jar didn't yet exist; at Execution phase, CTlib.jar
+// should have been created already.
+jar.doFirst {
+    // Create a "fat jar" file which includes all the dependencies; that way,
+    // the jar can be run stand-alone with none of the other dependency jars
+    // around.  The following was taken from a nice simple example found at:
+    // https://newfivefour.com/gradle-hello-world-java-fat-jar.html
+    // The "it" variable (kind of like "this" in Java) is a Groovy-ism which
+    // represents the implicit variable given to this closure, which I think is
+    // the project object.
+    from {
+        (configurations.runtime).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    
+    // Build up a string containing all the runtime dependencies; this will be
+    // used as the 'Class-Path' string in the manifest instead of hard-wiring
+    // library names
+    StringBuilder sb = new StringBuilder();
+    project.configurations.runtime.each {
+        sb.append(it.name + ' ')
+    }
+    String runtimeDependenciesStr = sb.toString().trim()
+    
+    manifest {
+        attributes 'Main-Class': 'ctweb.CTweb',
+                   'Class-Path': runtimeDependenciesStr
+    }
+}
+
+repositories {
+    flatDir {
+    	// Location of CTlib.jar
+    	dirs "$rootProject.projectDir/CTlib/build/libs"
+ //   	dirs "$rootProject.projectDir/Third_Party/Jetty"
+    }
+}
+
+dependencies {
+	// Build CTlib project first, because we use CTlib.jar
+	compile project(':CTlib')
+	// Specify that we use CTlib.jar
+    compile name: 'CTlib'
+    
+    // specify Jetty libs
+	compile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.13.v20161014'
+	compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.3.13.v20161014'
+	compile group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.3.13.v20161014'
+	compile group: 'org.eclipse.jetty', name: 'jetty-http', version: '9.3.13.v20161014'
+	compile group: 'org.eclipse.jetty', name: 'jetty-io', version: '9.3.13.v20161014'
+}
+

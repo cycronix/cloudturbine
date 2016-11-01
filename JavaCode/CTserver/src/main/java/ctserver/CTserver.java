@@ -34,10 +34,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
 import javax.imageio.ImageIO;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLServerSocketFactory;
 
 import cycronix.ctlib.*;
 
@@ -58,6 +61,7 @@ public class CTserver extends NanoHTTPD {
     private static int MaxDat = 1000000;		// max number data elements to return (was 65536)
     private static long queryCount=0;
     private static int scaleImage=1;			// reduce image size by factor
+    private static String keyStore=null;		// optional HTTP keystore file path
     
 	//---------------------------------------------------------------------------------	
 
@@ -68,6 +72,16 @@ public class CTserver extends NanoHTTPD {
 // nanoHTTPD test code: https://github.com/NanoHttpd/nanohttpd/.../HttpSSLServerTest.java
 		
 	    super(port);
+	    
+	    if(keyStore != null) {
+	    try {
+	    	System.err.println("making secure connection with keystore: "+keyStore);
+	    	super.makeSecure(mjmSSLSocketFactory(keyStore, "password".toCharArray()), null);
+	    } catch(Exception e) {
+	    	System.err.println("Error on HTTPS connection: "+e.getMessage());
+	    }
+	    }
+	    
      	ctreader = new CTreader(rootFolder);
      	CTinfo.setDebug(debug);
 	}
@@ -98,6 +112,7 @@ public class CTserver extends NanoHTTPD {
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-f"))  	resourceBase = args[++dirArg]; 
      		if(args[dirArg].equals("-s"))  	sourceFolder = args[++dirArg]; 
+     		if(args[dirArg].equals("-k"))	keyStore = args[++dirArg];
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -268,8 +283,9 @@ public class CTserver extends NanoHTTPD {
     			String sourcePath = rootFolder+File.separator+source;
     			String[] strdata=null;		
 
-    			if(fetch == 't') 	ctreader.setTimeOnly(true);		// don't waste time/memory getting data...
-    			else    			ctreader.setTimeOnly(false);
+// setTimeOnly deprecated NOP
+//    			if(fetch == 't') 	ctreader.setTimeOnly(true);		// don't waste time/memory getting data...
+//    			else    			ctreader.setTimeOnly(false);
     			
     			CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     			if(tdata == null) {		// empty response for WebTurbine compatibility
@@ -508,6 +524,30 @@ public class CTserver extends NanoHTTPD {
         }
 
         return ret;
+    }
+    
+    /**
+     * Creates an SSLSocketFactory for HTTPS. Pass a KeyStore resource with your
+     * certificate and passphrase
+     * MJM:  variant that uses file path vs class path
+     */
+    private static SSLServerSocketFactory mjmSSLSocketFactory(String keyAndTrustStoreClasspathPath, char[] passphrase) throws IOException {
+        try {
+            KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
+//            InputStream keystoreStream = NanoHTTPD.class.getResourceAsStream(keyAndTrustStoreClasspathPath);
+            InputStream keystoreStream = new FileInputStream(new File(keyAndTrustStoreClasspathPath));	// MJM get keystore as regular file
+
+ //           if (keystoreStream == null) {
+ //               throw new IOException("Unable to load keystore from classpath: " + keyAndTrustStoreClasspathPath);
+ //           }
+
+            keystore.load(keystoreStream, passphrase);
+            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            keyManagerFactory.init(keystore, passphrase);
+            return makeSSLSocketFactory(keystore, keyManagerFactory);
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
     }
     
 }

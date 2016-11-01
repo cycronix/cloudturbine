@@ -201,7 +201,8 @@ public abstract class NanoHTTPD {
                 // SocketTimeoutException, print the
                 // stacktrace
                 if (!(e instanceof SocketException && "NanoHttpd Shutdown".equals(e.getMessage())) && !(e instanceof SocketTimeoutException)) {
-                    NanoHTTPD.LOG.log(Level.SEVERE, "Communication with the client broken, or an bug in the handler code", e);
+                	System.err.println("Warning:  unexpected socket error.");		// don't panic
+//                    NanoHTTPD.LOG.log(Level.SEVERE, "Communication with the client broken, or an bug in the handler code", e);
                 }
             } finally {
                 safeClose(outputStream);
