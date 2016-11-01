@@ -1,6 +1,4 @@
 
-// apply plugin: 'java'
-
 // The following buildscript block is for configuring Gradle; don't include
 // dependency information in this block for the Android application itself;
 // that is in a separate section.
