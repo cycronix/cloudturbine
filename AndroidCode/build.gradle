@@ -1,16 +1,13 @@
 
-apply plugin: 'java'
+// apply plugin: 'java'
 
 // The following buildscript block is for configuring Gradle; don't include
-// dependency information in this block for the Android application itself; that
-// is in a separate section.
-
+// dependency information in this block for the Android application itself;
+// that is in a separate section.
 buildscript {
-
     repositories {
         jcenter()
     }
-
     dependencies {
     	// The following specifies the version of the Android Plugin for Gradle
 		classpath 'com.android.tools.build:gradle:2.2.0'
@@ -18,8 +15,7 @@ buildscript {
 }
 
 subprojects {
-	// Need to apply plugin com.android.application here in order to have the
-	// overridden tasks defined below to work correctly
+	
     apply plugin: 'com.android.application'
     
     android {
@@ -33,6 +29,32 @@ subprojects {
     	compileSdkVersion 23
     	// Android build tool versions are at %ANDROID_HOME%\build-tools
     	buildToolsVersion "23.0.3"
+    	
+    	// The following suppresses a Lint error which is raised because CTlib.jar
+    	// references java.nio.file in cycronix.ctlib.CTreader; this is an error
+    	// because java.nio.file is not included in the Android API; however it is
+    	// not a problem for us because the Android app doesn't end up using this.
+    	lintOptions {
+    		disable 'InvalidPackage'
+    	}
+    	
+    	// [OPTIONAL] Specify default settings here; some of the items which can be
+    	// included in defaultConfig can override attributes in AndroidManifest.xml
+    	// defaultConfig {
+    	//     // Defines the minimum API level required to run the app.
+    	//     minSdkVersion 14
+    	//     // Specifies the API level used to test the app.
+    	//     targetSdkVersion 23
+    	// }
+    }
+    
+    repositories {
+    	flatDir {
+    		// Location of CTlib.jar
+    		dirs "$rootProject.projectDir/Common"
+    	}
+        // Fetch open source libraries (eg, Apache Commons) from Maven Central
+        mavenCentral()
     }
     
     // The following is based on http://stackoverflow.com/questions/29162899/how-to-use-gradle-to-generate-javadoc-in-android-studio
@@ -94,13 +116,6 @@ subprojects {
     //       "build" - so the build directory was being deleted!  See Kunal's
     //       forum response at:
     //       http://stackoverflow.com/questions/17617791/gradle-task-to-call-other-tasks-in-order
-    //
-    // Another way to do this is by creating a new task which will call the two
-    // existing tasks.  Still need to include the "preBuild.mustRunAfter clean"
-    // line when doing it this way.
-    // task clean_build {
-    // 	dependsOn clean, build
-    // }
     //
     build.dependsOn clean,javadoc
     preBuild.mustRunAfter clean
