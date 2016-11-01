@@ -1,9 +1,11 @@
 //---------------------------------------------------------------------------------	
-// CTserver:  Web HTTP interface to CTreader
+// CTweb:  Web HTTP interface to CTreader
 // Matt Miller, Cycronix
-// 02/18/2014	initial version using Jetty
+
+// 11/01/2016	revert to Jetty
 // 07/16/2014	converted to NanoHTTPD
 // 04/04/2016	updated to NanoHTTPD V2.2
+// 02/18/2014	initial version using Jetty
 
 /*
  URL Syntax:
@@ -32,7 +34,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Properties;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -45,8 +46,6 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletHandler;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.StdErrLog;
 
 import cycronix.ctlib.CTdata;
 import cycronix.ctlib.CTinfo;
@@ -148,29 +147,23 @@ public class CTweb {
     // callback for http requests
     @SuppressWarnings("serial")
     public static class CTServlet extends HttpServlet {
-        private String greeting="Hello World";
-        public CTServlet(){}
         
     	@Override
     	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     	//    @Override public Response serve(IHTTPSession session) {
 
     		if(debug) System.err.println("doGet, request: "+request.getPathInfo());
-    		String servletPath = request.getServletPath();
+//    		String servletPath = request.getServletPath();
     		String pathInfo = request.getPathInfo();
     		
     		queryCount++;
-//    		String request = session.getUri();
-//    		Map<String,String> parms = session.getParms();
     		StringBuilder sbresp = new StringBuilder(64);			// estimate initial size
-//    		boolean remoteAddr = !request.getHeader("remote-addr").equals("127.0.0.1");
     		CTinfo.debugPrint(logOut,new Date().toString()+", request: "+request);
 
     		// system clock utility
     		if(pathInfo.equals("/sysclock")) {
     			response.setContentType("text/plain");
     			response.getWriter().println(""+System.currentTimeMillis());
-//    			return formResponse(newFixedLengthResponse(HttpServletResponse.SC_OK,MIME_PLAINTEXT,(""+System.currentTimeMillis())));
     		}
 
     		// server resource files
@@ -181,7 +174,6 @@ public class CTweb {
     					else if(new File(resourceBase+"/index.html").exists()) 	pathInfo = "/index.html";
     					else													pathInfo = "/webscan.htm";
     				}
-//    				FileInputStream fis = new FileInputStream(resourceBase+pathInfo);
     				
     				OutputStream out = response.getOutputStream();
     				FileInputStream in = new FileInputStream(pathInfo);
@@ -192,10 +184,8 @@ public class CTweb {
     				}
     				in.close();
     				out.flush();
-//    				return formResponse(newChunkedResponse(Response.Status.OK, mimeType(pathInfo, MIME_HTML), fis));
     			} catch(Exception e) {
     				response.sendError(HttpServletResponse.SC_NOT_FOUND);
-//    				return formResponse(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found: "+e));
     			}
     		}
 
