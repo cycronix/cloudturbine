@@ -29,23 +29,35 @@ package ctweb;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.proxy.ProxyServlet;
 
 import cycronix.ctlib.CTdata;
 import cycronix.ctlib.CTinfo;
@@ -58,22 +70,24 @@ public class CTweb {
 	private static final String servletRoot = "/CT";
 	private static final String rbnbRoot = "/RBNB";
 //	private static String rootFolder="CTdata";
-	private static String rootFolder=null;		// for compat with CT2DB
+	private static String rootFolder=null;				// for compat with CT2DB
 	private static CTreader ctreader=null;
 	public static boolean debug=false;
 	private static boolean logOut=false;
 	private static boolean swapFlag = false;
     private static String resourceBase = "CTweb";
     private static String sourceFolder = null;
-    private static int MaxDat = 1000000;		// max number data elements to return (was 65536)
+    private static int MaxDat = 1000000;				// max number data elements to return (was 65536)
     private static long queryCount=0;
-    private static String keyStore=null;		// optional HTTP keystore file path
-    	
+    private static String keyStoreFile="ctweb.jks";		// HTTPS keystore file path
+    private static String keyStorePW="ctweb.pw";		// keystore PW
+    private static String proxyServer=null;
+	private static int	port = 8000;							// default port
+	private static int sslport = 8443;							// HTTPS port (0 means none)
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
-    	int	port = 8000;			// default port
-    	
+
     	if(args.length == 0) {
     		System.err.println("CTserver -r -x -l -p <port> -f <webfolder> -s <sourceFolder> rootFolder");
     	}
@@ -84,9 +98,12 @@ public class CTweb {
      		if(args[dirArg].equals("-x")) 	debug = true;
      		if(args[dirArg].equals("-l")) 	logOut = true;
      		if(args[dirArg].equals("-p")) 	port = Integer.parseInt(args[++dirArg]);
+     		if(args[dirArg].equals("-P")) 	sslport = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-f"))  	resourceBase = args[++dirArg]; 
      		if(args[dirArg].equals("-s"))  	sourceFolder = args[++dirArg]; 
-     		if(args[dirArg].equals("-k"))	keyStore = args[++dirArg];
+     		if(args[dirArg].equals("-k"))	keyStoreFile = args[++dirArg];
+     		if(args[dirArg].equals("-K"))	keyStorePW = args[++dirArg];
+     		if(args[dirArg].equals("-X"))  	proxyServer = args[++dirArg]; 
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -111,36 +128,110 @@ public class CTweb {
      		}
      	}
      	     	
+     	// create CT reader 
      	ctreader = new CTreader(rootFolder);
      	CTinfo.setDebug(debug);
-
-        System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+", HTTP port: "+port+"\n");
-        
-        Server server = new Server(port);
-
-        ResourceHandler resource_handler = new ResourceHandler();
-        resource_handler.setDirectoriesListed(true);
-        resource_handler.setWelcomeFiles(new String[]{ "index.htm", "index.html", "cloudscan.htm", "webscan.htm"});
-        resource_handler.setResourceBase(resourceBase);
-
-        ServletHandler shandler = new ServletHandler();
-        server.setHandler(shandler);
-//        shandler.addServletWithMapping(CTServlet.class, "/"+servletRoot+"/*");
-//        shandler.addServletWithMapping(CTServlet.class, "/"+rbnbRoot+"/*");
-        shandler.addServletWithMapping(CTServlet.class, "/*");
-
-        // Add the ResourceHandler to the server.
-        HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[] { resource_handler, shandler, new DefaultHandler() });
-        server.setHandler(handlers);
-        
+       
+     	// setup and start Jetty HTTP server
+     	Server server = setupHTTP();
         server.start();
         server.join();
     }
 
+    
     //---------------------------------------------------------------------------------	
-    public long queryCount() {
-    	return queryCount;
+    // setup HTTP/S Jetty 
+    
+    private static Server setupHTTP() throws FileNotFoundException {
+
+        // Create a basic jetty server object without declaring the port. 
+        Server server = new Server();
+
+        // HTTP Configuration
+        HttpConfiguration http_config = new HttpConfiguration();
+        if(sslport>0) {
+        	http_config.setSecureScheme("https");
+        	http_config.setSecurePort(sslport);
+        }
+        http_config.setOutputBufferSize(32768);
+
+        // HTTP connector
+        ServerConnector http = new ServerConnector(server,
+                new HttpConnectionFactory(http_config));
+        http.setPort(port);
+        http.setIdleTimeout(30000);
+
+        if(sslport>0) {		// setup HTTPS
+        	File ksFile = new File(keyStoreFile);
+        	if (ksFile.exists()) {
+        		// SSL Context Factory for HTTPS
+        		SslContextFactory sslContextFactory = new SslContextFactory();
+        		sslContextFactory.setKeyStorePath(ksFile.getAbsolutePath());
+        		sslContextFactory.setKeyStorePassword(keyStorePW);
+        		//        	sslContextFactory.setKeyManagerPassword(keypw);
+
+        		// HTTPS Configuration
+        		// A new HttpConfiguration object is needed for the next connector and
+        		// you can pass the old one as an argument to effectively clone the
+        		// contents. On this HttpConfiguration object we add a
+        		// SecureRequestCustomizer which is how a new connector is able to
+        		// resolve the https connection before handing control over to the Jetty
+        		// Server.
+        		HttpConfiguration https_config = new HttpConfiguration(http_config);
+        		SecureRequestCustomizer src = new SecureRequestCustomizer();
+        		src.setStsMaxAge(2000);
+        		src.setStsIncludeSubDomains(true);
+        		https_config.addCustomizer(src);
+
+        		// HTTPS connector
+        		// We create a second ServerConnector, passing in the http configuration
+        		// we just made along with the previously created ssl context factory.
+        		// Next we set the port and a longer idle timeout.
+        		ServerConnector https = new ServerConnector(server,
+        				new SslConnectionFactory(sslContextFactory,HttpVersion.HTTP_1_1.asString()),
+        				new HttpConnectionFactory(https_config));
+        		https.setPort(sslport);
+        		https.setIdleTimeout(500000);
+
+        		// Here you see the server having multiple connectors registered with
+        		// it, now requests can flow into the server from both http and https
+        		// urls to their respective ports and be processed accordingly by jetty.
+
+        		// Set the connectors
+        		server.setConnectors(new Connector[] { http, https });
+        	}
+        	else {
+        		System.err.println("Keystore file ("+keyStoreFile+") not found; HTTPS disabled.");
+        		sslport = 0;
+        		server.setConnectors(new Connector[] { http });
+        	}
+        }
+        else server.setConnectors(new Connector[] { http });
+
+        // Set a handler
+        
+        // following ResourceHandler code doesn't seem to help? Handle resourceBase explicitly in doGet()
+//        ResourceHandler resource_handler = new ResourceHandler();
+//        resource_handler.setDirectoriesListed(true);
+//       resource_handler.setWelcomeFiles(new String[]{ "index.htm", "index.html", "cloudscan.htm", "webscan.htm"});
+//        resource_handler.setResourceBase(resourceBase);
+
+        ServletHandler shandler = new ServletHandler();
+        ServletHolder sholder;
+        if(proxyServer==null) 	sholder = new ServletHolder(new CTServlet());
+        else					sholder = new ServletHolder((ProxyServlet)(new CTProxyServlet()));
+        sholder.setAsyncSupported(true);					// need fewer threads if non-blocking?
+        sholder.setInitParameter("maxThreads", "100");		// how many is good?
+        shandler.addServletWithMapping(sholder, "/*");
+
+        server.setHandler(shandler);
+
+        String msg;
+        if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
+        else			msg = ", HTTP port: "+port;
+        System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+msg+"\n");
+
+        return server;
     }
     
     //---------------------------------------------------------------------------------	
@@ -150,9 +241,8 @@ public class CTweb {
         
     	@Override
     	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    	//    @Override public Response serve(IHTTPSession session) {
-
-    		if(debug) System.err.println("doGet, request: "+request.getPathInfo());
+    		
+    		if(debug) System.err.println("doGet, request: "+request.getPathInfo()+", queryCount: "+queryCount);
 //    		String servletPath = request.getServletPath();
     		String pathInfo = request.getPathInfo();
     		
@@ -174,9 +264,10 @@ public class CTweb {
     					else if(new File(resourceBase+"/index.html").exists()) 	pathInfo = "/index.html";
     					else													pathInfo = "/webscan.htm";
     				}
-    				
-    				OutputStream out = response.getOutputStream();
-    				FileInputStream in = new FileInputStream(pathInfo);
+
+        			response.setContentType(mimeType(pathInfo, "text/html"));	
+        			OutputStream out = response.getOutputStream();
+    				FileInputStream in = new FileInputStream(resourceBase+pathInfo);	// limit to resourceBase folder
     				byte[] buffer = new byte[4096];
     				int length;
     				while ((length = in.read(buffer)) > 0){
@@ -185,21 +276,22 @@ public class CTweb {
     				in.close();
     				out.flush();
     			} catch(Exception e) {
+    				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
     				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     			}
+    			return;
     		}
 
     		String pathParts[] = pathInfo.split("/");		// split into 2 parts: cmd/multi-part-path
-    		// response.addHeader("Access-Control-Allow-Origin", "*");		// for debugging
 
     		try {
     			double duration=0., start=0.;
     			String reference="newest";			
     			String param;	char ftype='s';	  char fetch = 'b';
-    			param = request.getParameter("d");		if(param != null) duration = Double.parseDouble(param);
-    			param = request.getParameter("t");		if(param != null) { start = Double.parseDouble(param); reference="absolute"; }
-    			param = request.getParameter("r");		if(param != null) reference = param;
-    			param = request.getParameter("f");		if(param != null) fetch = param.charAt(0);
+    			param = request.getParameter("d");	if(param != null) duration = Double.parseDouble(param);
+    			param = request.getParameter("t");	if(param != null) { start = Double.parseDouble(param); reference="absolute"; }
+    			param = request.getParameter("r");	if(param != null) reference = param;
+    			param = request.getParameter("f");	if(param != null) fetch = param.charAt(0);
     			param = request.getParameter("dt");	if(param != null) ftype = param.charAt(0);
 
     			if(pathInfo.equals(servletRoot+"/") || pathInfo.equals(rbnbRoot+"/")) pathInfo = servletRoot;		//  strip trailing slash
@@ -210,7 +302,7 @@ public class CTweb {
     				ArrayList<String> slist = new ArrayList<String>();
 
     				if(sourceFolder == null) slist = ctreader.listSources();
-    				//    			if(sourceFolder == null) slist = ctreader.listSourcesRecursive();
+    				// if(sourceFolder == null) slist = ctreader.listSourcesRecursive();	// recursive now default
     				else					 slist.add(sourceFolder);
 
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
@@ -221,11 +313,9 @@ public class CTweb {
     					}
     				}
 
-    				//    			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
     				formResponse(response, sbresp);
     				return;
     			}
-    			//    		else if(pathParts.length == 3) {
     			else if(pathInfo.endsWith("/")) {										// Source level request for Channels
 
     				CTinfo.debugPrint("channel request: "+pathInfo);
@@ -260,7 +350,7 @@ public class CTweb {
     							sbresp.append("<tr>");
     							sbresp.append("<td>"+(time[i]/86400.+25569.)+"</td>");		// spreadsheet time (epoch 1900)
     							for(int j=0; j<chanlist.size(); j++) {
-    								String c[] = chanlist.get(j);								// possibly unequal data sizes
+    								String c[] = chanlist.get(j);							// possibly unequal data sizes
     								if(i < c.length) sbresp.append("<td>"+c[i]+"</td>");
     							}
     							sbresp.append("</tr>\n");	
@@ -276,7 +366,6 @@ public class CTweb {
     					}
     				}
 
-    				//    			return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
     				formResponse(response, sbresp);
     				return;
     			}
@@ -314,12 +403,11 @@ public class CTweb {
     						System.err.println("limiting output points to: "+MaxDat);
     						numData = MaxDat;
     					}
-    					//            			if(time.length == 0) System.err.println("CTserver warning: no data!");
+    					// if(time.length == 0) System.err.println("CTserver warning: no data!");
     					if(numData > 0) {
 
     						if(fetch == 't') {		// only want times (everything else presume 'b' both)
     							for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) + "\n");		// if limited, get most recent
-    							//    						return newFixedLengthResponse(Response.Status.OK, MIME_HTML, response.toString());
     							formResponse(response, sbresp);
     							return;
     						}
@@ -385,7 +473,7 @@ public class CTweb {
     								
     								return;
 
-    								// HTML table format (for import to spreadsheets)
+    							// HTML table format (for import to spreadsheets)
     							case 'H':			
     								strdata = tdata.getDataAsString(CTinfo.fileType(chan,'s'));		// convert any/all numeric types to string
     								if(strdata != null) {
@@ -406,7 +494,7 @@ public class CTweb {
     				    				return;
     								}
 
-    								// all other types returned as rows of time,value strings
+    							// all other types returned as rows of time,value strings
     							default:
     								strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
     								if(strdata != null) {
@@ -430,6 +518,52 @@ public class CTweb {
 
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
+    	}
+    }
+    
+  //---------------------------------------------------------------------------------	
+
+    @SuppressWarnings("serial")
+    public static class CTProxyServlet extends ProxyServlet {
+    	@Override
+    	public void init(ServletConfig config) throws ServletException {
+    	    super.init(config);
+    	}
+    /*
+    	@Override
+    	protected HttpClient newHttpClient() {
+    		SslContextFactory sslContextFactory = new SslContextFactory();
+    		HttpClient httpClient = new HttpClient(sslContextFactory);
+    		return httpClient;
+    	}
+    */
+    	static boolean warnOnce = true;
+    	@Override
+    	protected String rewriteTarget(HttpServletRequest request) {
+    		String query = request.getQueryString();
+    		String requestURI = request.getRequestURI();
+    		int myport = request.getLocalPort();
+
+    		String newURI;
+    		if(proxyServer.startsWith("http")) 	newURI = proxyServer + requestURI;
+    		else {
+    			if(myport == sslport) {
+//    				newURI = "https://" + proxyServer + requestURI;		// match HTTP/S of origin server
+    				// Jetty ProxyServlet doesn't handle HTTPS, see: 
+    				// http://stackoverflow.com/questions/9852056/jetty-proxyservlet-with-ssl-support
+    				if(warnOnce) {
+    					System.err.println("Warning, HTTPS proxy not yet supported, using HTTP");
+    					warnOnce = false;
+    				}
+    				newURI = "http://" + proxyServer + requestURI;
+    			}
+    			else	newURI = "http://" + proxyServer + requestURI;	
+    		}
+    		
+    		if(query != null) newURI = newURI  + "?" + query;
+    		
+    		if(debug) System.err.println("Proxy redirect from: " + requestURI + ", to: "+ newURI);
+    		return newURI;
     	}
     }
     
@@ -464,4 +598,15 @@ public class CTweb {
     	}
     }
     
+    private static String mimeType(String fname, String deftype) {
+		String mime = deftype;
+		if		(fname.endsWith(".css")) mime = "text/css";
+		else if	(fname.endsWith(".js")) mime = "application/javascript";
+		else if	(fname.endsWith(".jpg")) mime = "image/jpeg";
+		else if	(fname.endsWith(".png")) mime = "image/png";
+		if(debug) System.err.println("fname: "+fname+", mime type: "+mime);
+		return mime;
+    }
 }
+
+
