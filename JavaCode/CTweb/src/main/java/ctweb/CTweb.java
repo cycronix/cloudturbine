@@ -82,14 +82,14 @@ public class CTweb {
     private static String keyStoreFile="ctweb.jks";		// HTTPS keystore file path
     private static String keyStorePW="ctweb.pw";		// keystore PW
     private static String proxyServer=null;
-	private static int	port = 8000;							// default port
-	private static int sslport = 8443;							// HTTPS port (0 means none)
+	private static int	port = 8000;					// default port
+	private static int sslport = 8443;					// HTTPS port (0 means none)
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTserver -r -x -l -p <port> -f <webfolder> -s <sourceFolder> rootFolder");
+    		System.err.println("CTserver -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystorefile> -K <keystorePW> -X <proxyServer> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -108,26 +108,27 @@ public class CTweb {
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
-     	if(rootFolder == null && sourceFolder != null) {	// source is full path
-     		rootFolder = new File(sourceFolder).getParent();
-     		sourceFolder = new File(sourceFolder).getName();
-     	}
-     	else if(rootFolder == null) {				// check for a couple defaults
-     		if		(new File("CTdata").exists()) 		rootFolder = "CTdata";
-     		else if (new File(".."+File.separator+"CTdata").exists()) rootFolder = ".."+File.separator+"CTdata";
-     		else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
+     	if(proxyServer != null) {
+     		if(rootFolder == null && sourceFolder != null) {	// source is full path
+     			rootFolder = new File(sourceFolder).getParent();
+     			sourceFolder = new File(sourceFolder).getName();
+     		}
+     		else if(rootFolder == null) {				// check for a couple defaults
+     			if		(new File("CTdata").exists()) 		rootFolder = "CTdata";
+     			else if (new File(".."+File.separator+"CTdata").exists()) rootFolder = ".."+File.separator+"CTdata";
+     			else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
+     			else {
+     				System.err.println("Cannot find default data folder.  Please specify.");
+     				System.exit(0);	
+     			}
+     		}
      		else {
-        		System.err.println("Cannot find default data folder.  Please specify.");
-        		System.exit(0);	
+     			if(!(new File(rootFolder).exists())) {
+     				System.err.println("Cannot find specified data folder: "+rootFolder);
+     				System.exit(0);	
+     			}
      		}
-     	}
-     	else {
-     		if(!(new File(rootFolder).exists())) {
-        		System.err.println("Cannot find specified data folder: "+rootFolder);
-        		System.exit(0);	
-     		}
-     	}
-     	     	
+     	}	
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
      	CTinfo.setDebug(debug);
@@ -226,11 +227,13 @@ public class CTweb {
 
         server.setHandler(shandler);
 
-        String msg;
-        if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
-        else			msg = ", HTTP port: "+port;
-        System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+msg+"\n");
-
+        if(proxyServer != null) System.out.println("Server started as proxy to: "+proxyServer);
+        else {
+            String msg;
+        	if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
+        	else				 msg = ", HTTP port: "+port;
+        	System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+msg+"\n");
+        }
         return server;
     }
     
