@@ -56,22 +56,25 @@ subprojects {
     }
     
     // The following is based on http://stackoverflow.com/questions/29162899/how-to-use-gradle-to-generate-javadoc-in-android-studio
-    // This supports "variants" of the build, such as debug and release
+    // Create "variants" of the Javadoc task specific to debug and release versions of the code
+    // This will create new tasks with the following names:
+    //     generateDebugJavadoc
+    //     generateReleaseJavadoc
+    // We don't currently need or use this
+    /*
     android.applicationVariants.all { variant ->
     	task("generate${variant.name.capitalize()}Javadoc", type: Javadoc) {
     		description "Generates Javadoc for $variant.name."
+    		failOnError false
     		source = variant.javaCompile.source
     		ext.androidJar = "${android.sdkDirectory}/platforms/${android.compileSdkVersion}/android.jar"
     		classpath = files(variant.javaCompile.classpath.files) + files(ext.androidJar)
     		options.links("http://docs.oracle.com/javase/8/docs/api/");
     		options.links("https://developer.android.com/reference/");
-    		destinationDir = new File("$rootDir/JavaDoc/" + project.name)
-    		// To include everything from private level and up in the documentation
-    		// options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PRIVATE
-    		// Can exclude certain files, for example:
-    		// exclude '**/R.java'
+    		destinationDir = new File("$rootDir/JavaDoc/" + project.name + "_" + "$variant.name")
     	}
     }
+    */
     
     // The following is based on https://medium.com/@hamen/android-library-aar-and-javadoc-6859898cad28#.d3gcepuic
     task javadoc(type: Javadoc) {
