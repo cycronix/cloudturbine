@@ -631,6 +631,8 @@ class CTFile extends File {
   		// special logic for TFOLDER (e.g. camera time.jpg files)
   		if(fileType==FileType.TFOLDER) return tfolderTime(fname);
 	
+  		return CTinfo.fileTime(fname);		// generalize
+/*  		
   		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
     	
 		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
@@ -662,6 +664,7 @@ class CTFile extends File {
 		}
 		
 		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
+*/
   	}
 
     //---------------------------------------------------------------------------------	

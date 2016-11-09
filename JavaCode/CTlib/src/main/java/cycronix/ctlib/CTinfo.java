@@ -8,6 +8,20 @@ package cycronix.ctlib;
  * 
 */
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
+
+import cycronix.ctlib.CTFile.FileType;
+
+
 public class CTinfo {
 
 	private static boolean debug = false;
@@ -123,4 +137,105 @@ public class CTinfo {
 		return wordSize(fileType(fname)); 
 	}
 	
+	// return data use under source folder.  
+	public static long dataUsage(String folder) {
+		return diskUsage(folder, 1);
+	}
+	
+	// return (estimated) disk use under source folder.  Requires disk blocksize (not available via Java directly)
+	public static long diskUsage(String folder, int bSize) {
+		Path path = Paths.get(folder);
+
+		/* 		// Java8 allows simpler version:
+
+		long size = 0;
+		try {
+			size = Files.walk(path).mapToLong( p -> p.toFile().length() ).sum();
+		} catch (IOException e) { System.err.println("dataSize IOException: "+e); }
+
+		return size;
+		 */		
+
+		final long blockSize = bSize;
+		final AtomicLong size = new AtomicLong(0);
+		try
+		{
+			Files.walkFileTree (path, new SimpleFileVisitor<Path>() 
+			{
+				@Override public FileVisitResult 
+				visitFile(Path file, BasicFileAttributes attrs) {
+					long dsize = attrs.size();
+					if(blockSize > 1)
+						dsize =  blockSize * (long)(Math.ceil((double)dsize / (double)blockSize));
+					size.addAndGet (dsize);
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override public FileVisitResult 
+				visitFileFailed(Path file, IOException exc) {
+
+					System.out.println("diskUsage, skipped: " + file.toFile().getAbsolutePath() + " (" + exc + ")");
+					// Skip folders that can't be traversed
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override public FileVisitResult
+				postVisitDirectory (Path dir, IOException exc) {
+
+					if (exc != null)
+						System.out.println("diskUsage, had trouble traversing: " + dir + " (" + exc + ")");
+					// Ignore errors traversing a folder
+					return FileVisitResult.CONTINUE;
+				}
+			});
+		}
+		catch (IOException e)
+		{
+			throw new AssertionError ("walkFileTree will not throw IOException if the FileVisitor does not");
+		}
+
+		return size.get();
+	}
+	
+  	/**
+  	 * Parse file-time given string 
+  	 * @param fname name of file to parse
+  	 * @return double time in seconds
+  	 */
+  	
+  	public static double fileTime(String fname) {
+//  		System.err.println("fileTime: "+fname);
+
+  		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
+    	
+		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
+		String[] pathparts = fname.split(Pattern.quote(File.separator));
+		Long sumtime = 0L;
+		double ftime = 0.;
+		
+		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
+			String thispart = pathparts[i];
+			Long thistime = 0L;
+			try {
+				thistime = Long.parseLong(thispart);
+				sumtime += thistime;
+			} catch(NumberFormatException e) {
+				continue;		// keep looking?
+			}
+//			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
+
+			if(thistime >= 1000000000000L) {	// absolute msec
+				ftime = (double)sumtime / 1000.;
+//				System.err.println("******msec fileTime: "+ftime);
+				return ftime;
+			}
+			if(thistime >= 1000000000L) {		// absolute sec
+				ftime = (double)sumtime;
+//				System.err.println("******sec fileTime: "+ftime);
+				return ftime;
+			}
+		}
+		
+		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
+  	}
 }

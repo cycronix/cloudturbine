@@ -14,6 +14,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -380,7 +386,10 @@ public class CTwriter {
 			
 			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
 //				double trim = ((double)blockTime/1000.) - trimTime;			// relative??
-				double trim = ((double)System.currentTimeMillis()/1000.) - trimTime;
+//				double trim = ((double)System.currentTimeMillis()/1000.) - trimTime;
+//				System.err.println("trim, thisFtime: "+thisFtime+", trimTime: "+trimTime+", blockTime: "+blockTime);
+				double trim = blockTime/1000. - trimTime;	// relative to putData time, 
+															// use blockTime (less than thisFtime) as trim will only look at old block-times
 				CTinfo.debugPrint("trimming at: "+trim);
 				dotrim(trim);			
 			}
@@ -433,6 +442,7 @@ public class CTwriter {
 //				System.err.println("firstTime in writeToStream, baseTimeStr: "+baseTimeStr);
 //				new File(destPath+baseTimeStr).mkdirs();  // mkdir here, not in constructor MJM 1/11/16
 //			}
+//			System.err.println("debug writeToStream, fname: "+fname+", parentFile: "+new File(fname).getParentFile());
 			new File(fname).getParentFile().mkdirs();  // mkdir before every file write
 //			System.err.println("writeToStream: "+fname);
 			
@@ -558,7 +568,8 @@ public class CTwriter {
 			// block/segment logic:
 			if(blockTime > prevblockTime) {
 				CTinfo.debugPrint("writeData; blockCount: "+blockCount+", blocksPerSegment: "+blocksPerSegment);
-				if((blocksPerSegment>0) && ((blockCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
+				if(initBaseTime) segmentTime(blockTime);		// catch alternate initialization
+				else if((blocksPerSegment>0) && ((blockCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
 					segmentTime(blockTime);
 				prevblockTime = blockTime;
 				blockCount++;
@@ -834,7 +845,9 @@ public class CTwriter {
 		}
 		
 		File rootFolder = new File(destPath);
-		
+		return deleteOldTimes(rootFolder, oldTime);
+
+/*		
 		File[] flist = rootFolder.listFiles();
 		Arrays.sort(flist);						// make sure sorted 
 
@@ -844,17 +857,70 @@ public class CTwriter {
 			if(ftime <= 0) continue;				// not a CT time file
 			if(ftime >= oldTime) return true;		// all done (sorted)
 			System.err.println("CTtrim delete: "+file.getAbsolutePath());
-			boolean status = file.delete();		// only trims top-level zip files (need recursive, scary)
+			boolean status;
+			if(file.isFile()) status = file.delete();				// only trims top-level zip files 
+			else			  status = deleteRecursive(file);	  	// recursive (scary)
 			if(!status) System.err.println("CTtrim warning, failed to delete: "+file.getAbsolutePath());
 		}
 		
 		return true;
+*/
 	}
 	
+	private boolean deleteOldTimes(File rootFolder, double trimTime)  {
+		final double oldTime = trimTime;
+
+		Path directory = rootFolder.toPath();
+		try {
+			Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					double ftime = CTinfo.fileTime(file.toString());
+					if(ftime > 0 && ftime < oldTime) {
+						CTinfo.debugPrint("delete file: "+file);
+						try {
+							Files.delete(file);
+						} catch(IOException e) {
+							System.err.println("Failed to delete file: "+file);
+
+						}
+					}
+//					else System.err.println("leave file: "+file);
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override
+				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+					if(dir.toFile().listFiles().length == 0) {		// only delete empty dirs
+						CTinfo.debugPrint("delete dir: "+dir);
+						try {
+							Files.delete(dir);
+						} catch(IOException e) {
+							System.err.println("Failed to delete dir: "+dir);
+						}
+					}
+//					else System.err.println("leave non-empty dir: "+dir);
+					return FileVisitResult.CONTINUE;
+				}
+			});
+		} catch(IOException e) {
+			System.err.println("Exception on deleteOldTimes folder: "+rootFolder);
+			return false;
+		}
+
+		return true;
+	}
+
 	//------------------------------------------------------------------------------------------------
 	//fileTime:  parse time from file name, units: full-seconds (dupe from CTreader, should consolidate)
+/*	
+	private double fileTime(Path fpath) {
+		return fileTime(fpath.toFile());
+	}
+	
 	private double fileTime(File file) {
 		String fname = file.getName();
+		System.err.println("fileTime: "+fname);
 		if(fname.endsWith(".zip")) {
 			fname = fname.split("\\.")[0];		// grab first part
 		}
@@ -870,7 +936,7 @@ public class CTwriter {
 		}
 		return ftime;
 	}
-	
+*/	
 	//------------------------------------------------------------------------------------------------
 	/**
 	 *  cleanup.  for now, just flush.

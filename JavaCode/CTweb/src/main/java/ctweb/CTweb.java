@@ -301,6 +301,7 @@ public class CTweb {
 
     			if(pathInfo.equals(servletRoot) || pathInfo.equals(rbnbRoot)) {			// Root level request for Sources
     				CTinfo.debugPrint("source request: "+pathInfo);
+    				
     				printHeader(sbresp,pathInfo,"/");
     				ArrayList<String> slist = new ArrayList<String>();
 
@@ -312,6 +313,7 @@ public class CTweb {
     				else {
     					for(String sname : slist) {
     						CTinfo.debugPrint("src: "+sname);
+//        					CTinfo.debugPrint("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
     						sbresp.append("<li><a href=\""+(pathInfo+"/"+sname)+"/\">"+sname+"/</a><br>");          
     					}
     				}
