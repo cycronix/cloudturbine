@@ -1,0 +1,445 @@
+/**
+ * CTadmin:  CloudTurbine administration utility
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 11/11/2016
+ * 
+*/
+
+/*
+* Copyright 2016 Cycronix
+* All Rights Reserved
+*
+*   Date      By	Description
+* MM/DD/YYYY
+* ----------  --	-----------
+* 11/11/2016  MJM	Created.
+*/
+
+package ctadmin;
+
+import java.io.File;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
+
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Group;
+import javafx.scene.Scene;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.util.Callback;
+
+import cycronix.ctlib.*;
+
+//-----------------------------------------------------------------------------------------------------------------
+
+public class CTadmin extends Application {
+	
+	Stage stage;
+	CTreader myCTreader=null;
+	static String CTlocation = ".";		// pwd unless provided as arg
+	String CTopenMessage = "CTadmin";
+	
+	public static void main(String[] args) {
+		if(args.length > 0) CTlocation = args[0];
+		Application.launch(CTadmin.class, args);
+	}
+
+	@Override
+	public void start(Stage istage) {
+		stage = istage;
+		refreshTree();
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+
+	private void refreshTree() {
+		try {
+			if(CTlocation.equals(".")) CTlocation = System.getProperty("user.dir");
+
+			System.err.println("CTadmin, path: "+CTlocation);
+			CTopenMessage = "File/Open CloudTurbine Location";		// default unless treetable is built
+
+			if(CTlocation!=null && CTlocation.length()>0 && myCTreader==null) 
+				myCTreader = new CTreader(CTlocation);				// default startup open
+			
+//			myCTreader = new CTreader(CTlocation);		// need arg
+			TreeMap<String,String>tree = new TreeMap<String,String>();
+
+			if(myCTreader != null) {
+				ArrayList<String> CTsources = myCTreader.listSources();
+				for (String path : CTsources) {
+					String[] tmp = path.split("/", 2); 
+					if(tmp.length > 1) 	treeput(tree, tmp[0], tmp[1]);
+					else				treeput(tree, tmp[0], null);
+				}
+				//	        treeprint(tree,""); 
+			}
+			
+			updateTree(tree);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	// converts CT treemap to javafx UI tree.
+	// this is where CT data is filled into display fields
+	
+	private void convertTree(TreeItem<CTsource>root, String srcpath, TreeMap<String,String> tree) {
+	    if (tree == null || tree.isEmpty())
+	        return;
+	    
+	    for (Entry<String, String> src : tree.entrySet()) {
+	    	
+//	    	System.err.println("src key: "+src.getKey()+", value: "+(TreeMap)((Map.Entry)src).getValue()+", srcpath: "+srcpath);
+	    	TreeItem<CTsource>srcitem;
+	    	if(src.getValue() == null) {		// leaf node (source)
+	    		String sourcePath = srcpath + File.separator + src.getKey();
+	    		String fullPath = CTlocation + File.separator + sourcePath;
+
+				long diskSize = CTinfo.diskUsage(fullPath, 4096);
+				long dataSize = CTinfo.dataUsage(fullPath);
+				SimpleDateFormat format = new SimpleDateFormat("MMM dd, yyyy, HH:mm:ss");
+				double oldTime = myCTreader.oldTime(fullPath);
+				double newTime = myCTreader.newTime(fullPath);
+				double duration = newTime - oldTime;
+				String newTimeStr = format.format((long)(newTime*1000.));
+
+				srcitem = new TreeItem<>(new CTsource(src.getKey(),dataSize,diskSize,duration,newTimeStr), new ImageView(new Image(getClass().getResourceAsStream("cticon.png"))));
+				ArrayList<String>chans = myCTreader.listChans(fullPath);
+				for(String chan:chans) {
+					srcitem.getChildren().add(new TreeItem(new CTsource(chan), new ImageView(new Image(getClass().getResourceAsStream("file.png")))));
+				}
+	    	} else
+	    		srcitem = new TreeItem<>(new CTsource(src.getKey()), new ImageView(new Image(getClass().getResourceAsStream("folder.png"))));
+
+			root.getChildren().add(srcitem);
+	        convertTree(srcitem, srcpath+"/"+src.getKey(), (TreeMap)((Map.Entry)src).getValue());
+	    }
+	}
+	
+	private void updateTree(TreeMap<String,String> tree) {
+		
+		final TreeItem<CTsource> root = new TreeItem<>(new CTsource("CT"));
+		root.setExpanded(true);
+		convertTree(root, "", tree);		// recursive tree walk	
+		
+		stage.setTitle("CTadmin");
+		final Scene scene = new Scene(new Group());
+		scene.setFill(Color.LIGHTGRAY);
+		Group sceneRoot = (Group) scene.getRoot();
+		VBox vbox = new VBox();
+		
+		// Source
+		TreeTableColumn<CTsource, String> sourceColumn = new TreeTableColumn<>("Source");
+		sourceColumn.setPrefWidth(150);
+		sourceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<CTsource, String> param) -> new ReadOnlyStringWrapper(param.getValue().getValue().getName()));
+
+		// DataSpace
+		TreeTableColumn<CTsource, String> dataSpaceColumn = new TreeTableColumn<>("Size");
+		dataSpaceColumn.setPrefWidth(80);
+		dataSpaceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<CTsource, String> param) -> new ReadOnlyStringWrapper(param.getValue().getValue().getDataSpace()));
+
+		// DiskSpace
+		TreeTableColumn<CTsource, String> diskSpaceColumn = new TreeTableColumn<>("DiskUse");
+		diskSpaceColumn.setPrefWidth(80);
+		diskSpaceColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<CTsource, String> param) -> new ReadOnlyStringWrapper(param.getValue().getValue().getDiskSpace()));
+		diskSpaceColumn.setVisible(false);
+
+		// OldTime
+		TreeTableColumn<CTsource, String> durationColumn = new TreeTableColumn<>("Duration");
+		durationColumn.setPrefWidth(160);
+		durationColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<CTsource, String> param) -> new ReadOnlyStringWrapper(param.getValue().getValue().getDuration()));
+		durationColumn.setVisible(false);
+		
+		// NewTime
+		TreeTableColumn<CTsource, String> newTimeColumn = new TreeTableColumn<>("Modified");
+		newTimeColumn.setPrefWidth(160);
+		newTimeColumn.setCellValueFactory((TreeTableColumn.CellDataFeatures<CTsource, String> param) -> new ReadOnlyStringWrapper(param.getValue().getValue().getNewTime()));
+
+		// add tree table node
+		TreeTableView<CTsource> treeTable = new TreeTableView<>(root);
+		treeTable.setShowRoot(false);
+		treeTable.getColumns().setAll(sourceColumn, dataSpaceColumn, diskSpaceColumn, durationColumn, newTimeColumn);
+		treeTable.setTableMenuButtonVisible(true);
+		treeTable.setColumnResizePolicy(TreeTableView.CONSTRAINED_RESIZE_POLICY);
+		treeTable.setPlaceholder(new Label(CTopenMessage));
+		
+		// clugey trick to get proportionally different column widths:
+		sourceColumn.setMaxWidth( 1f * Integer.MAX_VALUE * 50 ); // 30% width
+		dataSpaceColumn.setMaxWidth( 1f * Integer.MAX_VALUE * 20 ); // 20% width
+		diskSpaceColumn.setMaxWidth( 1f * Integer.MAX_VALUE * 20 ); // 20% width
+		durationColumn.setMaxWidth( 1f * Integer.MAX_VALUE * 20 ); // 50% width
+		newTimeColumn.setMaxWidth( 1f * Integer.MAX_VALUE * 30 ); // 50% width
+
+		// context menu for rows
+		treeTable.setRowFactory(
+				new Callback<TreeTableView<CTsource>, TreeTableRow<CTsource>>() {
+					@Override
+					public TreeTableRow<CTsource> call(TreeTableView<CTsource> tableView) {
+						final TreeTableRow<CTsource> row = new TreeTableRow<>();
+						final ContextMenu rowMenu = new ContextMenu();
+						MenuItem repackItem = new MenuItem("Repack");
+						repackItem.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								System.err.println("Repack: "+row.getItem().getName());
+							}
+						});
+
+						MenuItem removeItem = new MenuItem("Delete");
+						removeItem.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								//			        treeTableView.getItems().remove(row.getItem());
+								System.err.println("Delete: "+row.getItem().getName());
+							}
+						});
+
+						rowMenu.getItems().addAll(repackItem, removeItem);
+
+						// only display context menu for non-null items:
+						row.contextMenuProperty().bind(
+								Bindings.when(Bindings.isNotNull(row.itemProperty()))
+								.then(rowMenu)
+								.otherwise((ContextMenu)null));
+						return row;
+					}
+				});
+	
+		// setup scene and menubar
+		vbox.getChildren().addAll(buildMenuBar(stage), treeTable);
+		sceneRoot.getChildren().add(vbox);
+		stage.setScene(scene);
+
+		// automatically adjust width of columns depending on their content
+//		treeTableView.setColumnResizePolicy((param) -> TreeTableView.CONSTRAINED_RESIZE_POLICY );
+		
+		// track window size
+		scene.widthProperty().addListener( 
+			    new ChangeListener() {
+			        public void changed(ObservableValue obs, Object old, Object newValue) {
+			            treeTable.setPrefWidth((Double)newValue);
+			        }
+			    });
+		
+		scene.heightProperty().addListener( 
+			    new ChangeListener() {
+			        public void changed(ObservableValue obs, Object old, Object newValue) {
+			            treeTable.setPrefHeight((Double)newValue);
+			        }
+			    });
+		
+		stage.setOnCloseRequest(e -> Platform.exit());		// close app on window exit
+		stage.show();
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// updateMenuBar
+
+	private MenuBar buildMenuBar(Stage primaryStage) {
+		BorderPane root = new BorderPane();
+
+		MenuBar menuBar = new MenuBar();
+		menuBar.prefWidthProperty().bind(primaryStage.widthProperty());
+		root.setTop(menuBar);
+		
+		// File Menu
+		Menu fileMenu = new Menu("File");
+
+		// File/Open
+		MenuItem openMenuItem = new MenuItem("Open");
+		fileMenu.getItems().add(openMenuItem);
+		openMenuItem.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent e) {
+                final Stage dialog = new Stage();
+//                dialog.initModality(Modality.APPLICATION_MODAL);
+                dialog.initOwner(primaryStage);
+                dialog.setTitle("Open CloudTurbine");
+                Scene dialogScene = new Scene(OpenMenu(dialog), 500, 150);
+                dialog.setScene(dialogScene);
+                dialog.showAndWait();
+			}
+		});
+	
+		// File/Refresh
+		MenuItem refreshMenuItem = new MenuItem("Refresh");
+		fileMenu.getItems().add(refreshMenuItem);
+		refreshMenuItem.setOnAction(actionEvent -> refreshTree());
+
+		// File/Exit
+		MenuItem exitMenuItem = new MenuItem("Exit");
+		fileMenu.getItems().add(exitMenuItem);
+		exitMenuItem.setOnAction(actionEvent -> Platform.exit());
+
+		menuBar.getMenus().addAll(fileMenu);
+		
+		return menuBar;
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+
+	private VBox OpenMenu(Stage dialog) {
+		
+		//Creating a VBox container
+		VBox vbox = new VBox();
+		vbox.setAlignment(Pos.CENTER);
+//		grid.setFillWidth(true);
+		vbox.setSpacing(10);
+		vbox.setPadding(new Insets(10, 10, 10, 10));
+		
+		//Define the Location text field
+		final TextField location = new TextField();
+		location.setText(CTlocation);
+//		name.setPromptText(CTlocation);
+		location.setPrefColumnCount(20);
+		location.setFocusTraversable(false); // set focus traversable false.
+
+		vbox.getChildren().add(location);
+		
+		//Defining the Submit button
+		Button submit = new Button("Open");
+		submit.setAlignment(Pos.CENTER);
+
+		vbox.getChildren().add(submit);
+
+		//Adding a Label
+		final Label label = new Label();
+		vbox.getChildren().add(label);
+		
+		//Setting an action for the Submit button
+		submit.setOnAction(new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent e) {
+				if ((location.getText() != null && !location.getText().isEmpty())) {
+					CTlocation = location.getText();
+					try {
+						myCTreader = new CTreader(CTlocation);
+						if(myCTreader==null || !myCTreader.checkRoot())
+							label.setText("Failed to Open!");
+						else if(myCTreader.listSources().size()==0)
+							label.setText("No CT sources found!");
+						else {
+							label.setText("Opening...");		// doesn't show?
+							refreshTree();
+							dialog.close();
+						}
+					} catch(IOException eio) {
+						label.setText("IOexception: "+CTlocation);
+					};
+				} else {
+					label.setText("You have not set a CT location!");
+				}
+			}
+		});
+		 
+		return vbox;	
+	}
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	// CTsource:  a data structure for holding treeTableView row info
+	
+	public class CTsource {
+		private String name;
+		private String dataspace="";
+		private String diskspace="";
+		public String newTime="";
+		public String duration="";
+		
+		private CTsource(String name, long dataspace, long diskspace, double duration, String newTime) {
+			this.name = name;
+			this.dataspace = readableFileSize(dataspace);
+			this.diskspace = readableFileSize(diskspace);
+			this.duration = (((double)(Math.round(duration*1000.)))/1000.)+"";
+			this.newTime = newTime;
+//	System.err.println("new CTsource, name: "+name+", oldTime: "+oldTime);
+		}
+		
+		private CTsource(String name, long dataspace, long diskspace) {
+			new CTsource(name, dataspace, diskspace, 0, "");
+
+		}
+		
+		private CTsource(String name) {
+			this.name = name;
+		}
+		
+		public String getName() 				{ return name; 		}
+		public String getDataSpace() 			{ return dataspace; 	}
+		public String getDiskSpace() 			{ return diskspace; 	}
+		public String getNewTime() 				{ return newTime; 	}
+		public String getDuration()				{ return duration; }
+
+	}
+	
+	public static String readableFileSize(long size) {
+	    if(size <= 0) return "0";
+	    final String[] units = new String[] { "B", "kB", "MB", "GB", "TB" };
+	    int digitGroups = (int) (Math.log10(size)/Math.log10(1024));
+	    return new DecimalFormat("#,##0.#").format(size/Math.pow(1024, digitGroups)) + " " + units[digitGroups];
+	}
+	
+	//-----------------------------------------------------------------------------------------------------------------
+
+	private static void treeput(TreeMap structure, String root, String rest) {
+		String[] tmp;
+		if(rest != null) tmp = rest.split("/", 2);
+		else{
+			structure.put(root,null);
+			return;
+		}
+		
+	    TreeMap rootDir = (TreeMap) structure.get(root);
+
+	    if (rootDir == null) {
+	        rootDir = new TreeMap();
+	        structure.put(root, rootDir);
+	    }
+	    if (tmp.length == 1) { // path end
+	        rootDir.put(tmp[0], null);
+	    } else {
+	        treeput(rootDir, tmp[0], tmp[1]);
+	    }
+	}
+	private static void treeprint(TreeMap map, String delimeter) {
+	    if (map == null || map.isEmpty())
+	        return;
+	    for (Object m : map.entrySet()) {
+	        System.out.println(delimeter + "-" + ((Map.Entry)m).getKey());
+	        treeprint((TreeMap)((Map.Entry)m).getValue(), " |" + delimeter);
+	    }
+	}
+}
+

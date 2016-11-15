@@ -281,6 +281,10 @@ public class CTreader {
 		return SourceList;
 	}
 */	
+	public boolean checkRoot() {
+		return new File(rootFolder).exists();
+	}
+	
 	@Deprecated
 	public ArrayList<String> listSourcesRecursive() throws IOException {
 		return listSources();
@@ -294,6 +298,11 @@ public class CTreader {
 
 		// walk folders under rootPath (ignore root level files)
 		File listFile[] = rootPath.toFile().listFiles();
+		if(listFile == null) {
+			return new ArrayList<String>();		// return empty list
+//			throw new IOException("listSources, no such folder: "+rootPath);
+		}
+		
 		for(File file:listFile) {
 			if(file.isDirectory()) {
 				Files.walkFileTree(file.toPath(), opts, 4, new SimpleFileVisitor<Path>() {

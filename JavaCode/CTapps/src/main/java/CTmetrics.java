@@ -43,16 +43,19 @@ import cycronix.ctlib.*;
 //---------------------------------------------------------------------------------	
 
 public class CTmetrics {
-	CTreader ctr;
-	CTwriter ctw;
+	CTreader ctr;								// CTreader
+	CTwriter ctw;								// CTwriter
 
-	boolean debug=false;
-	boolean zipmode=false;
-	String monitorFolder = "CTdata";
-	String metricsSource = "CTdata/CTmetrics";
-	double timePerBlock=10.;				// time interval per block on output (hard-wired 1sec data rate)
-	double timePerLoop=0.;					// time per trim-data loop
-	boolean individualSources=false;		// monitor data/disk usage for each source individually
+	boolean debug=false;						// debug T/F
+	boolean zipmode=true;						// zip output T/F
+	String 	monitorFolder = "CTdata";			// monitor source(s) in this folder
+	String 	metricsSource = "CTdata/CTmetrics";	// write results to this folder
+	double 	timePerBlock=60.;					// time interval per block on output 
+	double 	timePerSample=5.;					// time per sample (samplesPerBlock = timePerBlock/timePerSample) (sec)
+	double 	timePerLoop=3600.;					// time per trim-data loop (sec)
+	long   	blocksPerSegment=100;				// blocks per segment, 0 to disable
+	boolean individualSources=false;			// monitor data/disk usage for each source individually
+	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] args) {
 
@@ -64,15 +67,18 @@ public class CTmetrics {
 		
 		if(!parseArgs(args)) return;
 		
-		System.err.println("CTmetrics output to: "+metricsSource+", monitor usage: "+monitorFolder);
+		System.err.println("CTmetrics monitor: "+monitorFolder+", output to: "+metricsSource);
 
 		CTinfo.setDebug(debug);
 
 		long mtimePerBlock = (long)(timePerBlock * 1000.);
+		if(timePerSample>=timePerBlock || timePerSample==0) timePerSample = timePerBlock;
+		long mtimePerSample = (long)(timePerSample * 1000.);
+		
 		try {
 			CTwriter ctw = new CTwriter(metricsSource, timePerLoop);
 			ctw.setBlockMode(true,zipmode);
-			ctw.autoSegment(100);
+			ctw.autoSegment(blocksPerSegment);					// blocks/segment
 			ctw.autoFlush(mtimePerBlock);
 
 			CTreader ctr = new CTreader(monitorFolder);
@@ -81,10 +87,10 @@ public class CTmetrics {
 
 			while(true) {
 				long freeSpace = f.getFreeSpace();
-				long totalSpace = f.getTotalSpace();
-				ctw.setTime(System.currentTimeMillis());
-				ctw.putData("Global_UsedSpace", (totalSpace - freeSpace));
-				ctw.putData("Global_FreeSpace",  freeSpace);
+//				long totalSpace = f.getTotalSpace();
+				ctw.setTime(System.currentTimeMillis());			// common time all samples/block
+//				ctw.putData("UsedSpace", (totalSpace - freeSpace));
+				ctw.putData("FreeSpace",  freeSpace);
 
 				if(individualSources) {
 					ArrayList<String>sources = ctr.listSources();		// update list every iteration
@@ -102,10 +108,10 @@ public class CTmetrics {
 				else {
 					long diskSize = CTinfo.diskUsage(monitorFolder, 4096);
 					long dataSize = CTinfo.dataUsage(monitorFolder);
-					ctw.putData("DiskUsage", diskSize);
-					ctw.putData("DataUsage", dataSize);
+					ctw.putData("DiskSpace", diskSize);
+					ctw.putData("DataSpace", dataSize);
 				}
-				Thread.sleep(1000);			// hard-wired for now
+				Thread.sleep(mtimePerSample);			// one or more samples per block
 			}
 			
 		} catch (Exception e) {
@@ -121,12 +127,14 @@ public class CTmetrics {
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption("x", "debug", false, "debug mode"+", default: "+debug);
-		options.addOption("z", "zip", false, "zip mode");
-		options.addOption("i", "individualSources", false, "monitor each source individually");
+		options.addOption("z", "zip", false, "zip mode"+", default: "+zipmode);
+		options.addOption("i", "individualSources", false, "monitor sources individually");
 
 		options.addOption(Option.builder("o").argName("metricsFolder").hasArg().desc("name of output folder"+", default: "+metricsSource).build());
-		options.addOption(Option.builder("t").argName("timePerBlock").hasArg().desc("time per output block (sec)"+", default: "+timePerBlock).build());
-		options.addOption(Option.builder("l").argName("loopTime").hasArg().desc("trim-data loop (sec), 0 to disable"+", default: "+timePerLoop).build());
+		options.addOption(Option.builder("T").argName("timePerBlock").hasArg().desc("time per output block (sec)"+", default: "+timePerBlock).build());
+		options.addOption(Option.builder("t").argName("timePerSample").hasArg().desc("time per sample (sec)"+", default: "+timePerSample).build());
+		options.addOption(Option.builder("r").argName("ringBuffer").hasArg().desc("ring-buffer trim duration (sec), 0 to disable"+", default: "+timePerLoop).build());
+		options.addOption(Option.builder("s").argName("blocksPerSegment").hasArg().desc("segment size (blocks), 0 to disable"+", default: "+blocksPerSegment).build());
 
 		// 2. Parse command line options
 		CommandLineParser parser = new DefaultParser();
@@ -144,17 +152,19 @@ public class CTmetrics {
 		if (line.hasOption("help")) {			// Display help message and quit
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.setWidth(120);
-			formatter.printHelp( "CTmetrics [options] sourceFolder (default: "+monitorFolder+"), where [options] can be: ", options );
+			formatter.printHelp( "CTmetrics [options] sourceFolder (default: "+monitorFolder+")\noptions: ", options );
 			return false;
 		}
 
 		debug 		 		= line.hasOption("debug");
-		zipmode 		 	= line.hasOption("zip");
+		zipmode 		 	= line.hasOption("zip")?(!zipmode):zipmode;		// toggles default
 		individualSources 	= line.hasOption("individualSources");
 
-		metricsSource 	= line.getOptionValue("o",metricsSource);
-		timePerBlock 	= Double.parseDouble(line.getOptionValue("t",""+timePerBlock));
-		timePerLoop  	= Double.parseDouble(line.getOptionValue("l",""+timePerLoop));
+		metricsSource 		= line.getOptionValue("o",metricsSource);
+		timePerBlock 		= Double.parseDouble(line.getOptionValue("T",""+timePerBlock));
+		timePerSample 		= Double.parseDouble(line.getOptionValue("t",""+timePerSample));
+		timePerLoop  		= Double.parseDouble(line.getOptionValue("r",""+timePerLoop));
+		blocksPerSegment 	= Long.parseLong(line.getOptionValue("s",""+blocksPerSegment));
 
 		return true;		// OK to go
 	}
