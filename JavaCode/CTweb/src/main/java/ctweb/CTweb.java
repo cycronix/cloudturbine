@@ -108,7 +108,7 @@ public class CTweb {
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
-     	if(proxyServer != null) {
+     	if(proxyServer == null) {
      		if(rootFolder == null && sourceFolder != null) {	// source is full path
      			rootFolder = new File(sourceFolder).getParent();
      			sourceFolder = new File(sourceFolder).getName();
