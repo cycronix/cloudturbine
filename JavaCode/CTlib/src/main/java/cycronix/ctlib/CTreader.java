@@ -200,6 +200,11 @@ public class CTreader {
 	// listChans:  build list of channels all folders under source folder 
 
 	public ArrayList<String> listChans(String sfolder) {
+		return listChans(sfolder, true);		// default to fastSearch
+	}
+	
+	// fastSearch galumps thru chans if lots
+	public ArrayList<String> listChans(String sfolder, boolean fastSearch) {
 		if(sfolder.indexOf(File.separator)<0) {
 			sfolder = rootFolder + File.separator + sfolder;		// auto-fullpath
 			CTinfo.debugPrint("adding rootfolder to sfolder: "+sfolder);
@@ -210,14 +215,21 @@ public class CTreader {
 		ChanList.clear();										// ChanList built in listFiles()
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null || listOfFiles.length < 1) return null;
-
-		int expedite=expediteLimit(sfolder, listOfFiles.length, 1000);		// segments
-//		expedite = 1;	// ???
-		for(int i=0; i<listOfFiles.length;i+=expedite) {
+		int expedite = 1;
+		if(fastSearch) expedite=expediteLimit(sfolder, listOfFiles.length, 10);		// segments (was 1000)
+		int i=0;
+		int last = listOfFiles.length-1;
+		//		for(; i<listOfFiles.length;i+=expedite) {
+		while(true) {
+			//			System.err.println("i: "+i+"/"+listOfFiles.length+", expedite: "+expedite);
 			CTFile thisFile = listOfFiles[i];
 			if(!thisFile.isDirectory() || thisFile.fileTime()==0) continue;		// this isn't a channel-folder
-			buildChanList(thisFile, ChanList);			// side effect is to add to ChanList
-		}
+			buildChanList(thisFile, ChanList, fastSearch);			// side effect is to add to ChanList
+			//		}
+			if(i>=last) break;
+			i+=expedite;
+			if(i>last) 	i = last;		// make sure first and last are checked
+		} 
 
 		Collections.sort(ChanList);
 		return ChanList;
@@ -225,36 +237,44 @@ public class CTreader {
 
 	//---------------------------------------------------------------------------------	
 	// buildChanList:  build list of channels in all folders (private utility of registerChans)
-
-	private void buildChanList(CTFile sourceFolder, ArrayList<String>ChanList) {
+	
+	private void buildChanList(CTFile sourceFolder, ArrayList<String>ChanList, boolean fastSearch) {
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null) return;
 //		System.err.println("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
-		int expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 10000);		// blocks
-		for(int i=0; i<listOfFiles.length; i+=expedite) {
+		int expedite = 1;
+		if(fastSearch) expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 10);		// blocks (was 10000)
+		
+		int i=0;
+		int last = listOfFiles.length-1;
+		while(true) {
+//		for(int i=0; i<listOfFiles.length; i+=expedite) {
 			CTFile thisFile=listOfFiles[i];
 			if(thisFile.isFile() && thisFile.length() <= 0) continue;
-//			CTinfo.debugPrint("buildChanList(), thisFile: "+thisFile+", isFile: "+thisFile.isFile()+", len: "+thisFile.length());
+//			System.err.println("buildChanList(), thisFile: "+thisFile+", i: "+i);
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
-//				CTinfo.debugPrint("buildChanList got folder: "+thisFile+", recurse: "+thisFile);
-				buildChanList(thisFile,ChanList);		// recursive ?
+				buildChanList(thisFile,ChanList,fastSearch);		// recursive ?
 			}
 			else {
 				// side effect:  build ChanList for registration
 				String fname = listOfFiles[i].getName();
 				if(ChanList.indexOf(fname) < 0)  {
 					ChanList.add(fname);	// add if not already there
-					CTinfo.debugPrint("Chanlist.add: "+fname);
+//					CTinfo.debugPrint("Chanlist.add: "+fname);
 				}
 			}
+			
+			if(i>=last) break;
+			i+=expedite;
+			if(i>last) 	i = last;		// make sure first and last are checked
 		}
 	}
 	
 	//---------------------------------------------------------------------------------	
 	private int expediteLimit(String sfolder, int flen, int limit) {
 		if(flen > 2*limit) {
-			System.err.println("Expedited channel list for source "+sfolder+"! nfiles: "+flen+", limited to: "+limit);
+			CTinfo.debugPrint("Expedited channel list for source "+sfolder+"! nfiles: "+flen+", limited to: "+limit);
 			return(flen/limit);			// limit to at most 10 per level ?!
 		}
 		else			return 1;

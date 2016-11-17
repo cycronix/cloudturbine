@@ -143,10 +143,12 @@ public class CTinfo {
 	}
 	
 	// return (estimated) disk use under source folder.  Requires disk blocksize (not available via Java directly)
+	public static long diskSize=0;		// for fast retrieval after diskUsage call (cluge, need sourceStats class or equiv)
 	public static long diskUsage(String folder, int bSize) {
 		Path path = Paths.get(folder);
-
-		/* 		// Java8 allows simpler version:
+		diskSize=0;
+		
+		/* 		// Java8 allows simpler version (but build for Java7 for AndroidStudio compat):
 
 		long size = 0;
 		try {
@@ -165,9 +167,11 @@ public class CTinfo {
 				@Override public FileVisitResult 
 				visitFile(Path file, BasicFileAttributes attrs) {
 					long dsize = attrs.size();
+					diskSize += dsize;
 					if(blockSize > 1)
 						dsize =  blockSize * (long)(Math.ceil((double)dsize / (double)blockSize));
 					size.addAndGet (dsize);
+					
 					return FileVisitResult.CONTINUE;
 				}
 
