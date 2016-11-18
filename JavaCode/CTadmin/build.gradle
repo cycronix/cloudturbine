@@ -1,3 +1,5 @@
+targetCompatibility = '1.8'
+sourceCompatibility = '1.8'
 
 // JAR settings
 // Specify ".doFirst" to force this to run in the Execution phase.  Without

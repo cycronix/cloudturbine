@@ -219,13 +219,11 @@ public class CTreader {
 		if(fastSearch) expedite=expediteLimit(sfolder, listOfFiles.length, 10);		// segments (was 1000)
 		int i=0;
 		int last = listOfFiles.length-1;
-		//		for(; i<listOfFiles.length;i+=expedite) {
 		while(true) {
-			//			System.err.println("i: "+i+"/"+listOfFiles.length+", expedite: "+expedite);
 			CTFile thisFile = listOfFiles[i];
-			if(!thisFile.isDirectory() || thisFile.fileTime()==0) continue;		// this isn't a channel-folder
-			buildChanList(thisFile, ChanList, fastSearch);			// side effect is to add to ChanList
-			//		}
+			if(thisFile.isDirectory() && thisFile.fileTime()!=0) {
+				buildChanList(thisFile, ChanList, fastSearch);			// side effect is to add to ChanList
+			}
 			if(i>=last) break;
 			i+=expedite;
 			if(i>last) 	i = last;		// make sure first and last are checked
@@ -249,19 +247,20 @@ public class CTreader {
 		int i=0;
 		int last = listOfFiles.length-1;
 		while(true) {
-//		for(int i=0; i<listOfFiles.length; i+=expedite) {
 			CTFile thisFile=listOfFiles[i];
-			if(thisFile.isFile() && thisFile.length() <= 0) continue;
-//			System.err.println("buildChanList(), thisFile: "+thisFile+", i: "+i);
+//			if(thisFile.isFile() && thisFile.length() <= 0) continue;
+			
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
 				buildChanList(thisFile,ChanList,fastSearch);		// recursive ?
 			}
 			else {
-				// side effect:  build ChanList for registration
-				String fname = listOfFiles[i].getName();
-				if(ChanList.indexOf(fname) < 0)  {
-					ChanList.add(fname);	// add if not already there
-//					CTinfo.debugPrint("Chanlist.add: "+fname);
+				if(thisFile.length() > 0) {
+					// side effect:  build ChanList for registration
+					String fname = listOfFiles[i].getName();
+					if(ChanList.indexOf(fname) < 0)  {
+						ChanList.add(fname);	// add if not already there
+						//	CTinfo.debugPrint("Chanlist.add: "+fname);
+					}
 				}
 			}
 			

@@ -20,18 +20,26 @@ package ctadmin;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.TreeMap;
 
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -40,13 +48,19 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Cell;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.control.TextInputDialog; 
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -68,9 +82,11 @@ public class CTadmin extends Application {
 	static String CTlocation = "";				// CT root folder
 	static String CTopen = "";					// Open selection (can be CTlocation or child-source)
 	String CTopenMessage = "CTadmin";
+	static boolean debug=false;
 	
 	public static void main(String[] args) {
-		if(args.length > 0) CTopen = args[0];
+		if(args.length > 0) CTopen = new File(args[0]).getAbsolutePath();
+		CTinfo.setDebug(debug);
 		Application.launch(CTadmin.class, args);
 	}
 
@@ -89,22 +105,20 @@ public class CTadmin extends Application {
 			if(CTopen.equals(".")) 	CTlocation = System.getProperty("user.dir");
 			else					CTlocation = CTopen;
 			System.err.println("CTadmin, path: "+CTlocation);
+			CTopenMessage = "File/Open CloudTurbine Location";		// default unless treetable is built
 
 			File CTfile = new File(CTlocation);
 			if(!CTfile.exists()) {
-				CTopenMessage = "No such CT location: "+CTlocation;
 				CTlocation = "";
 				updateTree(tree);
 				return;
 			}
 
-			CTopenMessage = "File/Open CloudTurbine Location";		// default unless treetable is built
-
+			CTinfo.debugPrint("refreshTree, CTlocation: "+CTlocation);
 			if(CTlocation!=null && CTlocation.length()>0 /* && myCTreader==null */) 
 				myCTreader = new CTreader(CTlocation);				// default startup open
 			
-//			myCTreader = new CTreader(CTlocation);		// need arg
-
+			CTinfo.debugPrint("refreshTree, myCTreader: "+myCTreader);
 			if(myCTreader != null) {
 				ArrayList<String> CTsources = myCTreader.listSources();
 		
@@ -115,7 +129,9 @@ public class CTadmin extends Application {
 						CTlocationFullPath = CTlocationFullPath.substring(0,CTlocationFullPath.lastIndexOf('/'));	// try parent folder
 						myCTreader = new CTreader(CTlocationFullPath);
 						String testSource = tmp[tmp.length-1];
+						System.err.println("testSource: "+testSource);
 						for(String src:myCTreader.listSources()) {		// brute force check on existence
+							System.err.println("src: "+src);
 							if(src.equals(testSource)) {
 								CTsources.add(testSource);
 								CTlocation = CTlocationFullPath;
@@ -131,8 +147,9 @@ public class CTadmin extends Application {
 					myCTreader = null;
 				}
 				
-				//  add each source to treeView UI
+				//  parse source paths into treeMap
 				for (String path : CTsources) {
+					CTinfo.debugPrint("add src: "+path);
 					String[] tmp = path.split("/", 2); 
 					if(tmp.length > 1) 	treeput(tree, tmp[0], tmp[1]);
 					else				treeput(tree, tmp[0], null);
@@ -154,22 +171,20 @@ public class CTadmin extends Application {
 	    if (tree == null || tree.isEmpty())
 	        return;
 	    
+	    CTinfo.debugPrint("convertTree, srcpath: "+srcpath);
 	    for (Entry<String, String> src : tree.entrySet()) {
 //	    	System.err.println("src key: "+src.getKey()+", value: "+(TreeMap)((Map.Entry)src).getValue()+", srcpath: "+srcpath);
 	    	TreeItem<CTsource>srcitem;
+    		String sourcePath = srcpath + File.separator + src.getKey();
+    		String fullPath = CTlocation + sourcePath;
+    		String folderPath = CTlocation + srcpath + File.separator;
+    		
 	    	if(src.getValue() == null) {		// leaf node (source)
-	    		String sourcePath = srcpath + File.separator + src.getKey();
-	    		String fullPath = CTlocation + File.separator + sourcePath;
-//System.err.println("src: "+src+", sourcePath: "+sourcePath);
+	    		CTinfo.debugPrint("convertTree src: "+src.getKey()+", sourcePath: "+sourcePath+", fullPath: "+fullPath+", srcpath: "+srcpath);
 
-//long startTime = System.currentTimeMillis();
 				long diskSize = CTinfo.diskUsage(fullPath, 4096);		// this can take a while for large number of files
-//System.out.println("diskSize("+src+") callTime: " + (System.currentTimeMillis() - startTime) + " ms");
-
-//startTime = System.currentTimeMillis();
 //				long dataSize = CTinfo.dataUsage(fullPath);
 				long dataSize = CTinfo.diskSize;	// shortcut, fetch side-effect from prior diskUsage() call (cluge for speed)
-//System.out.println("dataSize("+src+") callTime: " + (System.currentTimeMillis() - startTime) + " ms");
 
 				SimpleDateFormat format = new SimpleDateFormat("MMM dd, yyyy, HH:mm:ss");
 				double oldTime = myCTreader.oldTime(fullPath);
@@ -177,20 +192,24 @@ public class CTadmin extends Application {
 				double duration = newTime - oldTime;
 				String newTimeStr = format.format((long)(newTime*1000.));
 
-				srcitem = new TreeItem<>(new CTsource(src.getKey(),dataSize,diskSize,duration,newTimeStr), new ImageView(new Image(getClass().getResourceAsStream("cticon.png"))));
-//startTime = System.currentTimeMillis();
+				srcitem = new TreeItem<>(new CTsource(src.getKey(),dataSize,diskSize,duration,newTimeStr,folderPath), new ImageView(new Image(getClass().getResourceAsStream("cticon.png"))));
 				ArrayList<String>chans = myCTreader.listChans(fullPath, true);		// fastSearch=true for speed
-//System.out.println("listChans("+src+") callTime: " + (System.currentTimeMillis() - startTime) + " ms");
+				
+				// tack on channel list
 				if(chans!=null && chans.size()>0) {
 					for(String chan:chans) {
-						srcitem.getChildren().add(new TreeItem(new CTsource(chan), new ImageView(new Image(getClass().getResourceAsStream("file.png")))));
+						CTinfo.debugPrint("chan: "+chan);
+						srcitem.getChildren().add(new TreeItem(new CTsource(chan,true,folderPath), new ImageView(new Image(getClass().getResourceAsStream("file.png")))));
 					}
 				}
-	    	} else
-	    		srcitem = new TreeItem<>(new CTsource(src.getKey()), new ImageView(new Image(getClass().getResourceAsStream("folder.png"))));
-
+	    	} else {
+//	    		System.err.println("add folder, src.key: "+src.getKey()+", srcpath: "+srcpath);
+	    		srcitem = new TreeItem<>(new CTsource(src.getKey(),folderPath), new ImageView(new Image(getClass().getResourceAsStream("folder.png"))));
+//	    		srcitem.setExpanded(true);
+	    	}
+	    	
 			root.getChildren().add(srcitem);
-	        convertTree(srcitem, srcpath+"/"+src.getKey(), (TreeMap)((Map.Entry)src).getValue());
+	        convertTree(srcitem, srcpath+File.separator+src.getKey(), (TreeMap)((Map.Entry)src).getValue());	// recurse
 	    }
 	}
 	
@@ -199,11 +218,15 @@ public class CTadmin extends Application {
 	private void updateTree(TreeMap<String,String> tree) {
 		
 //		final TreeItem<CTsource> root = new TreeItem<>(new CTsource("CT"));
-		final TreeItem<CTsource> root = new TreeItem<>(new CTsource(new File(CTlocation).getName()));
+		String rootName = new File(CTlocation).getName();
+		CTinfo.debugPrint("updateTree, rootName: "+rootName);
+//		String rootParent = "";
+//		if(CTlocation.length()>0) rootParent = CTlocation.substring(0,CTlocation.lastIndexOf(File.separator)+1);
 
+		final TreeItem<CTsource> root = new TreeItem<>(new CTsource(rootName,CTlocation));
 		root.setExpanded(true);
 		convertTree(root, "", tree);		// recursive tree walk	
-		
+	
 		stage.setTitle("CTadmin");
 		final Scene scene = new Scene(new Group());
 		scene.setFill(Color.LIGHTGRAY);
@@ -255,49 +278,8 @@ public class CTadmin extends Application {
 		newTimeColumn.setMaxWidth( 1f * Integer.MAX_VALUE * 30 ); // 50% width
 
 		// context menu for rows
-		treeTable.setRowFactory(
-				new Callback<TreeTableView<CTsource>, TreeTableRow<CTsource>>() {
-					@Override
-					public TreeTableRow<CTsource> call(TreeTableView<CTsource> tableView) {
-						final TreeTableRow<CTsource> row = new TreeTableRow<>();
-						final ContextMenu rowMenu = new ContextMenu();
-						
-						MenuItem renameItem = new MenuItem("Rename");
-						renameItem.setOnAction(new EventHandler<ActionEvent>() {
-							@Override
-							public void handle(ActionEvent event) {
-								System.err.println("Rename: "+row.getItem().getName());
-							}
-						});
-						
-						MenuItem repackItem = new MenuItem("Repack");
-						repackItem.setOnAction(new EventHandler<ActionEvent>() {
-							@Override
-							public void handle(ActionEvent event) {
-								System.err.println("Repack: "+row.getItem().getName());
-							}
-						});
-
-						MenuItem removeItem = new MenuItem("Delete");
-						removeItem.setOnAction(new EventHandler<ActionEvent>() {
-							@Override
-							public void handle(ActionEvent event) {
-								//			        treeTableView.getItems().remove(row.getItem());
-								System.err.println("Delete: "+row.getItem().getName());
-							}
-						});
-
-						rowMenu.getItems().addAll(renameItem, repackItem, removeItem);
-
-						// only display context menu for non-null items:
-						row.contextMenuProperty().bind(
-								Bindings.when(Bindings.isNotNull(row.itemProperty()))
-								.then(rowMenu)
-								.otherwise((ContextMenu)null));
-						return row;
-					}
-				});
-	
+		setContextMenuByRow(treeTable);
+		
 		// setup scene and menubar
 		vbox.setVgrow(treeTable, Priority.ALWAYS);	// make sure window grows to include bottom of tree
 		vbox.getChildren().addAll(buildMenuBar(stage), treeTable);
@@ -319,10 +301,152 @@ public class CTadmin extends Application {
 					}
 				});
 		
+		CTinfo.debugPrint("about to stage.show");
 		stage.setOnCloseRequest(e -> Platform.exit());		// close app on window exit
 		stage.show();
+		CTinfo.debugPrint("stage.show done!");
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
+	void Warning(String warning) {
+		Alert alert = new Alert(AlertType.WARNING);
+		alert.setTitle("Warning");
+		alert.setHeaderText(null);
+		alert.setContentText(warning);
+		System.err.println("Warning: "+warning);
+		alert.showAndWait();
+	}
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	void setContextMenuByRow(TreeTableView<CTsource> treeTable) {
+		// context menu for rows
+		treeTable.setRowFactory(
+				new Callback<TreeTableView<CTsource>, TreeTableRow<CTsource>>() {
+					@Override
+					public TreeTableRow<CTsource> call(TreeTableView<CTsource> tableView) {
+						final TreeTableRow<CTsource> row = new TreeTableRow<>();
+						final ContextMenu rowMenu = new ContextMenu();
+						
+						// Rename
+						MenuItem renameItem = new MenuItem("Rename...");
+						renameItem.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								if(!row.getItem().isSource()) {
+									Warning("Cannot rename channel");
+									return;
+								}
+
+								String thisFile = row.getItem().getName();
+								String thisFolderPath = row.getItem().getFolderPath();
+								if(thisFolderPath.equals(CTlocation)) {
+									Warning("Cannot rename root folder");
+									return;
+								}
+								CTinfo.debugPrint("Rename: "+thisFolderPath + thisFile);
+								
+								TextInputDialog dialog = new TextInputDialog(thisFile);
+								dialog.setTitle("CT Rename Source");
+								dialog.setHeaderText("Rename CT Source: "+thisFile);
+								dialog.setContentText("New source name:");
+								dialog.setGraphic(new ImageView(this.getClass().getResource("cticon.png").toString()));
+								
+								// Traditional way to get the response value.
+								Optional<String> result = dialog.showAndWait();
+								if (result.isPresent()){
+								    File oldFile = new File(thisFolderPath + thisFile);	// doesn't follow subdirs
+								    File newFile = new File(thisFolderPath + result.get());
+								    boolean status = oldFile.renameTo(newFile);
+								    if(status) 	refreshTree();
+								    else 		Warning("Failed to rename: "+thisFile);
+								}
+							}
+						});
+						
+						// Repack
+						MenuItem repackItem = new MenuItem("Repack...");
+						repackItem.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								if(!row.getItem().isSource()) {
+									Warning("Cannot repack channel");
+									return;
+								}
+								Warning("Repack not yet implemented");
+								System.err.println("Repack: "+row.getItem().getName());
+							}
+						});
+
+						// Delete
+						MenuItem removeItem = new MenuItem("Delete...");
+						removeItem.setOnAction(new EventHandler<ActionEvent>() {
+							@Override
+							public void handle(ActionEvent event) {
+								if(!row.getItem().isSource()) {
+									Warning("Cannot delete channel");
+									return;
+								}
+								String thisFile = row.getItem().getName();
+								String thisFolderPath = row.getItem().getFolderPath();
+
+								if(thisFolderPath.equals(CTlocation)) {
+									Warning("Cannot delete root folder");
+									return;
+								}
+								
+								Alert alert = new Alert(AlertType.CONFIRMATION);
+								alert.setTitle("Delete Confirmation");
+								alert.setHeaderText(null);
+								String fullPath = new File(thisFolderPath + thisFile).getAbsolutePath();
+								alert.setContentText("Confirm Delete: "+fullPath);
+
+								Optional<ButtonType> result = alert.showAndWait();
+								if (result.get() == ButtonType.OK){
+									System.err.println("Delete: "+thisFolderPath + thisFile);
+									Path directory = Paths.get(fullPath);
+									try {
+										Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+										   @Override
+										   public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+										       Files.delete(file);
+										       return FileVisitResult.CONTINUE;
+										   }
+
+										   @Override
+										   public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+										       Files.delete(dir);
+										       return FileVisitResult.CONTINUE;
+										   }
+										});
+									} catch (IOException e) {
+										Warning("File Deletion Error: "+e);
+										e.printStackTrace();
+										return;
+									}
+									
+								    refreshTree();
+								} else {
+									System.err.println("Cancel Delete");
+								}
+							}
+						});
+
+						rowMenu.getItems().addAll(renameItem, repackItem, removeItem);
+
+						// only display context menu for non-null items:
+//						if(row.getItem()!=null && row.getItem().isSource())	// always null at factory call!?
+							
+						row.contextMenuProperty().bind(
+								Bindings.when(Bindings.isNotNull(row.itemProperty()))
+								.then(rowMenu)
+								.otherwise((ContextMenu)null));
+							
+						return row;
+					}
+				});
+	
+	}
+	
 	//-----------------------------------------------------------------------------------------------------------------
 	// updateMenuBar
 
@@ -337,7 +461,7 @@ public class CTadmin extends Application {
 		Menu fileMenu = new Menu("File");
 
 		// File/Open
-		MenuItem openMenuItem = new MenuItem("Open");
+		MenuItem openMenuItem = new MenuItem("Open...");
 		fileMenu.getItems().add(openMenuItem);
 		openMenuItem.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
@@ -376,8 +500,10 @@ public class CTadmin extends Application {
 		private String diskspace="";
 		public String newTime="";
 		public String duration="";
+		public String folderpath="";
+		private boolean ischannel=false;
 		
-		private CTsource(String name, long dataspace, long diskspace, double duration, String newTime) {
+		private CTsource(String name, long dataspace, long diskspace, double duration, String newTime, String folderPath) {
 			this.name = name;
 			this.dataspace = readableFileSize(dataspace);
 			this.diskspace = readableFileSize(diskspace);
@@ -401,16 +527,25 @@ public class CTadmin extends Application {
 			}
 			
 			this.newTime = newTime;
-//	System.err.println("new CTsource, name: "+name+", oldTime: "+oldTime);
+			this.folderpath = folderPath;
+//			System.err.println("new CTsource SRC, fullPath: "+fullPath);
 		}
 		
-		private CTsource(String name, long dataspace, long diskspace) {
-			new CTsource(name, dataspace, diskspace, 0, "");
-
-		}
+//		private CTsource(String name, long dataspace, long diskspace) {
+//			new CTsource(name, dataspace, diskspace, 0, "");
+//		}
 		
-		private CTsource(String name) {
+		private CTsource(String name, boolean ischan, String folderPath) {
 			this.name = name;
+			this.ischannel=ischan;
+			this.folderpath = folderPath;
+//			System.err.println("new CTsource CHAN, fullPath: "+fullPath);
+		}
+		
+		private CTsource(String name, String folderPath) {
+			this.name = name;
+			this.folderpath = folderPath;
+//			System.err.println("new CTsource FOLDER, fullPath: "+fullPath);
 		}
 		
 		public String getName() 				{ return name; 		}
@@ -418,7 +553,8 @@ public class CTadmin extends Application {
 		public String getDiskSpace() 			{ return diskspace; 	}
 		public String getNewTime() 				{ return newTime; 	}
 		public String getDuration()				{ return duration; }
-
+	    public boolean isSource() 				{ return !ischannel; }
+	    public String getFolderPath()			{ return folderpath;	}
 	}
 	
 	public static String readableFileSize(long size) {
