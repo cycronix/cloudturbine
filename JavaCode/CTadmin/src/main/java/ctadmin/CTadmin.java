@@ -354,10 +354,20 @@ public class CTadmin extends Application {
 								// Traditional way to get the response value.
 								Optional<String> result = dialog.showAndWait();
 								if (result.isPresent()){
+									String newName = result.get();
 								    File oldFile = new File(thisFolderPath + thisFile);	// doesn't follow subdirs
-								    File newFile = new File(thisFolderPath + result.get());
+								    File newFile = new File(thisFolderPath + newName);
 								    boolean status = oldFile.renameTo(newFile);
-								    if(status) 	refreshTree();
+//								    if(status) 	refreshTree();
+								    if(status)  {
+						                TreeItem<CTsource> treeItem = row.getTreeItem();
+						                CTsource ctsrc = treeItem.getValue();
+						                ctsrc.setName(newName);
+						                treeItem.setValue(null);
+						                treeItem.setValue(ctsrc);
+						                
+						                treeTable.getSelectionModel().clearSelection();
+								    }
 								    else 		Warning("Failed to rename: "+thisFile);
 								}
 							}
@@ -424,7 +434,10 @@ public class CTadmin extends Application {
 										return;
 									}
 									
-								    refreshTree();
+					                TreeItem<CTsource> treeItem = row.getTreeItem();
+									treeItem.getParent().getChildren().remove(treeItem);
+					                treeTable.getSelectionModel().clearSelection();
+//								    refreshTree();
 								} else {
 									System.err.println("Cancel Delete");
 								}
@@ -549,6 +562,7 @@ public class CTadmin extends Application {
 		}
 		
 		public String getName() 				{ return name; 		}
+		public void setName(String name)		{ this.name = name;	}
 		public String getDataSpace() 			{ return dataspace; 	}
 		public String getDiskSpace() 			{ return diskspace; 	}
 		public String getNewTime() 				{ return newTime; 	}
