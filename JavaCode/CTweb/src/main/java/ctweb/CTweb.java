@@ -410,110 +410,110 @@ public class CTweb {
     					}
     					// if(time.length == 0) System.err.println("CTserver warning: no data!");
     					if(numData > 0) {
+    						if(ftype == 's') ftype = CTinfo.fileType(chan,'s');
+    						CTinfo.debugPrint("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
 
-    						if(fetch == 't') {		// only want times (everything else presume 'b' both)
-    							for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) + "\n");		// if limited, get most recent
-    							formResponse(response, sbresp);
-    							return;
-    						}
-    						else {		
-    							if(ftype == 's') ftype = CTinfo.fileType(chan,'s');
-    							CTinfo.debugPrint("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
+    						switch(ftype) {
 
-    							switch(ftype) {
+    						// binary types returned as byteArrays
+    						case 'b':	
+    						case 'B':           
+    							byte[][]bdata = tdata.getData();
 
-    							// binary types returned as byteArrays
-    							case 'b':	
-    							case 'B':           
-    								byte[][]bdata = tdata.getData();
-
-    								if(bdata == null || bdata[0] == null) {
-    				    				response.sendError(HttpServletResponse.SC_NOT_FOUND);
-    				    				return;
-    								}
-
-    								String htime = formatTime(time[0]);		// [0] at start or [time.length-1] at end???
-    								String hdur = "0";
-    								if(time.length > 1) hdur = formatTime(time[time.length-1]-time[0]);
-    								double oldTime = ctreader.oldTime(sourcePath,chan);
-    								double newTime = ctreader.newTime(sourcePath,chan);
-
-    								double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    								String holdest = formatTime(oldTime);		// cache these?
-    								String hnewest = formatTime(newTime);         			
-    								String hlag = formatTime(lagTime);
-
-    								CTinfo.debugPrint("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
-    								response.addHeader("time", htime);								// sec
-    								long lastmod = (long)(1000*time[time.length-1]);
-    								String smod = new Date(lastmod).toGMTString();
-    								CTinfo.debugPrint("lastmod: "+smod);
-    								response.addHeader("Last-Modified", ""+smod);			// msec
-
-    								response.addHeader("duration", hdur);
-    								response.addHeader("X-Duration", hdur);		// compatible with WebTurbine
-
-    								response.addHeader("oldest", holdest);
-    								response.addHeader("newest", hnewest);
-    								response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
-
-    								CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
-
-    								formResponse(response,null);
-    								
-    								if(chan.endsWith(".jpg")) 	response.setContentType("application/image/jpeg");
-    								else						response.setContentType("application/octet-stream");
-    								
-    								for(byte[] b : bdata) {
-    									InputStream input = new ByteArrayInputStream(b);		// only return 1st image?
-    				    				OutputStream out = response.getOutputStream();
-    				    				byte[] buffer = new byte[4096];
-    				    				int length;
-    				    				while ((length = input.read(buffer)) > 0){
-    				    				    out.write(buffer, 0, length);
-    				    				}
-    				    				input.close();
-    				    				out.flush();
-    								}
-    								
+    							if(bdata == null || bdata[0] == null) {
+    								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
+    							}
+
+    							String htime = formatTime(time[0]);		// [0] at start or [time.length-1] at end???
+    							String hdur = "0";
+    							if(time.length > 1) hdur = formatTime(time[time.length-1]-time[0]);
+    							double oldTime = ctreader.oldTime(sourcePath,chan);
+    							double newTime = ctreader.newTime(sourcePath,chan);
+
+    							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    							String holdest = formatTime(oldTime);		// cache these?
+    							String hnewest = formatTime(newTime);         			
+    							String hlag = formatTime(lagTime);
+
+    							CTinfo.debugPrint("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
+    							response.addHeader("time", htime);								// sec
+    							long lastmod = (long)(1000*time[time.length-1]);
+    							String smod = new Date(lastmod).toGMTString();
+    							CTinfo.debugPrint("lastmod: "+smod);
+    							response.addHeader("Last-Modified", ""+smod);			// msec
+
+    							response.addHeader("duration", hdur);
+    							response.addHeader("X-Duration", hdur);		// compatible with WebTurbine
+
+    							response.addHeader("oldest", holdest);
+    							response.addHeader("newest", hnewest);
+    							response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
+
+    							CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
+
+    							formResponse(response,null);
+
+    							if(chan.endsWith(".jpg")) 	response.setContentType("application/image/jpeg");
+    							else						response.setContentType("application/octet-stream");
+
+    							for(byte[] b : bdata) {
+    								InputStream input = new ByteArrayInputStream(b);		// only return 1st image?
+    								OutputStream out = response.getOutputStream();
+    								byte[] buffer = new byte[4096];
+    								int length;
+    								while ((length = input.read(buffer)) > 0){
+    									out.write(buffer, 0, length);
+    								}
+    								input.close();
+    								out.flush();
+    							}
+
+    							return;
 
     							// HTML table format (for import to spreadsheets)
-    							case 'H':			
-    								strdata = tdata.getDataAsString(CTinfo.fileType(chan,'s'));		// convert any/all numeric types to string
-    								if(strdata != null) {
-    									sbresp.append("<table id="+source+"/"+chan+">\n");
-    									sbresp.append("<tr><th>Time</th><th>"+source+"/"+chan+"</th></tr>");
-    									for(int i=time.length-numData; i<numData; i++) {
-    										sbresp.append("<tr>");
-    										if(fetch != 'd') sbresp.append("<td>"+(time[i]/86400.+25569.)+"</td>");		// spreadsheet time (epoch 1900)
-    										if(fetch != 't') sbresp.append("<td>"+strdata[i]+"</td>");
-    										sbresp.append("</tr>\n");	
-    									}
-    									sbresp.append("</table>");
-    									formResponse(response, sbresp);
+    						case 'H':			
+    							strdata = tdata.getDataAsString(CTinfo.fileType(chan,'s'));		// convert any/all numeric types to string
+    							if(strdata != null) {
+    								sbresp.append("<table id="+source+"/"+chan+">\n");
+    								sbresp.append("<tr><th>Time</th><th>"+source+"/"+chan+"</th></tr>");
+    								for(int i=time.length-numData; i<numData; i++) {
+    									sbresp.append("<tr>");
+    									if(fetch != 'd') sbresp.append("<td>"+(time[i]/86400.+25569.)+"</td>");		// spreadsheet time (epoch 1900)
+    									if(fetch != 't') sbresp.append("<td>"+strdata[i]+"</td>");
+    									sbresp.append("</tr>\n");	
     								}
-    								else {
-    									System.err.println("Unrecognized ftype: "+ftype);
-    				    				response.sendError(HttpServletResponse.SC_NOT_FOUND);
-    				    				return;
-    								}
+    								sbresp.append("</table>");
+    								formResponse(response, sbresp);
+    							}
+    							else {
+    								System.err.println("Unrecognized ftype: "+ftype);
+    								response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    								return;
+    							}
 
     							// all other types returned as rows of time,value strings
-    							default:
-    								strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
-    								if(strdata != null) {
-    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");		// most recent
-    									formResponse(response, sbresp);
-    									return;
-    								}
-    								else {
-    									System.err.println("Unrecognized ftype: "+ftype);
-    				    				response.sendError(HttpServletResponse.SC_NOT_FOUND);
-    				    				return;
-    								}
+    						default:
+    							strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
+    							if(strdata != null) {
+    								if(fetch=='t')
+    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i])+"\n");		// most recent
+    								else if(fetch=='d')
+    									for(int i=time.length-numData; i<numData; i++) sbresp.append(strdata[i]+"\n");		
+    								else
+    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");		
+
+
+    								formResponse(response, sbresp);
+    								return;
+    							}
+    							else {
+    								System.err.println("Unrecognized ftype: "+ftype);
+    								response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    								return;
     							}
     						}
+
     					}
     				}
     			}
