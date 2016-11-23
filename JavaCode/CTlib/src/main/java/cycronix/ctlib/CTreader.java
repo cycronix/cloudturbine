@@ -324,7 +324,7 @@ public class CTreader {
 		
 		for(File file:listFile) {
 			if(file.isDirectory()) {
-				Files.walkFileTree(file.toPath(), opts, 4, new SimpleFileVisitor<Path>() {
+				Files.walkFileTree(file.toPath(), opts, 10, new SimpleFileVisitor<Path>() {		// max depth 10
 
 					@Override
 					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
@@ -351,7 +351,8 @@ public class CTreader {
 								}
 
 								return FileVisitResult.SKIP_SUBTREE;
-							} }
+							} 
+						}
 						return FileVisitResult.CONTINUE;			// folder without any files
 					}
 				});
