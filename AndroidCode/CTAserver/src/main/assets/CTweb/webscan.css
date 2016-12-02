@@ -1,0 +1,233 @@
+* {
+	-webkit-touch-callout:none;
+	-webkit-user-select:none;
+	-khtml-user-select:none;
+	-moz-user-select:none;
+	-ms-user-select:none;
+	user-select:none;
+	-webkit-tap-highlight-color:rgba(0,0,0,0);
+    	-webkit-text-size-adjust: auto;
+    	-ms-touch-action:none;
+}
+
+/* title header */
+label.h {			
+	font-family:Arial; 
+	font-size:1.2em;
+}
+
+/* time label */
+label.t {		
+	font-family:fixed; 
+	font-size:1em; 
+	color:white; 
+	margin:0;
+	padding:0;
+}
+
+/* channel list */
+p, body, label, select {
+	font-family:Arial; 
+	font-size:1.1em;
+}
+
+/* clear and option save/help buttons */
+button {	
+	font-family:Arial; 
+	font-size:1em;
+}
+
+/* plotbox header height (chanlist, +, x) */
+#phead {
+	position: relative;
+	width: 100%;
+	height: 2em;
+	overflow: hidden;
+	whitespace: nowrap;
+	vertical-align: top;
+}
+
+/* time slider height */
+#TimeSelect{
+	height: 1em;
+}
+
+/* options pop-up label size */
+table.o {		
+	border-spacing: 8px;
+	font-family:Arial; 
+	font-size:1em;
+}
+
+/* control button size */
+input[type=radio] + label {
+	font-size:1em;
+}
+
+/* small screens: */
+@media only screen and (max-width: 1000px) and (max-height: 600px) {
+    label.h {			
+	font-size:3vmax;
+    }
+    label.t {		
+	font-size:2vmax; 
+    }
+    p, body, label, select {
+	font-size:2.2vmax;
+    }
+    button {	
+	font-size:2vmax;
+    }
+    #phead {
+	height: 4vmax;
+    }
+    #TimeSelect{
+	height: 2vmax;
+    }
+    table.o {		
+	font-size:2vmax;
+    }
+    input[type=radio] + label {
+	font-size:2.2vmax;
+    }
+}
+
+body {
+	background-color: rgba(0,0,0,0);
+}
+
+table.a {
+	background-color: rgb(96, 96, 96);
+	text-align: center; 
+	color: white;
+	white-space: nowrap; 
+}
+	
+table.b {text-align: center; }
+
+td.r {
+	text-align: right;
+	width: 1%;
+	white-space:nowrap;
+}
+td.l {
+	text-align: left;
+	width: '*';
+	white-space:nowrap;
+}
+input[type=range] {
+    width: 99%;
+    padding: 0px;
+    border: 0px;
+    margin: 1px;
+    color: rgb(144, 144, 144);
+}
+
+html, body {
+    width:100%;
+    height:100%;
+    margin:0;
+}
+
+
+#wrapper {
+	position: relative;
+	top: 0%;
+	height: 100%;
+	width: 100%;
+	left: 0%;
+}
+
+#dtitle{
+	position: absolute;
+	border: 0px solid white;
+	z-index:96;
+	width: 100%;
+}
+
+#options{
+	display: none;
+	color: white;
+	background-color: rgba(128,128,128,0.7);
+	position: absolute;
+	top: 2em;
+	right: 2em;
+	float: right;
+	z-index:100;
+}
+
+#opt1{
+	background-image: url('gear.png');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+#dgraphs{
+	position: absolute;
+	width: 100%;
+}
+
+#graphs{
+	position: relative;
+	background-color: rgb(220,220,220);
+	border: 1px solid white;
+	width: 100%;
+	height: 100%;
+	z-index: 97;
+	margin-top:0;
+}
+
+#dcontrols{
+        position: absolute;
+        width: 100%;
+	bottom: 0em;
+}
+
+#controls{
+        position: relative;
+        border: 0px solid white;
+        height: 100%;
+        width: 100%;
+        z-index:98;
+}
+
+input[type=radio] {
+    display:none; 
+}
+ 
+input[type=radio] + label {
+    display:inline-block;
+    margin:4px;
+    padding: 4px 10px;
+    line-height: 1em;
+    color: #333;
+    text-align: center;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.75);
+    vertical-align: middle;
+    cursor: pointer;
+    background-color: #f5f5f5;
+    background-image: -moz-linear-gradient(top,#fff,#e6e6e6);
+    background-image: -webkit-gradient(linear,0 0,0 100%,from(#fff),to(#e6e6e6));
+    background-image: -webkit-linear-gradient(top,#fff,#e6e6e6);
+    background-image: -o-linear-gradient(top,#fff,#e6e6e6);
+    background-image: linear-gradient(to bottom,#fff,#e6e6e6);
+    background-repeat: repeat-x;
+    border: 1px solid #ccc;
+    border-color: #e6e6e6 #e6e6e6 #bfbfbf;
+    border-color: rgba(0,0,0,0.1) rgba(0,0,0,0.1) rgba(0,0,0,0.5);	
+    border-bottom-color: #b3b3b3;
+    -webkit-box-shadow: inset 0 1px 0 rgba(255,255,255,0.2),0 1px 2px rgba(0,0,0,0.05);
+    -moz-box-shadow: inset 0 1px 0 rgba(255,255,255,0.2),0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2),0 1px 2px rgba(0,0,0,0.05);
+}
+ 
+input[type=radio]:checked + label {
+       background-image: none;
+    outline: 0;
+    -webkit-box-shadow: inset 0 2px 4px rgba(0,0,0,0.15),0 1px 2px rgba(0,0,0,0.05);
+    -moz-box-shadow: inset 0 2px 4px rgba(0,0,0,0.15),0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15),0 1px 2px rgba(0,0,0,0.05);
+        background-color:#e0e0e0;
+}
+
