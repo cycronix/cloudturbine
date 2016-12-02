@@ -251,7 +251,7 @@ public class CTreader {
 //			if(thisFile.isFile() && thisFile.length() <= 0) continue;
 			
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
-				buildChanList(thisFile,ChanList,fastSearch);		// recursive ?
+				buildChanList(thisFile,ChanList,fastSearch&&!thisFile.isFileFolder());		// recursive, no expedite channel name list themselves
 			}
 			else {
 				if(thisFile.length() > 0) {

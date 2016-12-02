@@ -216,30 +216,33 @@ public class CTinfo {
 		String[] pathparts = fname.split(Pattern.quote(File.separator));
 		Long sumtime = 0L;
 		double ftime = 0.;
-		
+
 		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
 			String thispart = pathparts[i];
 			Long thistime = 0L;
 			try {
 				thistime = Long.parseLong(thispart);
-				sumtime += thistime;
+				sumtime += thistime;							// presume consistent msec or sec times all levels
 			} catch(NumberFormatException e) {
 				continue;		// keep looking?
 			}
 //			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
-
-			if(thistime >= 1000000000000L) {	// absolute msec
-				ftime = (double)sumtime / 1000.;
-//				System.err.println("******msec fileTime: "+ftime);
-				return ftime;
-			}
-			if(thistime >= 1000000000L) {		// absolute sec
-				ftime = (double)sumtime;
-//				System.err.println("******sec fileTime: "+ftime);
-				return ftime;
-			}
 		}
 		
-		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
+//		if(thistime >= 1000000000000L) {	// absolute msec
+		if(sumtime >= 1000000000000L) {	// absolute msec		
+			ftime = (double)sumtime / 1000.;
+//			System.err.println("******msec fileTime: "+ftime);
+			return ftime;
+		}
+		else {
+			//			if(thistime >= 1000000000L) {		// absolute sec
+			ftime = (double)sumtime;
+//			System.err.println("******sec fileTime: "+ftime);
+			return ftime;
+		}
+
+
+//		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
   	}
 }
