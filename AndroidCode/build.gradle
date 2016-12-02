@@ -98,7 +98,7 @@ subprojects {
         dirObj.deleteDir()
     }
     
-    build << {
+    build.doLast {
     	task -> println "Built $task.project.name"
     }
     
