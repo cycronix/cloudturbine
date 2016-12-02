@@ -13,6 +13,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -132,11 +133,13 @@ public class CTlogger {
 					appendTime = (long)(ctreader.newTime(sourceFolder) * 1000);	 // convert sec to msec
 					if(debug) System.err.println("appending past time: "+appendTime);
 				}
-				ctw.setZipMode(zipmode);			//  compress none-most, 0-9, 10=zip.gz
 				ctw.setDebug(debug);
 				if(autoflush>0) ctw.autoFlush(autoflush*1000);		// auto flush to zip once per interval (msec) of data
-				ctw.setBlockMode(blockMode);	// blockMode doesn't work well, should flush(blockDur), but then interpolates intermediate timestamps
+				System.err.println("autoflush: "+autoflush+", blockMode: "+blockMode+", zipmode: "+zipmode);
+				ctw.setBlockMode(blockMode,zipmode);	// blockMode doesn't work well, should flush(blockDur), but then interpolates intermediate timestamps
+//				ctw.setZipMode(zipmode);			//  compress none-most, 0-9, 10=zip.gz
 				ctw.setGZipMode(gzipmode);
+				ctw.autoSegment(100);				// MJM 12/2/16
 				
 				// parsable time formats
 				sdf1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -152,6 +155,8 @@ public class CTlogger {
 			if(leadingID != null) idxTime = 1;		// skootch
 			int idxFirstChan = idxTime+1;
 			if(storeTime) idxFirstChan = idxTime;
+			long oldTime=0;
+			long adjTime=0;
 			
 			while ((line = br.readLine()) != null) {
 				line = line.replace("\"","");			// remove extra quote chars
@@ -195,10 +200,19 @@ public class CTlogger {
 					continue;			// skip past existing data
 				}
 				
+				System.err.println("timestr: "+data.get(idxTime)+", time: "+time+", time2str: "+new Date(time));
+				if(time==oldTime) {
+					adjTime++;			// prevent time dupes
+				}
+				else {
+					oldTime = time;
+					adjTime = time;
+				}
+				
 				lineCount++;
 				otime = time;
 				if(debug) System.err.println("getData time: "+time+", data(0): "+data.get(0));
-				ctw.setTime(time);
+				ctw.setTime(adjTime);
 				if(leadingID != null) {
 					if(!data.get(0).equals(leadingID)) {
 						errPrint("Error, leading ID mismatch.  Expected: "+leadingID+", got: "+data.get(0));
@@ -217,6 +231,7 @@ public class CTlogger {
 					if(blockMode) 	ctw.putData(chanNames.get(j)+".f32", new Float(data.get(i)));
 //					if(blockMode) 	ctw.addData(chanNames.get(j), new Float(data.get(i)));
 					else			ctw.putData(chanNames.get(j), data.get(i));
+//					if(i>100) break;			// MJM foo debug, problem with huge number of columns (chans)
 				}
 //				ctw.flush();
 			}
