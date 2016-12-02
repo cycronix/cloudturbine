@@ -226,17 +226,23 @@ public class CTinfo {
 			} catch(NumberFormatException e) {
 				continue;		// keep looking?
 			}
+			
+			if(thistime >= 1000000000000L) {	// absolute msec (deprecated).  absolute sec not used nor reliable.
+				ftime = (double)sumtime / 1000.;
+//				System.err.println("******msec fileTime: "+ftime);
+				return ftime;
+			}
+			
 //			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
 		}
 		
-//		if(thistime >= 1000000000000L) {	// absolute msec
-		if(sumtime >= 1000000000000L) {	// absolute msec		
+		if(sumtime >= 1000000000000L) {			// relative msec		
 			ftime = (double)sumtime / 1000.;
 //			System.err.println("******msec fileTime: "+ftime);
 			return ftime;
 		}
-		else {
-			//			if(thistime >= 1000000000L) {		// absolute sec
+		else {									// relative sec
+			//			if(thistime >= 1000000000L) {		
 			ftime = (double)sumtime;
 //			System.err.println("******sec fileTime: "+ftime);
 			return ftime;
