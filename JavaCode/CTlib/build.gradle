@@ -12,7 +12,7 @@ dependencies {
 }
 
 // Copy JAR file to the AndroidCode folder
-build << {
+build.doLast {
 	String fromLoc = "${buildDir}/libs/CTlib.jar"
 	String toLoc = "../../AndroidCode/Common"
 	println "Copy library from " + fromLoc + " to " + toLoc

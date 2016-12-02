@@ -57,8 +57,8 @@ subprojects {
     compileJava.mustRunAfter clean
     
     // Copy the JAR file to a top level "Distribute" folder; do this last 
-    // (specified by "<<") so we make sure to get the newly built JAR file
-    build << {
+    // so we make sure to get the newly built JAR file
+    build.doLast {
     	task -> println "Built $task.project.name"
     	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
     	String toLoc = "../Distribute"
