@@ -208,14 +208,15 @@ public class CTinfo {
   	 */
   	
   	public static double fileTime(String fname) {
-//  		System.err.println("fileTime: "+fname);
 
   		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
     	
 		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
-		String[] pathparts = fname.split(Pattern.quote(File.separator));
+		String[] pathparts = fname.split(Pattern.quote(File.separator)+"|/");		// use either forward or backward slash (forward is used *inside* zip files)
 		Long sumtime = 0L;
 		double ftime = 0.;
+
+//  		System.err.println("fileTime of: "+fname+", File.separator: "+File.separator);
 
 		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
 			String thispart = pathparts[i];
