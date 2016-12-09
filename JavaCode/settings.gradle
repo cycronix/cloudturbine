@@ -1,2 +1,2 @@
-include 'CT2CSV','CTapps','CTarchive','CTexample','CTlib','CTlogger','CTplugin','CTsync','CTudp','CTweb','CTadmin'
+include 'CT2CSV','CTadmin','CTapps','CTarchive','CTexample','CTlib','CTlogger','CTplugin','CTserial','CTsync','CTudp','CTweb'
 
