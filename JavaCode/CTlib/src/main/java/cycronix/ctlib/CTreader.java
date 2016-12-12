@@ -200,7 +200,7 @@ public class CTreader {
 	// listChans:  build list of channels all folders under source folder 
 
 	public ArrayList<String> listChans(String sfolder) {
-		return listChans(sfolder, true);		// default to fastSearch
+		return listChans(sfolder, false);		// default to fastSearch=false
 	}
 	
 	// fastSearch galumps thru chans if lots
@@ -215,13 +215,17 @@ public class CTreader {
 		ChanList.clear();										// ChanList built in listFiles()
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null || listOfFiles.length < 1) return null;
-		int expedite = 1;
-		if(fastSearch) expedite=expediteLimit(sfolder, listOfFiles.length, 10);		// segments (was 1000)
-		int i=0;
+		
 		int last = listOfFiles.length-1;
+		int expedite = 1;
+//		if(fastSearch) expedite=expediteLimit(sfolder, listOfFiles.length, 100);		// segments (was 1000)
+//		if(fastSearch) expedite=last;		// fast search: do first and last segment (no, single root time at this level)
+
+		int i=0;
 		while(true) {
 			CTFile thisFile = listOfFiles[i];
 			if(thisFile.isDirectory() && thisFile.fileTime()!=0) {
+//				System.err.println("RootTime: "+i+"/"+last+", file: "+thisFile.getAbsolutePath());
 				buildChanList(thisFile, ChanList, fastSearch);			// side effect is to add to ChanList
 			}
 			if(i>=last) break;
@@ -242,7 +246,7 @@ public class CTreader {
 //		System.err.println("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
 		int expedite = 1;
-		if(fastSearch) expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 10);		// blocks (was 10000)
+		if(fastSearch) expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 100);		// blocks (was 10000)
 		
 		int i=0;
 		int last = listOfFiles.length-1;
@@ -251,10 +255,13 @@ public class CTreader {
 //			if(thisFile.isFile() && thisFile.length() <= 0) continue;
 			
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
+//				System.err.println("Folder: "+i+"/"+last+", file: "+thisFile.getAbsolutePath());
 				buildChanList(thisFile,ChanList,fastSearch&&!thisFile.isFileFolder());		// recursive, no expedite channel name list themselves
 			}
 			else {
 				if(thisFile.length() > 0) {
+//					System.err.println("File: "+i+"/"+last+", file: "+thisFile.getAbsolutePath());
+
 					// side effect:  build ChanList for registration
 					String fname = listOfFiles[i].getName();
 					if(ChanList.indexOf(fname) < 0)  {
