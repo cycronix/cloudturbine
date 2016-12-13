@@ -154,11 +154,7 @@ public class CTweb {
         if(sslport>0) {
         	http_config.setSecureScheme("https");
         	http_config.setSecurePort(sslport);
-        	SecureRequestCustomizer src = new SecureRequestCustomizer();
-            src.setStsMaxAge(0L);					// disable HSTS, allow HTTP and HTTPS both
-            List srclist = new ArrayList();
-            srclist.add(src);
-            http_config.setCustomizers(srclist);
+        	http_config.addCustomizer(new SecureRequestCustomizer(false,0L,false));	// disable HSTS, allow HTTP and HTTPS both
         }
         http_config.setOutputBufferSize(32768);
 
