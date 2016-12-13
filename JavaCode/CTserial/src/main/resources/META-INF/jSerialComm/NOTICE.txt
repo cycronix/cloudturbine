@@ -1,0 +1,8 @@
+CTserial uses the jSerialComm library, which is distributed in binary form in this jar file.  jSerialComm is developed by Will Hedgecock of Fazecast, Inc. (will.hedgecock@fazecast.com).  The source is available on GitHub at https://github.com/Fazecast/jSerialComm.  jSerialComm is covered by the GNU Lesser General Public License, a copy of which is included in this JAR file and is also available at https://github.com/Fazecast/jSerialComm/blob/master/LICENSE.  The homepage for jSerialComm is at http://fazecast.github.io/jSerialComm/.  An excellent Arduino tutorial which makes use of this library is available at https://www.youtube.com/watch?v=cw31L_OwX3A.
+
+CTserial.jar includes several directories related to jSerialComm:
+    - Android: native serial comm libraries for Android platforms
+    - com/fazecast/jSerialComm: Java class files for jSerialComm
+    - Linux: native serial comm libraries for Linux platforms
+    - OSX: native serial comm libraries for OSX platforms
+    - Windows: native serial comm libraries for Windows platforms
