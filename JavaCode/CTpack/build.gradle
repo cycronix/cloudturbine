@@ -30,7 +30,8 @@ jar.doFirst {
     // Since CTapps is a collection of separate sample programs, don't
     // include Main-Class in the manifest (there are a number of main classes)
     manifest {
-        attributes 'Class-Path': runtimeDependenciesStr
+            attributes 	'Main-Class': 'ctpack.CTpack',
+        				'Class-Path': runtimeDependenciesStr
     }
 }
 

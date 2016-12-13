@@ -16,6 +16,8 @@
 * 09/09/2016  MJM	Created.
 */
 
+package ctmetrics;
+
 import java.io.File;
 import java.util.ArrayList;
 
@@ -28,7 +30,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import cycronix.ctlib.*;
-
 
 /*
 * Copyright 2016 Cycronix
