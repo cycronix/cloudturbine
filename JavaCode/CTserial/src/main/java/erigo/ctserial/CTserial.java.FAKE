@@ -1,6 +1,8 @@
 
 package erigo.ctserial;
 
+import java.io.IOException;
+
 //
 // CTserial
 //
@@ -24,7 +26,6 @@ package erigo.ctserial;
 //
 
 import java.io.InputStream;
-import java.io.IOException;
 import java.util.Scanner;
 import org.apache.commons.cli.*;
 import cycronix.ctlib.*;
@@ -66,7 +67,7 @@ public class CTserial {
             			break;
             		}
             		try {
-            			Thread.sleep(1000);
+            		Thread.sleep(1000);
             		} catch (Exception e) {
             			// Nothing to do
             		}
@@ -97,9 +98,7 @@ public class CTserial {
 			line = parser.parse( options, arg );
 		} catch( ParseException exp ) {
 			System.err.println("Command line argument parsing failed: " + exp.getMessage());
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
-			return;
+			System.exit(0);
 		}
 		
 		//
@@ -110,9 +109,7 @@ public class CTserial {
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.setWidth(120);
 			formatter.printHelp( "CTserial", options );
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
-			return;
+			System.exit(0);
 		}
 		
 		srcName = line.getOptionValue("s",srcName);
@@ -125,9 +122,8 @@ public class CTserial {
 		String dtStr = line.getOptionValue("d","0");				
 		dt = Double.parseDouble(dtStr);
 		
-		// Auto-flush time
+		// Auto-flush time, seconds
 		double autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlushDefault));
-		autoFlushMillis = (long)(autoFlush*1000.);
 		
 		trimTime = Double.parseDouble(line.getOptionValue("t","0"));
 		
@@ -135,9 +131,7 @@ public class CTserial {
 		// Can't have both bFirstValIsTime==true and dt!=0
 		if ( bFirstValIsTime && (dt != 0) ) {
 			System.err.println("Not able to use both \"time in string\" and \"delta-time\" options at the same time.");
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
-			return;
+			System.exit(0);
 		}
 		
 		debug = line.hasOption("debug");
@@ -147,12 +141,11 @@ public class CTserial {
 			ctw = new CTwriter(srcName,trimTime);	
 			ctw.setZipMode(zipMode);
 			CTinfo.setDebug(debug);
+			autoFlushMillis = (long)(autoFlush*1000.);
+			System.err.println("autoFlushMillis = " + autoFlushMillis);
 		} catch(Exception e) {
-			System.err.println("Caught exception trying to setup CTwriter:");
 			e.printStackTrace();
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
-			return;
+			System.exit(0);
 		}
 
 		System.err.print("Source name: " + srcName + "\nSerial port: " + portStr + "\nChannels: ");
@@ -165,7 +158,7 @@ public class CTserial {
 			new SerialRead(portStr, chanNames, dt, bFirstValIsTime).start();
 		} catch (Exception e) {
 			System.err.println("Caught exception:\n" + e);
-			return;
+			System.exit(0);
 		}
 	}
 	
@@ -191,16 +184,16 @@ public class CTserial {
 			bFirstValIsTime = bFirstValIsTimeI;
 			
 			// Open serial port
-			serPort = SerialPort.getCommPort(portStr);
-			serPort.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-			if(!serPort.openPort()) {
-				throw new Exception("Serial port \"" + portStr + "\" could not be opened.");
-			}
+			//serPort = SerialPort.getCommPort(portStr);
+			//serPort.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+			//if(!serPort.openPort()) {
+			//	throw new Exception("Serial port \"" + portStr + "\" could not be opened.");
+			//}
 		}
 		
 		public void run() {
-			InputStream inputStream = serPort.getInputStream();
-			Scanner scanner = new Scanner(inputStream);
+			//InputStream inputStream = serPort.getInputStream();
+			//Scanner scanner = new Scanner(inputStream);
 			try {
 				double oldtime = 0;
 				double time = 0;
@@ -212,8 +205,14 @@ public class CTserial {
 					expectedNumCSVEntries = chanNames.length + 1;
 				}
 				
-				while(!bShutdown && scanner.hasNextLine()) {
-					String line = scanner.nextLine();
+				int loopIdx = 0;
+				int loopIdxDontReset = 0;
+				while(!bShutdown) {
+					if ( (loopIdx%50) == 0 ) {
+						// To make "jumps" in data
+						loopIdx = 0;
+					}
+					String line = new String(Integer.toString(loopIdxDontReset*200) + "," + String.format("%7.3f", Math.sin((double)loopIdx)) + "," + String.format("%6.3f", Math.log((double)loopIdx)) + "," + String.format("%10.0f", (double)loopIdx*(double)loopIdx) + "," + String.format("%6.3f", 0.123*loopIdx));
 					// Make sure this new line has the correct number of entries
 					String[] chanDataStr = line.split(",");
 					
@@ -251,7 +250,7 @@ public class CTserial {
 						oldtime = time;
 						
 						//if(debug) {
-							System.err.println("CTserial t: " + time + ", last flush time: " + flushTime + ", data string: " + line);
+							System.err.println("CTserial t: " + String.format("%13.3f",time) + ", last flush time: " + String.format("%13.3f",flushTime) + ", data string: " + line);
 						//}
 						
 						try {
@@ -280,20 +279,14 @@ public class CTserial {
 							e.printStackTrace(); // don't give up on putData exceptions
 						}
 					}
+					// For fake data...
+					++loopIdx;
+					++loopIdxDontReset;
+					Thread.sleep(200);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			// Close input streams
-			try {
-				System.err.println("Close InputStream...");
-				inputStream.close();
-			} catch (IOException e) {
-				System.err.println("Caught exception closing InputStream");
-				e.printStackTrace();
-			}
-			System.err.println("Close Scanner...");
-			scanner.close();
 			
 			bShutdownDone = true;
 		}
