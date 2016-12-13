@@ -35,9 +35,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
-import javax.servlet.ServletConfig;
+//import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -58,7 +57,6 @@ import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.proxy.ProxyServlet;
 
 import cycronix.ctlib.CTdata;
 import cycronix.ctlib.CTinfo;
@@ -82,7 +80,6 @@ public class CTweb {
     private static long queryCount=0;
     private static String keyStoreFile="ctweb.jks";		// HTTPS keystore file path
     private static String keyStorePW="ctweb.pw";		// keystore PW
-    private static String proxyServer=null;
 	private static int	port = 8000;					// default port
 	private static int sslport = 8443;					// HTTPS port (0 means none)
 	//---------------------------------------------------------------------------------	
@@ -90,7 +87,7 @@ public class CTweb {
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTserver -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystorefile> -K <keystorePW> -X <proxyServer> rootFolder");
+    		System.err.println("CTserver -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystorefile> -K <keystorePW> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -104,32 +101,31 @@ public class CTweb {
      		if(args[dirArg].equals("-s"))  	sourceFolder = args[++dirArg]; 
      		if(args[dirArg].equals("-k"))	keyStoreFile = args[++dirArg];
      		if(args[dirArg].equals("-K"))	keyStorePW = args[++dirArg];
-     		if(args[dirArg].equals("-X"))  	proxyServer = args[++dirArg]; 
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
-     	if(proxyServer == null) {
-     		if(rootFolder == null && sourceFolder != null) {	// source is full path
-     			rootFolder = new File(sourceFolder).getParent();
-     			sourceFolder = new File(sourceFolder).getName();
-     		}
-     		else if(rootFolder == null) {				// check for a couple defaults
-     			if		(new File("CTdata").exists()) 		rootFolder = "CTdata";
-     			else if (new File(".."+File.separator+"CTdata").exists()) rootFolder = ".."+File.separator+"CTdata";
-     			else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
-     			else {
-     				System.err.println("Cannot find default data folder.  Please specify.");
-     				System.exit(0);	
-     			}
-     		}
+
+     	if(rootFolder == null && sourceFolder != null) {	// source is full path
+     		rootFolder = new File(sourceFolder).getParent();
+     		sourceFolder = new File(sourceFolder).getName();
+     	}
+     	else if(rootFolder == null) {				// check for a couple defaults
+     		if		(new File("CTdata").exists()) 		rootFolder = "CTdata";
+     		else if (new File(".."+File.separator+"CTdata").exists()) rootFolder = ".."+File.separator+"CTdata";
+     		else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
      		else {
-     			if(!(new File(rootFolder).exists())) {
-     				System.err.println("Cannot find specified data folder: "+rootFolder);
-     				System.exit(0);	
-     			}
+     			System.err.println("Cannot find default data folder.  Please specify.");
+     			System.exit(0);	
      		}
-     	}	
+     	}
+     	else {
+     		if(!(new File(rootFolder).exists())) {
+     			System.err.println("Cannot find specified data folder: "+rootFolder);
+     			System.exit(0);	
+     		}
+     	}
+
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
      	CTinfo.setDebug(debug);
@@ -221,21 +217,18 @@ public class CTweb {
 
         ServletHandler shandler = new ServletHandler();
         ServletHolder sholder;
-        if(proxyServer==null) 	sholder = new ServletHolder(new CTServlet());
-        else					sholder = new ServletHolder((ProxyServlet)(new CTProxyServlet()));
+        sholder = new ServletHolder(new CTServlet());
+
         sholder.setAsyncSupported(true);					// need fewer threads if non-blocking?
         sholder.setInitParameter("maxThreads", "100");		// how many is good?
         shandler.addServletWithMapping(sholder, "/*");
-
         server.setHandler(shandler);
 
-        if(proxyServer != null) System.out.println("Server started as proxy to: "+proxyServer);
-        else {
-            String msg;
-        	if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
-        	else				 msg = ", HTTP port: "+port;
-        	System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+msg+"\n");
-        }
+        String msg;
+        if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
+        else				 msg = ", HTTP port: "+port;
+        System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+msg+"\n");
+
         return server;
     }
     
@@ -525,52 +518,6 @@ public class CTweb {
 
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
-    	}
-    }
-    
-  //---------------------------------------------------------------------------------	
-
-    @SuppressWarnings("serial")
-    public static class CTProxyServlet extends ProxyServlet {
-    	@Override
-    	public void init(ServletConfig config) throws ServletException {
-    	    super.init(config);
-    	}
-    /*
-    	@Override
-    	protected HttpClient newHttpClient() {
-    		SslContextFactory sslContextFactory = new SslContextFactory();
-    		HttpClient httpClient = new HttpClient(sslContextFactory);
-    		return httpClient;
-    	}
-    */
-    	static boolean warnOnce = true;
-    	@Override
-    	protected String rewriteTarget(HttpServletRequest request) {
-    		String query = request.getQueryString();
-    		String requestURI = request.getRequestURI();
-    		int myport = request.getLocalPort();
-
-    		String newURI;
-    		if(proxyServer.startsWith("http")) 	newURI = proxyServer + requestURI;
-    		else {
-    			if(myport == sslport) {
-//    				newURI = "https://" + proxyServer + requestURI;		// match HTTP/S of origin server
-    				// Jetty ProxyServlet doesn't handle HTTPS, see: 
-    				// http://stackoverflow.com/questions/9852056/jetty-proxyservlet-with-ssl-support
-    				if(warnOnce) {
-    					System.err.println("Warning, HTTPS proxy not yet supported, using HTTP");
-    					warnOnce = false;
-    				}
-    				newURI = "http://" + proxyServer + requestURI;
-    			}
-    			else	newURI = "http://" + proxyServer + requestURI;	
-    		}
-    		
-    		if(query != null) newURI = newURI  + "?" + query;
-    		
-    		if(debug) System.err.println("Proxy redirect from: " + requestURI + ", to: "+ newURI);
-    		return newURI;
     	}
     }
     
