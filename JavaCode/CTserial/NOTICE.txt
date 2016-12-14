@@ -1,0 +1,4 @@
+CTserial
+Copyright 2016 Erigo Technologies LLC
+
+CTserial uses the jSerialComm library (http://fazecast.github.io/jSerialComm/).  jSerialComm is developed by Will Hedgecock of Fazecast, Inc. (will.hedgecock@fazecast.com).  jSerialComm is covered by the GNU Lesser General Public License (see the license files at https://github.com/Fazecast/jSerialComm).
