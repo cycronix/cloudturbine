@@ -171,7 +171,7 @@ public class CTweb {
         	http_config.addCustomizer(new SecureRequestCustomizer(false,0L,false));	// disable HSTS, allow HTTP and HTTPS both
         }
         http_config.setOutputBufferSize(32768);
-
+   
         // HTTP connector
         ServerConnector http = new ServerConnector(server,
                 new HttpConnectionFactory(http_config));
@@ -183,6 +183,9 @@ public class CTweb {
         	if (ksFile.exists()) {
         		// SSL Context Factory for HTTPS
         		SslContextFactory sslContextFactory = new SslContextFactory();
+        		
+//                sslContextFactory.setExcludeCipherSuites("^.*_(MD5|SHA|SHA1)$");		// enable old ciphers?
+        		
         		sslContextFactory.setKeyStorePath(ksFile.getAbsolutePath());
         		sslContextFactory.setKeyStorePassword(keyStorePW);
         		//        	sslContextFactory.setKeyManagerPassword(keypw);
