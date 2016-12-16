@@ -32,11 +32,13 @@ jar.doFirst {
         }
     }
     
+    // CTserial will now be covered under Apache 2.0 license, so no need to
+    // include these other license files in the JAR.
     // Include license files in the JAR's META-INF directory
     // Note that this isn't an Apache project as the other project's are
-    into("META-INF") {
-    	from "$projectDir/COPYING", "$projectDir/COPYING.LESSER", "$projectDir/LICENSE.txt", "$projectDir/NOTICE.txt"
-    }
+    // into("META-INF") {
+    // 	from "$projectDir/COPYING", "$projectDir/COPYING.LESSER", "$projectDir/LICENSE.txt", "$projectDir/NOTICE.txt"
+    // }
     
     // Build up a string containing all the runtime dependencies; this will be
     // used as the 'Class-Path' string in the manifest instead of hard-wiring
