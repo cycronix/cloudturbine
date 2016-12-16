@@ -99,16 +99,16 @@ subprojects {
     }
     
     // Copy license files into the APK automatically
+    // The following forum posting is a good example of how to create a file
+    // from scratch and put it into the APK, but I can't get it to work
+    // for our case where we copy files instead of making them from scratch.
+    // https://discuss.gradle.org/t/add-generated-file-to-meta-inf/11831
     task copyLicenseFiles(type: Copy) {
     	into "src/main/assets"
-    	// into "$buildDir/generated/resources/META-INF/"
     	from "$rootDir/../LICENSE", "$rootDir/../NOTICE"
     }
     // Run copyLicenseFiles before build so the license files are included in the APK
     preBuild.dependsOn copyLicenseFiles
-    // tasks.findAll { task ->
-    // 	task.name.startsWith('merge') && task.name.endsWith('Resources')
-	// }.each { t -> t.dependsOn copyLicenseFiles }
     
     build.doLast {
     	task -> println "Built $task.project.name"
