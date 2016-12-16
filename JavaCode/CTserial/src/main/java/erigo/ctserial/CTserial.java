@@ -232,6 +232,9 @@ public class CTserial {
 				
 				while(!bShutdown && scanner.hasNextLine()) {
 					String line = scanner.nextLine();
+					if ( (line == null) || (line.trim().isEmpty()) ) {
+						continue;
+					}
 					// Make sure this new line has the correct number of entries
 					String[] chanDataStr = line.split(",");
 					

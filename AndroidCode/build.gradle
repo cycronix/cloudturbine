@@ -98,6 +98,18 @@ subprojects {
         dirObj.deleteDir()
     }
     
+    // Copy license files into the APK automatically
+    task copyLicenseFiles(type: Copy) {
+    	into "src/main/assets"
+    	// into "$buildDir/generated/resources/META-INF/"
+    	from "$rootDir/../LICENSE", "$rootDir/../NOTICE"
+    }
+    // Run copyLicenseFiles before build so the license files are included in the APK
+    preBuild.dependsOn copyLicenseFiles
+    // tasks.findAll { task ->
+    // 	task.name.startsWith('merge') && task.name.endsWith('Resources')
+	// }.each { t -> t.dependsOn copyLicenseFiles }
+    
     build.doLast {
     	task -> println "Built $task.project.name"
     }
