@@ -356,7 +356,9 @@ public class CTserial {
 						// For simulated data
 						++loopIdx;
 						++loopIdxDontReset;
-						Thread.sleep((int)dt);
+						if (bSimulateMode) {
+							Thread.sleep((int)dt);
+						}
 					}
 				}
 			} catch (Exception e) {
