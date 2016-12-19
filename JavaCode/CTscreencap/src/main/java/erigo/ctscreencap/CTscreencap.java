@@ -19,17 +19,13 @@
 
 package erigo.ctscreencap;
 
-import java.awt.Graphics2D;
-import java.awt.MouseInfo;
-import java.awt.Rectangle;
-import java.awt.Robot;
-import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Timer;
 
 import javax.imageio.ImageIO;
 
@@ -41,7 +37,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import cycronix.ctlib.*;
+import cycronix.ctlib.CTwriter;
+import cycronix.ctlib.CTinfo;
 
 /**
  * 
@@ -65,19 +62,48 @@ public class CTscreencap {
 	public final static double DEFAULT_FPS = 5.0;         // default frames/sec
 	public final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 	
-	public double capturePeriodMillis;         // period between screen captures (msec)
-	public String outputFolder;                // location of output files
+	public long capturePeriodMillis;           // period between screen captures (msec)
+	public String outputFolder = ".";          // location of output files
 	public String sourceName = "CTscreencap";  // output source name
 	public String channelName = "image.jpg";   // output channel name
 	public boolean bZipMode = true;            // output ZIP files?
 	public long autoFlushMillis;               // flush interval (msec)
-	boolean bDebugMode = false;                // run CT in debug mode?
+	public boolean bDebugMode = false;         // run CT in debug mode?
+	public boolean bShutdown = false;          // is it time to shut down?
+	public BufferedImage cursor_img = null;    // cursor to add to the screen captures
+	public CTwriter ctw = null;                // CloudTurbine writer object
+	public Timer timerObj = null;              // Timer object
+	public ScreencapTask capTask = null;       // the class which actually performs the periodic screen capture
 	
 	public static void main(String[] argsI) {
 		new CTscreencap(argsI);
 	}
 	
 	public CTscreencap(String[] argsI) {
+		
+		// Specify a shutdown hook to catch Ctrl+c
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+        	@Override
+            public void run() {
+        		// Flag that it is time to shut down
+            	bShutdown = true;
+        		// Shut down CTwriter
+        		if (ctw == null) {
+        			return;
+        		}
+        		ctw.close();
+        		ctw = null;
+        		if (capTask != null) {
+        			capTask.cancel();
+        		}
+        		// Sleep for a bit to allow 
+        		try {
+            		Thread.sleep(1000);
+            	} catch (Exception e) {
+            		// Nothing to do
+            	}
+            }
+        });
 		
 		//
 		// Parse command line arguments
@@ -92,39 +118,39 @@ public class CTscreencap {
 		// 1. Setup command line options
 		//
 		Options options = new Options();
-		// Example of a Boolean option (i.e., only the flag, no argument goes with it)
+		// Boolean options (only the flag, no argument)
 		options.addOption("h", "help", false, "Print this message");
-		options.addOption("z", "zipfiles", false, "ZIP output files?");
-		options.addOption("x", "debug", false, "debug mode");
+		options.addOption("nozip", "no_zipfiles", false, "use this flag to suppress using ZIP output files");
+		options.addOption("x", "debug", false, "use debug mode");
 		// The following example is for: -outputfolder <folder>   (location of output files)
 		Option outputFolderOption = Option.builder("outputfolder")
                 .argName("folder")
                 .hasArg()
-                .desc("Location of output files; the source will be created under this folder")
+                .desc("Location of output files (source is created under this folder); default = \"" + outputFolder + "\"")
                 .build();
 		options.addOption(outputFolderOption);
 		Option filesPerSecOption = Option.builder("fps")
                 .argName("framespersec")
                 .hasArg()
-                .desc("Desired frame rate, frames/sec; default = " + DEFAULT_FPS)
+                .desc("Desired frame rate (frames/sec); default = " + DEFAULT_FPS)
                 .build();
 		options.addOption(filesPerSecOption);
 		Option autoFlushOption = Option.builder("f")
 				.argName("autoFlush")
 				.hasArg()
-				.desc("flush interval (sec) (amount of data per zipfile)")
+				.desc("flush interval (sec); amount of data per zipfile; default = " + Double.toString(AUTO_FLUSH_DEFAULT))
 				.build();
 		options.addOption(autoFlushOption);
 		Option sourceNameOption = Option.builder("s")
 				.argName("source name")
 				.hasArg()
-				.desc("name of output source")
+				.desc("name of output source; default = \"" + sourceName + "\"")
 				.build();
 		options.addOption(sourceNameOption);
 		Option chanNameOption = Option.builder("c")
-				.argName("channel name(s)")
+				.argName("channelname")
 				.hasArg()
-				.desc("name of output channel")
+				.desc("name of output channel; default = \"" + channelName + "\"")
 				.build();
 		options.addOption(chanNameOption);
 		
@@ -139,7 +165,7 @@ public class CTscreencap {
 	    catch( ParseException exp ) {
 	        // oops, something went wrong
 	        System.err.println( "Command line argument parsing failed: " + exp.getMessage() );
-	        return;
+	     	return;
 	    }
 	    
 	    //
@@ -160,17 +186,17 @@ public class CTscreencap {
 		double autoFlush = Double.parseDouble(line.getOptionValue("f",""+AUTO_FLUSH_DEFAULT));
 		autoFlushMillis = (long)(autoFlush*1000.);
 	    // ZIP output files?
-	    bZipMode = line.hasOption("zipfiles");
+	    bZipMode = !line.hasOption("no_zipfiles");
 	    // Where to write the files to
-	    outputFolder = line.getOptionValue("outputfolder","");
+	    outputFolder = line.getOptionValue("outputfolder",outputFolder);
 	    // Make sure outputFolder ends in a file separator
-	    if (outputFolder.endsWith,) {
-	    	
+	    if (!outputFolder.endsWith(File.separator)) {
+	    	outputFolder = outputFolder + File.separator;
 	    }
-	    // How many frames (ie, screen dumps) to capture per second
+	    // How many frames (i.e., screen dumps) to capture per second
 	    double framesPerSec = 0.0;
 	    try {
-	    	framesPerSec = Double.parseDouble(line.getOptionValue("fps",DEFAULT_FPS));
+	    	framesPerSec = Double.parseDouble(line.getOptionValue("fps",""+DEFAULT_FPS));
 	    	if (framesPerSec <= 0.0) {
 	    		throw new NumberFormatException("value must be greater than 0.0");
 	    	}
@@ -178,14 +204,12 @@ public class CTscreencap {
 	    	System.err.println("\nError parsing \"fps\" (it should be a floating point value):\n" + nfe);
 	    	return;
 	    }
-	    capturePeriodMillis = 1000.0 / framesPerSec;
+	    capturePeriodMillis = (long)(1000.0 / framesPerSec);
 	    // Run CT in debug mode?
 	    bDebugMode = line.hasOption("debug");
 		
-		//
-		// Utility code
-		// Get byte array for the mouse cursors
-		//
+	    /*
+		// Utility code to generate an encoded string representation of a cursor image
 		try {
 			String noshadowCursorStr = getEncodedImageString("C:\\TEMP\\Cursor_NoShadow.png","png");
 			String wshadowCursorStr = getEncodedImageString("C:\\TEMP\\Cursor_WShadow.png","png");
@@ -193,77 +217,44 @@ public class CTscreencap {
 			System.err.println("Cursor with shadow:\n" + wshadowCursorStr + "\n");
 		} catch (IOException ioe) {
 			System.err.println("Caught exception generating encoded string for cursor data:\n" + ioe);
+			// Signal the shutdown hook to just shut down
+			bShutdownDone = true;
 			return;
 		}
+		*/
 		
 		// Setup CTwriter
-		CTwriter ctw;
 		try {
 			ctw = new CTwriter(outputFolder + sourceName);
+			ctw.autoFlush(autoFlushMillis);
 			ctw.setZipMode(bZipMode);
 			CTinfo.setDebug(bDebugMode);
 			ctw.autoSegment(0);
-			// "Block" mode is for packed data (multiple points per output file);
-			// we don't want this; in our case, each output file will be one "data point"
-			ctw.setBlockMode(false);
-			ctw.setTimeRelative(true);
 		} catch (IOException ioe) {
 			System.err.println("Error trying to create CloudTurbine writer object:\n" + ioe);
 			return;
 		}
 		
-		//
-		// Decode the String corresponding to binary cursor data
-		//
-		BufferedImage cursor_img = null;
+		// Decode the String corresponding to binary cursor data; produce a BufferedImage with it
 		Base64.Decoder byte_decoder = Base64.getDecoder();
 		byte[] decoded_cursor_bytes = byte_decoder.decode(encoded_cursor_noshadow);
 		try {
 			cursor_img = ImageIO.read(new ByteArrayInputStream(decoded_cursor_bytes));
 		} catch (IOException ioe) {
 			System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
+			return;
 		}
 		
-		System.err.print("\n");
-		try {
-			for (int i=0; i<25; ++i) {
-				// Get screen image
-				Robot robot = new Robot();
-				Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-				BufferedImage screenCap = robot.createScreenCapture(screenRect);
-				// Add mouse cursor to the image
-				int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
-				int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
-				Graphics2D graphics2D = screenCap.createGraphics();
-				graphics2D.drawImage(cursor_img, mouse_x, mouse_y, null);
-				// Write the image to CloudTurbine file
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ImageIO.write(screenCap, "jpg", baos);
-				byte[] jpeg = baos.toByteArray();
-				baos.close();
-				System.out.print(".");
-				if (((i+1)%20)==0) {
-					System.err.print("\n");
-				}
-				ctw.putData(channelName,jpeg);
-				if (((i+1)%5)==0) {
-					ctw.flush();
-				}
-				try {
-					Thread.sleep(200);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		} catch (Exception e) {
-			System.err.println("Error processing screen capture:\n" + e);
-		}
+		// Setup periodic screen captures
+		capTask = new ScreencapTask(this);
+		timerObj = new Timer();
+        timerObj.schedule(capTask, 0, capturePeriodMillis);
 		
 	}
 	
 	//
-	// Read the specified image file and return a String corresponding to
-	// the encoded bytes of this image.
+	// Utility function which reads the specified image file and returns
+	// a String corresponding to the encoded bytes of this image.
 	//
 	public static String getEncodedImageString(String fileNameI, String formatNameI) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);
