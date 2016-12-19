@@ -39,6 +39,7 @@ package erigo.ctserial;
 // MM/DD/YYYY
 // ----------  --	-----------
 // 12/07/2016  JPW	Created.
+// 12/16/2016  JPW  Added "simulate" mode
 //
 
 import java.io.InputStream;
@@ -105,8 +106,9 @@ public class CTserial {
 		options.addOption(Option.builder("d").argName("delta-time").hasArg().desc("fixed delta-time (msec) between frames (dt=0 for arrival-times)").build());
 		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile)").build());
 		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite)").build());
-		options.addOption("b", false, "the first entry in the received CSV string is the data time");
+		options.addOption("b", "time_in_str", false, "the first entry in the received CSV string is the data time");
 		options.addOption("x", "debug", false, "debug mode");
+		options.addOption("z", "sim_mode", false, "turn on simulate mode (don't read serial port)");
         
 		// 2. Parse command line options
 		CommandLineParser parser = new DefaultParser();
@@ -149,10 +151,18 @@ public class CTserial {
 		
 		trimTime = Double.parseDouble(line.getOptionValue("t","0"));
 		
-		boolean bFirstValIsTime = line.hasOption("time in string");
+		boolean bFirstValIsTime = line.hasOption("time_in_str");
 		// Can't have both bFirstValIsTime==true and dt!=0
 		if ( bFirstValIsTime && (dt != 0) ) {
-			System.err.println("Not able to use both \"time in string\" and \"delta-time\" options at the same time.");
+			System.err.println("Not able to use both \"time_in_str\" and \"delta-time\" options at the same time.");
+			// Signal the shutdown hook to just shut down
+			bShutdownDone = true;
+			return;
+		}
+		
+		boolean bSimulateMode = line.hasOption("sim_mode");
+		if ( bSimulateMode && (dt == 0) ) {
+			System.err.println("Must specify \"delta-time\" when in simulate mode.");
 			// Signal the shutdown hook to just shut down
 			bShutdownDone = true;
 			return;
@@ -178,9 +188,12 @@ public class CTserial {
 			System.err.print(chanNames[i] + ",");
 		}
 		System.err.println(chanNames[ chanNames.length-1 ]);
+		if (bSimulateMode) {
+			System.err.println("IN SIMULATE MODE");
+		}
 		
 		try {
-			new SerialRead(portStr, chanNames, dt, bFirstValIsTime).start();
+			new SerialRead(portStr, chanNames, dt, bFirstValIsTime,bSimulateMode).start();
 		} catch (Exception e) {
 			System.err.println("Caught exception:\n" + e);
 			return;
@@ -201,24 +214,33 @@ public class CTserial {
 		private double dt = 0;
 		private boolean bFirstValIsTime = false;
 		private SerialPort serPort = null;
+		private boolean bSimulateMode = false;
 		
-		SerialRead(String portStrI, String[] chanNamesI, double dtI, boolean bFirstValIsTimeI) throws Exception {
+		SerialRead(String portStrI, String[] chanNamesI, double dtI, boolean bFirstValIsTimeI, boolean bSimulateModeI) throws Exception {
 			portStr = portStrI;
 			chanNames = chanNamesI;
 			dt = dtI;
 			bFirstValIsTime = bFirstValIsTimeI;
+			bSimulateMode = bSimulateModeI;
 			
-			// Open serial port
-			serPort = SerialPort.getCommPort(portStr);
-			serPort.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-			if(!serPort.openPort()) {
-				throw new Exception("Serial port \"" + portStr + "\" could not be opened.");
+			// Open serial port (if not in simulate mode)
+			if (!bSimulateMode) {
+				serPort = SerialPort.getCommPort(portStr);
+				serPort.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+				if(!serPort.openPort()) {
+					throw new Exception("Serial port \"" + portStr + "\" could not be opened.");
+				}
 			}
 		}
 		
 		public void run() {
-			InputStream inputStream = serPort.getInputStream();
-			Scanner scanner = new Scanner(inputStream);
+			InputStream inputStream = null;
+			Scanner scanner = null;
+			if (!bSimulateMode) {
+				inputStream = serPort.getInputStream();
+				scanner = new Scanner(inputStream);
+			}
+			
 			try {
 				double oldtime = 0;
 				double time = 0;
@@ -230,8 +252,39 @@ public class CTserial {
 					expectedNumCSVEntries = chanNames.length + 1;
 				}
 				
-				while(!bShutdown && scanner.hasNextLine()) {
-					String line = scanner.nextLine();
+				// Variables for simulate mode
+				int loopIdx = 0;
+				int loopIdxDontReset = 0;
+				
+				while(!bShutdown && ( bSimulateMode || scanner.hasNextLine() ) ) {
+					if ( bSimulateMode && ((loopIdx%50) == 0) ) {
+						// To make "jumps" in the simulated data
+						loopIdx = 0;
+					}
+					String line = null;
+					if (!bSimulateMode) {
+						line = scanner.nextLine();
+					} else {
+						int new_time = (int)(loopIdxDontReset*dt);
+						line = new String("");
+						if (bFirstValIsTime) {
+						    line = new String(Integer.toString(new_time));
+						}
+						for (int i=0; i<chanNames.length; ++i) {
+							// Include a comma before next entry?
+							if ( (i>0) || ( (i==0) && (bFirstValIsTime) ) ) {
+								line = line + ",";
+							}
+							// Have different data for even and odd channels
+							if ((i%2)==0) {
+								// even channel
+								line = line + String.format("%7.3f", (i+1)*Math.sin((double)loopIdx));
+							} else {
+								// odd channel
+								line = line + String.format("%6.3f", 0.123*(i+1)*loopIdx);
+							}
+						}
+					}
 					if ( (line == null) || (line.trim().isEmpty()) ) {
 						continue;
 					}
@@ -300,21 +353,29 @@ public class CTserial {
 						} catch(Exception e) {
 							e.printStackTrace(); // don't give up on putData exceptions
 						}
+						// For simulated data
+						++loopIdx;
+						++loopIdxDontReset;
+						if (bSimulateMode) {
+							Thread.sleep((int)dt);
+						}
 					}
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			// Close input streams
-			try {
-				System.err.println("Close InputStream...");
-				inputStream.close();
-			} catch (IOException e) {
-				System.err.println("Caught exception closing InputStream");
-				e.printStackTrace();
+			if (!bSimulateMode) {
+				// Close input streams
+				try {
+					System.err.println("Close InputStream...");
+					inputStream.close();
+				} catch (IOException e) {
+					System.err.println("Caught exception closing InputStream");
+					e.printStackTrace();
+				}
+				System.err.println("Close Scanner...");
+				scanner.close();
 			}
-			System.err.println("Close Scanner...");
-			scanner.close();
 			
 			bShutdownDone = true;
 		}
