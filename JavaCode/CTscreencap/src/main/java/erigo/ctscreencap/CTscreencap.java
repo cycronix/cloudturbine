@@ -44,14 +44,11 @@ import cycronix.ctlib.CTinfo;
  * 
  * Periodically perform a screen capture and save it to CloudTurbine as an image.
  * 
- * Initial code based on the example found at:
- * http://www.codejava.net/java-se/graphics/how-to-capture-screenshot-programmatically-in-java
- * 
  * For drawing right on the computer desktop:
  * http://stackoverflow.com/questions/21604762/drawing-over-screen-in-java
  * https://www.reddit.com/r/learnjava/comments/40pdhv/java_draw_on_screen/
  *  
- * @author JohnW
+ * @author John P. Wilson
  *
  */
 public class CTscreencap {
@@ -74,6 +71,7 @@ public class CTscreencap {
 	public CTwriter ctw = null;                // CloudTurbine writer object
 	public Timer timerObj = null;              // Timer object
 	public ScreencapTask capTask = null;       // the class which actually performs the periodic screen capture
+	public float imageCompression = 0.70f;      // Image compression; 0.00 - 1.00
 	
 	public static void main(String[] argsI) {
 		new CTscreencap(argsI);
@@ -153,6 +151,12 @@ public class CTscreencap {
 				.desc("name of output channel; default = \"" + channelName + "\"")
 				.build();
 		options.addOption(chanNameOption);
+		Option imgCompressionOption = Option.builder("ic")
+				.argName("imagecompression")
+				.hasArg()
+				.desc("level of image compression, 0.00 - 1.00; default = " + Float.toString(imageCompression))
+				.build();
+		options.addOption(imgCompressionOption);
 		
 		//
 		// 2. Parse command line options
@@ -207,6 +211,17 @@ public class CTscreencap {
 	    capturePeriodMillis = (long)(1000.0 / framesPerSec);
 	    // Run CT in debug mode?
 	    bDebugMode = line.hasOption("debug");
+	    // Image compression
+	    String imageCompressionStr = line.getOptionValue("ic",""+imageCompression);
+	    try {
+	    	imageCompression = Float.parseFloat(imageCompressionStr);
+	    	if ( (imageCompression < 0.0f) || (imageCompression > 1.0f) ) {
+	    		throw new NumberFormatException("");
+	    	}
+	    } catch (NumberFormatException nfe) {
+	    	System.err.println("\nimagecompression must be a number in the range 0.0 <= x <= 1.0");
+	    	return;
+	    }
 		
 	    /*
 		// Utility code to generate an encoded string representation of a cursor image
