@@ -62,9 +62,10 @@ public class CTblocktest {
 				
 		if(!parseArgs(args)) return;
 		CTinfo.setDebug(debug);
-		if(readCheck) System.err.println("Note: for reliable crossCheck delete any pre-existing data at: "+sourceFolder);
+		if(readCheck) System.err.println("Note: for reliable readCheck delete any pre-existing data at: "+sourceFolder);
 		
 		// run each permutation of packMode, zipMode, numMode
+		System.err.println("starting writeTests...");
 		runTest("CTbin",		false,	false,	false);
 		runTest("CTpackbin",	true,	false,	false);
 		runTest("CTpackzipbin", true,	true,	false);
@@ -78,18 +79,21 @@ public class CTblocktest {
 		// cross-check same data all cases
 		if(readCheck) {
 			int errCount=0;
-			errCount += crossCheck("CTbin",		false,	false,	false);
-			errCount += crossCheck("CTpackbin",	true,	false,	false);
-			errCount += crossCheck("CTpackzipbin", true,	true,	false);
+			System.err.println("starting readChecks...");
+			errCount += crossCheck("CTbin",			false,	false,	false);
+			errCount += crossCheck("CTpackbin",		true,	false,	false);
+			errCount += crossCheck("CTpackzipbin", 	true,	true,	false);
 			errCount += crossCheck("CTzipbin",		false,	true,	false);
-			errCount += crossCheck("CTnum",		false,	false,	true);
-			errCount += crossCheck("CTpacknum",	true,	false,	true);
-			errCount += crossCheck("CTpackzipnum", true,	true,	true);
+			errCount += crossCheck("CTnum",			false,	false,	true);
+			errCount += crossCheck("CTpacknum",		true,	false,	true);
+			errCount += crossCheck("CTpackzipnum", 	true,	true,	true);
 			errCount += crossCheck("CTzipnum",		false,	true,	true);
-			System.err.println("Done checking, total errors: "+errCount);
+			if(errCount==0) System.err.println("Done checking, SUCCESS");
+			else			System.err.println("Done checking, FAIL ("+errCount+" Errors)");
 		}
 	}
 	
+	//--------------------------------------------------------------------------------------------------------
 	static void runTest(String modeName, boolean packMode, boolean zipMode, boolean numMode) {
 		try {
 			CTwriter ctw = new CTwriter(sourceFolder+File.separator+modeName);		// new CTwriter at root/source folder
@@ -117,7 +121,7 @@ public class CTblocktest {
 		} catch(Exception e) {
 			System.err.println("Exception: "+e);
 		} 
-		System.err.println("runTest done: "+modeName);
+		System.err.println("writeTest done: "+modeName);
 	}
 	
 	//--------------------------------------------------------------------------------------------------------
@@ -142,11 +146,11 @@ public class CTblocktest {
 //					System.err.println("i: "+i+", j: "+j);
 
 					if(dd[i]!= new Float(i+j)) {
-						if(debug) System.err.println(modeName+": crossCheck error, chan: "+chan+": dd["+i+"]: "+dd[i]+" vs "+new Float(i+j)+", j: "+j);
+						if(debug) System.err.println(modeName+": readCheck error, chan: "+chan+": dd["+i+"]: "+dd[i]+" vs "+new Float(i+j)+", j: "+j);
 						errCount++;
 					}
 					if(t[i]!= iTime) {
-						if(debug) System.err.println(modeName+": crossCheck error, chan: "+chan+": t["+i+"]: "+t[i]+" vs "+iTime+", j: "+j);
+						if(debug) System.err.println(modeName+": readCheck error, chan: "+chan+": t["+i+"]: "+t[i]+" vs "+iTime+", j: "+j);
 						errCount++;
 					}
 				}
@@ -155,7 +159,9 @@ public class CTblocktest {
 		} catch(Exception e) {
 			System.err.println("Exception: "+e);
 		} 
-		System.err.println(modeName+": crossCheck errors: "+errCount);
+		
+		if(errCount==0) System.err.println("readTest done: "+modeName);
+		else			System.err.println("readTest done: "+modeName+", Errors: "+errCount);
 		return errCount;
 	}
 	
@@ -167,9 +173,11 @@ public class CTblocktest {
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption("x", "debug", false, "debug mode"+", default: "+debug);
-		options.addOption("c", "crossCheck", false, "crossCheck mode"+", default: "+readCheck);
+		options.addOption("r", "readCheck", false, "readCheck mode"+", default: "+readCheck);
 
 		options.addOption(Option.builder("o").argName("outputFolder").hasArg().desc("name of output folder"+", default: "+sourceFolder).build());
+		options.addOption(Option.builder("n").argName("nsamp").hasArg().desc("number samples per channel"+", default: "+nsamp).build());
+		options.addOption(Option.builder("c").argName("nchan").hasArg().desc("number of channels"+", default: "+nchan).build());
 
 		// 2. Parse command line options
 		CommandLineParser parser = new DefaultParser();
@@ -192,7 +200,10 @@ public class CTblocktest {
 		}
 
 		debug 		 		= line.hasOption("debug");
-		readCheck			= line.hasOption("crossCheck");
+		readCheck			= line.hasOption("readCheck");
+
+		nsamp 	= Integer.parseInt(line.getOptionValue("n",""+nsamp));
+		nchan 	= Integer.parseInt(line.getOptionValue("c",""+nchan));
 
 		return true;		// OK to go
 	}
