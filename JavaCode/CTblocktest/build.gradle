@@ -28,7 +28,7 @@ jar.doFirst {
     String runtimeDependenciesStr = sb.toString().trim()
     
     manifest {
-            attributes 	'Main-Class': 'ctmetrics.CTmetrics',
+            attributes 	'Main-Class': 'ctblocktest.CTblocktest',
       			'Class-Path': runtimeDependenciesStr
     }
 }
