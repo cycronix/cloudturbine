@@ -95,8 +95,8 @@ public class CTftp extends CTwriter {
 				currentDir = filepath;
 			}
 
-//			OutputStream ostream = client.storeFileStream(filename+".tmp");
-			OutputStream ostream = client.storeFileStream(filename);				// try without tmp file
+			OutputStream ostream = client.storeFileStream(filename+".tmp");
+//			OutputStream ostream = client.storeFileStream(filename);				// try without tmp file
 
 			CTinfo.debugPrint("ftp pathname: "+pathname+", filename: "+filename+", filepath: "+filepath);
 			if(ostream==null) {
@@ -108,8 +108,8 @@ public class CTftp extends CTwriter {
 			if(!client.completePendingCommand())
 				throw new IOException("Unable to FTP file: " + client.getReplyString());
 			
-//			if(!client.rename(filename+".tmp", filename)) 
-//				throw new IOException("Unable to rename file: " + client.getReplyString());
+			if(!client.rename(filename+".tmp", filename)) 
+				throw new IOException("Unable to rename file: " + client.getReplyString());
 
 		} catch (Exception e) {
 			e.printStackTrace();

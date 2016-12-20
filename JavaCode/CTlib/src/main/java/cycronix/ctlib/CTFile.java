@@ -219,7 +219,8 @@ class CTFile extends File {
 		switch(fileType) {
 		case ZIP:				// top level file.zip
 			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
-
+			if(zipMap==null) return null;		// couldn't create (IO error?)
+			
 			Object[] sfiles = zipMap.keySet().toArray();				// need to concat dupes?
 			clist = new CTFile[sfiles.length];
 
@@ -512,7 +513,7 @@ class CTFile extends File {
 		try{		//get the zip file content
 //			System.err.println("Building ZipMap for: "+myPath);
 
-			ZipFile zfile = new ZipFile(zipfile);
+			ZipFile zfile = new ZipFile(zipfile);		// this can throw exception being created in RT
 			Enumeration<? extends ZipEntry> zenum = zfile.entries();
 
 			int numEntries = zfile.size();		// convert to array, easier loop control
@@ -561,7 +562,11 @@ class CTFile extends File {
 			ZipCache.put(myPath, zipMap);			// cache
 			
 //		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
-		} catch(Exception ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile+", myPath: "+myPath); ex.printStackTrace(); }
+		} catch(Exception ex) { 
+			zipMap = null;
+			System.err.println("ZipMap Exception on zipfile: "+zipfile); 
+//			ex.printStackTrace(); 
+		}
 
 	}
 
