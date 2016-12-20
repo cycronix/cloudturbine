@@ -47,7 +47,7 @@ import cycronix.ctlib.CTwriter;
 public class ScreencapTask extends TimerTask implements Runnable {
 	
 	public CTscreencap cts = null;
-	public CTwriter ctw = null;
+	// public CTwriter ctw = null;
 	public int numScreenCaps = 0;   // number of screen captures that have been performed
 	public JPEGImageWriteParam jpegParams = null;
 	public Rectangle captureRect = null;
@@ -55,7 +55,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
 		cts = ctsI;
-		ctw = cts.ctw;
+		// ctw = cts.ctw;
 		captureRect = cts.regionToCapture;
 		
 		// Setup compression
@@ -70,7 +70,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 		// Do a check on the amount of time it takes to perform this capture
 		long startTime = System.currentTimeMillis();
 		
-		if ( (cts.bShutdown) || (ctw == null) ) {
+		// if ( (cts.bShutdown) || (ctw == null) ) {
+		if (cts.bShutdown) {
 			return;
 		}
 		
@@ -114,9 +115,12 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			if ((numScreenCaps%20)==0) {
 				System.err.print("\n");
 			}
-			ctw.putData(cts.channelName,jpegByteArray);
+			// ctw.putData(cts.channelName,jpegByteArray);
+			// Add baos to the asynchronous event queue of to-be-processed objects
+			cts.queue.put(jpegByteArray);
 		} catch (Exception e) {
-			if ( !cts.bShutdown && (ctw != null) ) {
+			// if ( !cts.bShutdown && (ctw != null) ) {
+			if (!cts.bShutdown) {
 				// Only print out error messages if we know we aren't in shutdown mode
 			    System.err.println("\nError processing screen capture:\n" + e);
 			    e.printStackTrace();
