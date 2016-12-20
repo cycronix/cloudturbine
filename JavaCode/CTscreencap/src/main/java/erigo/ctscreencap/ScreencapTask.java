@@ -44,7 +44,7 @@ import cycronix.ctlib.CTwriter;
 // http://www.codejava.net/java-se/graphics/how-to-capture-screenshot-programmatically-in-java
 //
 
-public class ScreencapTask extends TimerTask {
+public class ScreencapTask extends TimerTask implements Runnable {
 	
 	public CTscreencap cts = null;
 	public CTwriter ctw = null;

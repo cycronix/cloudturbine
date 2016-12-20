@@ -101,7 +101,7 @@ public class CTscreencap {
         		if (capTask != null) {
         			capTask.cancel();
         		}
-        		// Sleep for a bit to allow 
+        		// Sleep for a bit to allow any currently running tasks to finish
         		try {
             		Thread.sleep(1000);
             	} catch (Exception e) {
