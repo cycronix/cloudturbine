@@ -19,6 +19,10 @@
 
 package erigo.ctscreencap;
 
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +32,7 @@ import java.util.Base64;
 import java.util.Timer;
 
 import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -71,7 +76,9 @@ public class CTscreencap {
 	public CTwriter ctw = null;                // CloudTurbine writer object
 	public Timer timerObj = null;              // Timer object
 	public ScreencapTask capTask = null;       // the class which actually performs the periodic screen capture
-	public float imageCompression = 0.70f;      // Image compression; 0.00 - 1.00
+	public float imageCompression = 0.70f;     // Image compression; 0.00 - 1.00
+	public Rectangle regionToCapture = null;    //      new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+	                                           // The region to capture; defaults to entire screen
 	
 	public static void main(String[] argsI) {
 		new CTscreencap(argsI);
@@ -154,7 +161,7 @@ public class CTscreencap {
 		Option imgCompressionOption = Option.builder("ic")
 				.argName("imagecompression")
 				.hasArg()
-				.desc("level of image compression, 0.00 - 1.00; default = " + Float.toString(imageCompression))
+				.desc("compression quality, 0.00 - 1.00 (higher numbers are better quality/less compression); default = " + Float.toString(imageCompression))
 				.build();
 		options.addOption(imgCompressionOption);
 		
@@ -237,6 +244,40 @@ public class CTscreencap {
 			return;
 		}
 		*/
+	    
+	    // Determine if the GraphicsDevice supports translucency.
+	    // This code is from https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
+        GraphicsEnvironment graphEnv = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        GraphicsDevice graphDev = graphEnv.getDefaultScreenDevice();
+        // If translucent windows aren't supported, capture the entire screen
+        if (!graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.TRANSLUCENT)) {
+            System.err.println("Translucency is not supported; capturing the entire screen.");
+            regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+        } else {
+        	// Have user specify region to capture by drawing a rectangle with the mouse
+    	    // Create the GUI on the event-dispatching thread
+    	    final CTscreencap temporaryCTS = this;
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                	DefineCaptureRegion dcr = new DefineCaptureRegion(temporaryCTS);
+                    // Display the window; since this is a modal dialog, this method won't
+                	// return until the dialog is hidden
+                    dcr.setVisible(true);
+                }
+            });
+        }
+        
+        // Wait until user has specified the region to capture before proceeding
+        while (regionToCapture == null) {
+        	try {
+        		Thread.sleep(500);
+        	} catch (Exception e) {
+        		// Nothing to do
+        	}
+        }
+        
+        System.err.println("Proceeding to screen capture; click Ctrl+c when finished");
 		
 		// Setup CTwriter
 		try {

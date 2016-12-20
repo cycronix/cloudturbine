@@ -23,7 +23,6 @@ import java.awt.Graphics2D;
 import java.awt.MouseInfo;
 import java.awt.Rectangle;
 import java.awt.Robot;
-import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Iterator;
@@ -51,11 +50,13 @@ public class ScreencapTask extends TimerTask {
 	public CTwriter ctw = null;
 	public int numScreenCaps = 0;   // number of screen captures that have been performed
 	public JPEGImageWriteParam jpegParams = null;
+	public Rectangle captureRect = null;
 	
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
 		cts = ctsI;
 		ctw = cts.ctw;
+		captureRect = cts.regionToCapture;
 		
 		// Setup compression
 		jpegParams = new JPEGImageWriteParam(null);
@@ -82,7 +83,6 @@ public class ScreencapTask extends TimerTask {
 		try {
 			// Get screen image
 			Robot robot = new Robot();
-			Rectangle captureRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 			BufferedImage screenCap = robot.createScreenCapture(captureRect);
 			// Add mouse cursor to the image
 			int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
