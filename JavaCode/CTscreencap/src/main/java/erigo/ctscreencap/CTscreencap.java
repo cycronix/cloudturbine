@@ -30,6 +30,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
@@ -56,7 +59,7 @@ import cycronix.ctlib.CTinfo;
  * @author John P. Wilson
  *
  */
-public class CTscreencap {
+public class CTscreencap extends TimerTask {
 	
 	// Encoded byte array of the cursor image data from "Cursor_NoShadow.png"
 	public static String encoded_cursor_noshadow = "iVBORw0KGgoAAAANSUhEUgAAABQAAAAgCAYAAAASYli2AAACa0lEQVR42q2WT2jSYRjHR+QtwX/oREVBhIYxGzJNyEOIXTp0yr8HYTRQlNz8O6dgoJ4FT2ZeJAw8CEkdhBYMFHfypLBDsZ3CUYcijErn7+l9BCPZbJrvF97L+/D7/N7neZ8/74rVan27QlngdDpfUQWKxWJwuVwvqQG73S6srq7C1tbWMyrAwWAAnU4HhEIhbG9vZ6kAUe12GwQCAbjd7jQVIOro6Ah4PB7j9XpjVICow8ND4HA4jM/ne0IFiKrX68DlcpmdnZ3HVICoWq02dn93d9dBBYiqVCrA5/NHoVDoIRUgqlQqYUoh9D4VICqfz2NFnUej0btUgKhsNgsymWy4t7e3SQWIymQyoFAofsVisVtUgKh4PA4qlepHIpFQUQEyDAOBQADW1ta+E7hsaeAESmoe1tfXvxH3RUsDUaPRCPsoaLXaL8lkkrcQ8OTkBFqt1oXVaDRAo9GAXq//TKA35gaSmgY2m81g3GYti8Xybm7g8fHxuK7JKTj/ldgHBwdweno6tWcymXBMPF8YWK1WgcVigd/vv7CvVqv7CwHL5TJ2F4bMlhzph9Dv9//YhsMhSKVSjKdrLmCxWMSZMiJJ+wgNBoPhU6FQmDplKpUCs9n8/kpgLpcDkUh0HgwGH0wMHo/nKaYEJvFEvV4PbxvLTzkTmE6nQSKRDMPh8L2/DeRGr2N3aTabU6e02Wxgt9tfzwTK5fJBJBK5c5mRfPjG4XBMxZEML1AqlT8vpaFhf3//9qy/YUdBF8/OzsZze2NjA9fXmd2bFPbNq9KAXMIHnU43noKkdl+QUFxb6mmBaWI0Gj/+y5OJfgOMmgOC3DbusQAAAABJRU5ErkJggg==";
@@ -75,10 +78,10 @@ public class CTscreencap {
 	public BufferedImage cursor_img = null;    // cursor to add to the screen captures
 	public CTwriter ctw = null;                // CloudTurbine writer object
 	public Timer timerObj = null;              // Timer object
-	public ScreencapTask capTask = null;       // the class which actually performs the periodic screen capture
+	// public ScreencapTask capTask = null;       // the class which actually performs the periodic screen capture
 	public float imageCompression = 0.70f;     // Image compression; 0.00 - 1.00
-	public Rectangle regionToCapture = null;    //      new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-	                                           // The region to capture; defaults to entire screen
+	public Rectangle regionToCapture = null;   // The region to capture; defaults to entire screen
+	public BlockingQueue<byte[]> queue = null; // Queue of byte arrays containing screen captures to be sent to CT
 	
 	public static void main(String[] argsI) {
 		new CTscreencap(argsI);
@@ -98,10 +101,10 @@ public class CTscreencap {
         		}
         		ctw.close();
         		ctw = null;
-        		if (capTask != null) {
-        			capTask.cancel();
-        		}
-        		// Sleep for a bit to allow 
+        		//if (capTask != null) {
+        		//	capTask.cancel();
+        		//}
+        		// Sleep for a bit to allow any currently running tasks to finish
         		try {
             		Thread.sleep(1000);
             	} catch (Exception e) {
@@ -291,6 +294,9 @@ public class CTscreencap {
 			return;
 		}
 		
+		// Setup the asynchronous event queue to store by arrays
+		queue = new LinkedBlockingQueue<byte[]>();
+		
 		// Decode the String corresponding to binary cursor data; produce a BufferedImage with it
 		Base64.Decoder byte_decoder = Base64.getDecoder();
 		byte[] decoded_cursor_bytes = byte_decoder.decode(encoded_cursor_noshadow);
@@ -302,10 +308,45 @@ public class CTscreencap {
 		}
 		
 		// Setup periodic screen captures
-		capTask = new ScreencapTask(this);
+		// capTask = new ScreencapTask(this);
+		// timerObj = new Timer();
+        // timerObj.schedule(capTask, 0, capturePeriodMillis);
 		timerObj = new Timer();
-        timerObj.schedule(capTask, 0, capturePeriodMillis);
+        timerObj.schedule(this, 0, capturePeriodMillis);
+        
+        // Grab byte arrays off the queue and process them
+        while (true) {
+        	if (bShutdown) {
+    			return;
+    		}
+        	byte[] jpegByteArray = null;
+        	try {
+				jpegByteArray = queue.take();
+			} catch (InterruptedException e) {
+				System.err.println("Caught exception working with the LinkedBlockingQueue:\n" + e);
+			}
+        	if (jpegByteArray != null) {
+        		try {
+					ctw.putData(channelName,jpegByteArray);
+				} catch (Exception e) {
+					if (!bShutdown) {
+					    System.err.println("Caught CTwriter exception:\n" + e);
+					}
+				}
+        		System.out.print("x");
+        	}
+        }
 		
+	}
+	
+	// Method called by the periodic timer; spawn a new thread to perform the screen capture
+	public void run() {
+		if (bShutdown) {
+			return;
+		}
+		ScreencapTask screencapTask = new ScreencapTask(this);
+        Thread threadObj = new Thread(screencapTask);
+        threadObj.start();
 	}
 	
 	//
