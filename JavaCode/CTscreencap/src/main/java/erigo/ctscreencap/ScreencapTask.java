@@ -67,7 +67,6 @@ public class ScreencapTask extends TimerTask implements Runnable {
 		// Do a check on the amount of time it takes to perform this capture
 		long startTime = System.currentTimeMillis();
 		
-		// if ( (cts.bShutdown) || (ctw == null) ) {
 		if (cts.bShutdown) {
 			return;
 		}
@@ -107,11 +106,9 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			byte[] jpegByteArray = baos.toByteArray();
 			baos.close();
 			System.out.print(".");
-			// ctw.putData(cts.channelName,jpegByteArray);
 			// Add baos to the asynchronous event queue of to-be-processed objects
 			cts.queue.put(jpegByteArray);
 		} catch (Exception e) {
-			// if ( !cts.bShutdown && (ctw != null) ) {
 			if (!cts.bShutdown) {
 				// Only print out error messages if we know we aren't in shutdown mode
 			    System.err.println("\nError processing screen capture:\n" + e);
