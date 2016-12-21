@@ -189,20 +189,11 @@ public class CTwriter {
 		asyncFlush = asyncFlag;
 		autoFlush = timePerBlock;
 
-		if(timePerBlock == 0 || asyncFlag) 	
+		if(timePerBlock == 0 /* || asyncFlag */) 	
 				autoFlush = Long.MAX_VALUE;
 		else	autoFlush = timePerBlock;				// msec
-/*				
-		if(asyncFlag) {		// setup async flush timer thread
-			flushTimer.scheduleAtFixedRate(
-			    new TimerTask() {
-			      public void run() { 
-//			    	  System.err.println("flushTimer!"); 
-			    	  try{ flush(); } catch(Exception e){}; }
-			    }, 0, timePerBlock);
-		}
-		else	flushTimer.cancel();
-*/
+		
+//		System.err.println("autoFlush set, timePerBlock: "+timePerBlock+", asyncFlag: "+asyncFlag+", autoFlush: "+autoFlush);
 	}
 	
 	/**
@@ -583,6 +574,7 @@ public class CTwriter {
 				prevblockTime = blockTime;
 				blockCount++;
 				
+//				System.err.println("asyncFlush: "+asyncFlush+", autoFlush: "+autoFlush);
 				if(asyncFlush) {	// async flush autoFlush_msec after each new block
 					if(flushTimer!=null) flushTimer.cancel();			// cancel any overlap
 					flushTimer = new Timer(true);
