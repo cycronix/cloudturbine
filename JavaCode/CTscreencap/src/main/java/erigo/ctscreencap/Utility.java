@@ -32,9 +32,16 @@ import java.awt.GridBagLayout;
 public class Utility {
 
 	/**************************************************************************
-	 * Add a component to a contain in the GUI using the GridBagLayout manager
-	 * <p>
-	 *
+	 * 
+	 * add()
+	 * 
+	 * Add a component to a container in the GUI using the GridBagLayout manager.
+	 * 
+	 * This code is from open source DataTurbine class com.rbnb.utility.Utility.
+     * Covered by Apache 2.0 license.
+     * Copyright 1997, 2000 Creare Inc, Hanover, N.H.
+     * All rights reserved.
+	 * 
 	 * @author John P. Wilson
 	 *
 	 * @param container

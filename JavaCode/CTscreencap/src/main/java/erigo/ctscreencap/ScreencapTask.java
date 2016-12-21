@@ -35,10 +35,11 @@ import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
 
-import cycronix.ctlib.CTwriter;
-
 //
-// This class handles the periodic screen capture.
+// Generate a screen capture.
+//
+// The run() method in this class generates a screen capture and puts it
+// in the blocking queue managed by CTscreencap.
 //
 // Initial code based on the example found at:
 // http://www.codejava.net/java-se/graphics/how-to-capture-screenshot-programmatically-in-java
@@ -47,21 +48,17 @@ import cycronix.ctlib.CTwriter;
 public class ScreencapTask extends TimerTask implements Runnable {
 	
 	public CTscreencap cts = null;
-	// public CTwriter ctw = null;
-	public int numScreenCaps = 0;   // number of screen captures that have been performed
-	public JPEGImageWriteParam jpegParams = null;
-	public Rectangle captureRect = null;
+	public JPEGImageWriteParam jpegParams = null; // to specify image quality
+	public Rectangle captureRect = null;          // the rectangular region to capture
 	
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
 		cts = ctsI;
-		// ctw = cts.ctw;
 		captureRect = cts.regionToCapture;
-		
-		// Setup compression
+		// Setup image quality
 		jpegParams = new JPEGImageWriteParam(null);
 		jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-		jpegParams.setCompressionQuality(cts.imageCompression);
+		jpegParams.setCompressionQuality(cts.imageQuality);
 	}
 	
 	// Perform the work of the screen capture
@@ -75,21 +72,19 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			return;
 		}
 		
-		numScreenCaps += 1;
-		
-		if (numScreenCaps == 1) {
-			System.err.print("\n");
-		}
-		
 		try {
+			// Need to add the mouse cursor to the image
+			int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
+			int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
 			// Get screen image
 			Robot robot = new Robot();
 			BufferedImage screenCap = robot.createScreenCapture(captureRect);
-			// Add mouse cursor to the image
-			int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
-			int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
-			Graphics2D graphics2D = screenCap.createGraphics();
-			graphics2D.drawImage(cts.cursor_img, mouse_x, mouse_y, null);
+			if (cts.bIncludeMouseCursor) {
+				int cursor_x = mouse_x - captureRect.x;
+				int cursor_y = mouse_y - captureRect.y;
+				Graphics2D graphics2D = screenCap.createGraphics();
+				graphics2D.drawImage(cts.cursor_img, cursor_x, cursor_y, null);
+			}
 			// Write the image to CloudTurbine file
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			//
@@ -112,9 +107,6 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			byte[] jpegByteArray = baos.toByteArray();
 			baos.close();
 			System.out.print(".");
-			if ((numScreenCaps%20)==0) {
-				System.err.print("\n");
-			}
 			// ctw.putData(cts.channelName,jpegByteArray);
 			// Add baos to the asynchronous event queue of to-be-processed objects
 			cts.queue.put(jpegByteArray);
