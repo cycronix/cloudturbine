@@ -52,10 +52,30 @@ import cycronix.ctlib.CTinfo;
  * 
  * Periodically perform a screen capture and save it to CloudTurbine as an image.
  * 
- * For drawing right on the computer desktop:
- * http://stackoverflow.com/questions/21604762/drawing-over-screen-in-java
- * https://www.reddit.com/r/learnjava/comments/40pdhv/java_draw_on_screen/
- *  
+ * The following classes are involved in this application:
+ * 1. CTscreencap: main method; the constructor manages the flow of the whole program
+ * 2. DefineCaptureRegion: user selects the region of the screen they wish to capture
+ * 3. ScreencapTask: generates a screen capture
+ * 4. Utility: contains utility methods
+ * 
+ * The CTscreencap constructor is the main work-horse and "manager" for the application.
+ * It does the following:
+ * 1. Setup a shutdown hook to capture Ctrl+c to cleanly shut down the program
+ * 2. Parse command line arguments
+ * 3. Have user specify the region of the screen they wish to capture
+ * 4. Setup a periodic timer to call CTscreencap.run(); each time this
+ *    timer expires, it creates an instance of ScreencapTask to generate
+ *    a screen capture and put it on the blocking queue.
+ * 5. At the bottom of this constructor is a while() loop which
+ *    grabs screen capture byte arrays off the blocking queue and send
+ *    them to CT.
+ * 
+ * Limitations/to-do:
+ * 1. Does not support multiple monitors on all computers.
+ * 2. Currently, the user can specify a region of the screen to capture. Would be
+ *    great to add an option to capture a specific application window; this would
+ *    probably involve writing native OS-specific code.
+ * 
  * @author John P. Wilson
  *
  */
@@ -75,21 +95,30 @@ public class CTscreencap extends TimerTask {
 	public long autoFlushMillis;               // flush interval (msec)
 	public boolean bDebugMode = false;         // run CT in debug mode?
 	public boolean bShutdown = false;          // is it time to shut down?
+	public boolean bIncludeMouseCursor = true; // include the mouse cursor in the screencap image?
 	public BufferedImage cursor_img = null;    // cursor to add to the screen captures
 	public CTwriter ctw = null;                // CloudTurbine writer object
 	public Timer timerObj = null;              // Timer object
-	// public ScreencapTask capTask = null;       // the class which actually performs the periodic screen capture
-	public float imageCompression = 0.70f;     // Image compression; 0.00 - 1.00
-	public Rectangle regionToCapture = null;   // The region to capture; defaults to entire screen
+	public float imageQuality = 0.70f;         // Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
+	public Rectangle regionToCapture = null;   // The region to capture
 	public BlockingQueue<byte[]> queue = null; // Queue of byte arrays containing screen captures to be sent to CT
 	
+	//
+	// main() function; create an instance of CTscreencap
+	//
 	public static void main(String[] argsI) {
 		new CTscreencap(argsI);
 	}
 	
+	//
+	// Constructor and main work-horse for the program.
+	// See documentation in the header above for all the things that are done in this method.
+	//
 	public CTscreencap(String[] argsI) {
 		
+		//
 		// Specify a shutdown hook to catch Ctrl+c
+		//
         Runtime.getRuntime().addShutdownHook(new Thread() {
         	@Override
             public void run() {
@@ -101,9 +130,6 @@ public class CTscreencap extends TimerTask {
         		}
         		ctw.close();
         		ctw = null;
-        		//if (capTask != null) {
-        		//	capTask.cancel();
-        		//}
         		// Sleep for a bit to allow any currently running tasks to finish
         		try {
             		Thread.sleep(1000);
@@ -116,19 +142,13 @@ public class CTscreencap extends TimerTask {
 		//
 		// Parse command line arguments
 		//
-		// We use the Apche Commons CLI library to handle command line
-		// arguments. See https://commons.apache.org/proper/commons-cli/usage.html
-		// for examples, although note that we use the more up-to-date form
-		// (Option.builder) to create Option objects.
-		//
-		
-		//
 		// 1. Setup command line options
 		//
 		Options options = new Options();
 		// Boolean options (only the flag, no argument)
 		options.addOption("h", "help", false, "Print this message");
-		options.addOption("nozip", "no_zipfiles", false, "use this flag to suppress using ZIP output files");
+		options.addOption("nm", "no_mouse_cursor", false, "don't include mouse cursor in output screen capture images");
+		options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
 		options.addOption("x", "debug", false, "use debug mode");
 		// The following example is for: -outputfolder <folder>   (location of output files)
 		Option outputFolderOption = Option.builder("outputfolder")
@@ -161,12 +181,12 @@ public class CTscreencap extends TimerTask {
 				.desc("name of output channel; default = \"" + channelName + "\"")
 				.build();
 		options.addOption(chanNameOption);
-		Option imgCompressionOption = Option.builder("ic")
-				.argName("imagecompression")
+		Option imgQualityOption = Option.builder("q")
+				.argName("imagequality")
 				.hasArg()
-				.desc("compression quality, 0.00 - 1.00 (higher numbers are better quality/less compression); default = " + Float.toString(imageCompression))
+				.desc("image quality, 0.00 - 1.00 (higher numbers are better quality/less compression); default = " + Float.toString(imageQuality))
 				.build();
-		options.addOption(imgCompressionOption);
+		options.addOption(imgQualityOption);
 		
 		//
 		// 2. Parse command line options
@@ -185,7 +205,6 @@ public class CTscreencap extends TimerTask {
 	    //
 	    // 3. Retrieve the command line values
 	    //
-	    
 	    if (line.hasOption("help")) {
 	    	// Display help message and quit
 	    	HelpFormatter formatter = new HelpFormatter();
@@ -201,6 +220,8 @@ public class CTscreencap extends TimerTask {
 		autoFlushMillis = (long)(autoFlush*1000.);
 	    // ZIP output files?
 	    bZipMode = !line.hasOption("no_zipfiles");
+	    // Include cursor in output screen capture images?
+	    bIncludeMouseCursor = !line.hasOption("no_mouse_cursor");
 	    // Where to write the files to
 	    outputFolder = line.getOptionValue("outputfolder",outputFolder);
 	    // Make sure outputFolder ends in a file separator
@@ -221,38 +242,27 @@ public class CTscreencap extends TimerTask {
 	    capturePeriodMillis = (long)(1000.0 / framesPerSec);
 	    // Run CT in debug mode?
 	    bDebugMode = line.hasOption("debug");
-	    // Image compression
-	    String imageCompressionStr = line.getOptionValue("ic",""+imageCompression);
+	    // Image quality
+	    String imageQualityStr = line.getOptionValue("q",""+imageQuality);
 	    try {
-	    	imageCompression = Float.parseFloat(imageCompressionStr);
-	    	if ( (imageCompression < 0.0f) || (imageCompression > 1.0f) ) {
+	    	imageQuality = Float.parseFloat(imageQualityStr);
+	    	if ( (imageQuality < 0.0f) || (imageQuality > 1.0f) ) {
 	    		throw new NumberFormatException("");
 	    	}
 	    } catch (NumberFormatException nfe) {
-	    	System.err.println("\nimagecompression must be a number in the range 0.0 <= x <= 1.0");
+	    	System.err.println("\nimage quality must be a number in the range 0.0 <= x <= 1.0");
 	    	return;
 	    }
-		
-	    /*
-		// Utility code to generate an encoded string representation of a cursor image
-		try {
-			String noshadowCursorStr = getEncodedImageString("C:\\TEMP\\Cursor_NoShadow.png","png");
-			String wshadowCursorStr = getEncodedImageString("C:\\TEMP\\Cursor_WShadow.png","png");
-			System.err.println("Cursor no shadow:\n" + noshadowCursorStr + "\n");
-			System.err.println("Cursor with shadow:\n" + wshadowCursorStr + "\n");
-		} catch (IOException ioe) {
-			System.err.println("Caught exception generating encoded string for cursor data:\n" + ioe);
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
-			return;
-		}
-		*/
 	    
+	    //
 	    // Determine if the GraphicsDevice supports translucency.
 	    // This code is from https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
+	    //
+	    // If translucent windows aren't supported, capture the entire screen.
+	    // Otherwise, have the user draw a rectangle around the area they wish to capture.
+	    //
         GraphicsEnvironment graphEnv = GraphicsEnvironment.getLocalGraphicsEnvironment();
         GraphicsDevice graphDev = graphEnv.getDefaultScreenDevice();
-        // If translucent windows aren't supported, capture the entire screen
         if (!graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.TRANSLUCENT)) {
             System.err.println("Translucency is not supported; capturing the entire screen.");
             regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
@@ -271,7 +281,11 @@ public class CTscreencap extends TimerTask {
             });
         }
         
-        // Wait until user has specified the region to capture before proceeding
+        //
+        // Wait until user has specified the region to capture before proceeding.
+        // This is a bit hokey to just wait until the variable has been defined;
+        // is there a better way to do this?
+        //
         while (regionToCapture == null) {
         	try {
         		Thread.sleep(500);
@@ -280,7 +294,7 @@ public class CTscreencap extends TimerTask {
         	}
         }
         
-        System.err.println("Proceeding to screen capture; click Ctrl+c when finished");
+        System.err.println("Proceeding to screen capture; click Ctrl+c when finished\n");
 		
 		// Setup CTwriter
 		try {
@@ -307,14 +321,32 @@ public class CTscreencap extends TimerTask {
 			return;
 		}
 		
+		//
 		// Setup periodic screen captures
-		// capTask = new ScreencapTask(this);
-		// timerObj = new Timer();
-        // timerObj.schedule(capTask, 0, capturePeriodMillis);
+		//
+		// Method 1:
+		// A periodic timer repeatedly calls the run() method in an instance of ScreencapTask;
+		// in this case, the run() method would handle taking the screencapture and sending it
+		// to CT.  In this method, everything is done synchronously and we end up limiting
+		// the frames/sec that can be achieved.
+		//    ScreencapTask capTask = new ScreencapTask(this);
+		//    timerObj = new Timer();
+        //    timerObj.schedule(capTask, 0, capturePeriodMillis);
+		//
+		// Method 2:
+		// A periodic timer repeatedly calls the run() method in this instance of CTscreencap;
+		// this run() method creates a new instance of ScreencapTask and spawns a new Thread
+		// to run it.  ScreencapTask.run() generates a screencapture and stores it in the
+		// LinkedBlockingQueue managed by CTscreencap.  CTscreencap is executing a continual
+		// while() loop to grab the next screencap and send it to CT (see while loop below).
+		//
 		timerObj = new Timer();
         timerObj.schedule(this, 0, capturePeriodMillis);
         
-        // Grab byte arrays off the queue and process them
+        //
+        // Grab screen capture byte arrays off the blocking queue and send them to CT
+        //
+        int numScreenCaps = 0;
         while (true) {
         	if (bShutdown) {
     			return;
@@ -334,12 +366,20 @@ public class CTscreencap extends TimerTask {
 					}
 				}
         		System.out.print("x");
+        		numScreenCaps += 1;
+        		if ((numScreenCaps % 20) == 0) {
+        			System.err.print("\n");
+        		}
         	}
         }
 		
 	}
 	
-	// Method called by the periodic timer; spawn a new thread to perform the screen capture
+	//
+	// Method called by the periodic timer; spawn a new thread to perform the screen capture.
+	//
+	// Possibly using a thread pool would save some thread management overhead?
+	//
 	public void run() {
 		if (bShutdown) {
 			return;
@@ -352,6 +392,29 @@ public class CTscreencap extends TimerTask {
 	//
 	// Utility function which reads the specified image file and returns
 	// a String corresponding to the encoded bytes of this image.
+	//
+	// Sample code for calling this method to generate an encoded string representation of a cursor image:
+	// String cursorStr = null;
+	// try {
+	//     cursorStr = getEncodedImageString("cursor.png","png");
+	//     System.err.println("Cursor string:\n" + cursorStr + "\n");
+	// } catch (IOException ioe) {
+	//     System.err.println("Caught exception generating encoded string for cursor data:\n" + ioe);
+	// }
+	//
+	// A buffered image can be created from this encoded String as follows; this is done in the
+	// CTscreencap constructor:
+	// Base64.Decoder byte_decoder = Base64.getDecoder();
+	// byte[] decoded_cursor_bytes = byte_decoder.decode(cursorStr);
+	// try {
+	//     BufferedImage cursor_img = ImageIO.read(new ByteArrayInputStream(decoded_cursor_bytes));
+	// } catch (IOException ioe) {
+	//     System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
+	// }
+	//
+	// ScreencapTask includes code to draw this BufferedImage into the screencapture image
+	// using Graphics2D (the reason we do this is because the screencapture doesn't include
+	// the cursor).
 	//
 	public static String getEncodedImageString(String fileNameI, String formatNameI) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);

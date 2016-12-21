@@ -52,6 +52,10 @@ import javax.swing.SwingUtilities;
 // class CapturePanel, which is taken from:
 // http://stackoverflow.com/questions/15776549/create-rectangle-with-mouse-drag-not-draw
 //
+// Other links related to drawing right on the computer desktop:
+// http://stackoverflow.com/questions/21604762/drawing-over-screen-in-java
+// https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
+//
 
 public class DefineCaptureRegion extends JDialog {
 	
