@@ -44,6 +44,7 @@ subprojects {
     	//     // Specifies the API level used to test the app.
     	//     targetSdkVersion 23
     	// }
+    	
     }
     
     repositories {
@@ -98,11 +99,14 @@ subprojects {
         dirObj.deleteDir()
     }
     
-    // Copy license files into the APK automatically
-    // The following forum posting is a good example of how to create a file
-    // from scratch and put it into the APK, but I can't get it to work
-    // for our case where we copy files instead of making them from scratch.
-    // https://discuss.gradle.org/t/add-generated-file-to-meta-inf/11831
+    //
+    // We put LICENSE and NOTICE files in 2 different places in the APK;
+    // this could be refined later as desired.
+    //
+    
+    // LOCATION 1: Put LICENSE and NOTICE files into APK's assets folder
+    //    Copy these files into src/main/assets so that they will be
+    //    automatically put in the assets folder in the APK
     task copyLicenseFiles(type: Copy) {
     	into "src/main/assets"
     	from "$rootDir/../LICENSE", "$rootDir/../NOTICE"
@@ -110,6 +114,51 @@ subprojects {
     // Run copyLicenseFiles before build so the license files are included in the APK
     preBuild.dependsOn copyLicenseFiles
     
+    // LOCATION 2: Copy LICENSE and NOTICE files into META-INF folder
+    //    This turned out to be a bit of a trick to figure out; the method
+    //    here is based on the forum posting at:
+    //    https://discuss.gradle.org/t/add-generated-file-to-meta-inf/11831
+    task put_files_in_META_INF  {
+    	def resDir = new File(buildDir, 'generated/files_for_META_INF/')
+    	def destDir = new File(resDir, 'META-INF/')
+    	// THIS IS KEY: Add resDir as a resource directory so that it is
+    	//              automatically included in the APK
+    	android {
+    		sourceSets {
+    			main.resources {
+    				srcDir resDir
+    			}
+    		}
+    	}
+    	doLast {
+    		destDir.mkdirs()
+    		// NOTE: For some reason, if the name of the NOTICE file is just
+    		//       "NOTICE" or "NOTICE.txt" then it *doesn't* show up in the
+    		//       META-INF; I don't know why!  "LICENSE" *does* go into the
+    		//       META-INF directory as-is just fine, but I rename it here
+    		//       to have the same "_INFO" extension as NOTICE.
+    		// Simple example of creating a new file
+    		// def noticefile = new File(destDir, 'NOTICE_INFO')
+    		// noticefile.text = "This is yet another test from JPW\n"
+    		copy {
+    			into destDir
+    			from ("$rootDir/../NOTICE") {
+    				rename "NOTICE","NOTICE_INFO"
+    			}
+    			from ("$rootDir/../LICENSE") {
+    				rename "LICENSE","LICENSE_INFO"
+    			}
+    		}
+    	}
+    }
+    // Specify when put_files_in_META_INF should run
+    project.afterEvaluate {
+    	tasks.findAll { task ->
+    		task.name.startsWith('merge') && task.name.endsWith('Resources')
+	  }.each { t -> t.dependsOn put_files_in_META_INF }
+	}
+    
+	// Print message when build is complete
     build.doLast {
     	task -> println "Built $task.project.name"
     }
