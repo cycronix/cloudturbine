@@ -470,7 +470,8 @@ public class CTweb {
 
     							formResponse(response,null);
 
-    							if(chan.endsWith(".jpg")) 	response.setContentType("application/image/jpeg");
+//    							if(chan.endsWith(".jpg")) 	response.setContentType("application/image/jpeg");
+    							if(chan.endsWith(".jpg")) 	response.setContentType("image/jpeg");
     							else						response.setContentType("application/octet-stream");
 
     							for(byte[] b : bdata) {
