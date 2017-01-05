@@ -51,6 +51,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 	public JPEGImageWriteParam jpegParams = null; // to specify image quality
 	public Rectangle captureRect = null;          // the rectangular region to capture
 	
+	static BufferedImage oldScreenCap=null;	// MJM
+	
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
 		cts = ctsI;
@@ -84,6 +86,12 @@ public class ScreencapTask extends TimerTask implements Runnable {
 				Graphics2D graphics2D = screenCap.createGraphics();
 				graphics2D.drawImage(cts.cursor_img, cursor_x, cursor_y, null);
 			}
+			
+			if(cts.bChangeDetect) {		// detect identical images...  MJM
+				if(imageSame(screenCap,oldScreenCap)) return;				// notta
+				oldScreenCap = screenCap;
+			}
+			
 			// Write the image to CloudTurbine file
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			//
@@ -124,4 +132,22 @@ public class ScreencapTask extends TimerTask implements Runnable {
 		
 	}
 	
+	// See if two images are identical bitmaps - MJM
+	static boolean imageSame(BufferedImage img1, BufferedImage img2) {
+		if(img1==null || img2==null) return false;
+		int w1 = img1.getWidth(null);
+		int w2 = img2.getWidth(null);
+		int h1 = img1.getHeight(null);
+		int h2 = img2.getHeight(null);
+		if ((w1 != w2) || (h1 != h2)) return false;
+
+		for (int y = 0; y < h1; y++) {
+			for (int x = 0; x < w1; x++) {
+				int rgb1 = img1.getRGB(x, y);
+				int rgb2 = img2.getRGB(x, y);
+				if(rgb1 != rgb2) return false;
+			}
+		}
+		return true;
+	}
 }

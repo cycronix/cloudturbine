@@ -102,6 +102,7 @@ public class CTscreencap extends TimerTask {
 	public float imageQuality = 0.70f;         // Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
 	public Rectangle regionToCapture = null;   // The region to capture
 	public BlockingQueue<byte[]> queue = null; // Queue of byte arrays containing screen captures to be sent to CT
+	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	
 	//
 	// main() function; create an instance of CTscreencap
@@ -150,6 +151,8 @@ public class CTscreencap extends TimerTask {
 		options.addOption("nm", "no_mouse_cursor", false, "don't include mouse cursor in output screen capture images");
 		options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
 		options.addOption("x", "debug", false, "use debug mode");
+		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")");		// MJM
+		
 		// The following example is for: -outputfolder <folder>   (location of output files)
 		Option outputFolderOption = Option.builder("outputfolder")
                 .argName("folder")
@@ -242,6 +245,8 @@ public class CTscreencap extends TimerTask {
 	    capturePeriodMillis = (long)(1000.0 / framesPerSec);
 	    // Run CT in debug mode?
 	    bDebugMode = line.hasOption("debug");
+	    // changeDetect mode? MJM
+	    bChangeDetect = line.hasOption("change_detect");
 	    // Image quality
 	    String imageQualityStr = line.getOptionValue("q",""+imageQuality);
 	    try {
