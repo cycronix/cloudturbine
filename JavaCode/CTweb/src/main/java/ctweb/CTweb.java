@@ -259,9 +259,18 @@ public class CTweb {
     public static class CTServlet extends HttpServlet {
         
     	@Override
+    	protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+			if(debug) System.err.println("doOptions, request: "+request.getPathInfo()+", queryCount: "+queryCount+", request.method: "+request.getMethod());
+			response.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
+			response.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
+			response.addHeader("Access-Control-Allow-Headers", "If-None-Match");
+//			response.addHeader("Allow", "GET, POST, HEAD, OPTIONS");
+    	}
+    	
+    	@Override
     	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     		
-    		if(debug) System.err.println("doGet, request: "+request.getPathInfo()+", queryCount: "+queryCount);
+    		if(debug) System.err.println("doGet, request: "+request.getPathInfo()+", queryCount: "+queryCount+", request.method: "+request.getMethod());
 //    		String servletPath = request.getServletPath();
     		String pathInfo = request.getPathInfo();
     		
@@ -296,6 +305,7 @@ public class CTweb {
     				out.flush();
     			} catch(Exception e) {
     				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
+					formResponse(response, null);		// add CORS header even for error response
     				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     			}
     			return;
@@ -341,6 +351,7 @@ public class CTweb {
 
     				CTinfo.debugPrint("channel request: "+pathInfo);
     				if(pathParts.length < 3) {
+						formResponse(response, null);		// add CORS header even for error response
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
         				return;
     				}
@@ -406,7 +417,8 @@ public class CTweb {
 
     				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     				if(tdata == null) {		// empty response for WebTurbine compatibility
-    					System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);
+//    					System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);
+    					formResponse(response, null);		// add CORS header even for error response
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     					return;
     				}
@@ -414,7 +426,8 @@ public class CTweb {
     					tdata.setSwap(swapFlag);
     					double time[] = tdata.getTime();
     					if(time == null) {
-    						System.err.println("Oops, No data on fetch: "+pathInfo);
+//    						System.err.println("Oops, No data on fetch: "+pathInfo);
+    						formResponse(response, null);		// add CORS header even for error response
     	    				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     	    				return;
     					}
@@ -435,6 +448,9 @@ public class CTweb {
 //        							System.err.println("If-None-Match: "+ifnonematch+", matchchan: "+matchchan+", matchtime: "+matchtime+", gottime: "+gottime+", chan: "+reqchan);
         							if((matchtime == gottime) && matchchan.equals(reqchan)) {
         								CTinfo.debugPrint("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference);
+//        								response.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
+//        								response.addHeader("Access-Control-Allow-Methods", "GET, POST");   // CORS enable
+        								formResponse(response,null);
         								response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
         								return;
         							}
@@ -443,7 +459,7 @@ public class CTweb {
         				}
         					
     					if(numData > MaxDat && ftype != 'b') {		// unlimited binary fetch
-    						System.err.println("limiting output points to: "+MaxDat);
+    						System.err.println("CTweb: limiting output points to: "+MaxDat);
     						numData = MaxDat;
     					}
     					
@@ -460,7 +476,8 @@ public class CTweb {
     							byte[][]bdata = tdata.getData();
 
     							if(bdata == null || bdata[0] == null) {
-    								System.err.println("No data for request: "+pathInfo);
+//    								System.err.println("No data for request: "+pathInfo);
+    								formResponse(response, null);		// add CORS header even for error response
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
     							}
@@ -492,11 +509,13 @@ public class CTweb {
 
     							CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
 
-    							formResponse(response,null);
+//    							formResponse(response,null);
 
 //    							if(chan.endsWith(".jpg")) 	response.setContentType("application/image/jpeg");
     							if(chan.endsWith(".jpg")) 	response.setContentType("image/jpeg");
     							else						response.setContentType("application/octet-stream");
+
+    							formResponse(response,null);
 
     							for(byte[] b : bdata) {
     								InputStream input = new ByteArrayInputStream(b);		// only return 1st image?
@@ -529,6 +548,7 @@ public class CTweb {
     							}
     							else {
     								System.err.println("Unrecognized ftype: "+ftype);
+    								formResponse(response, null);		// add CORS header even for error response
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
     							}
@@ -550,6 +570,7 @@ public class CTweb {
     							}
     							else {
     								System.err.println("Unrecognized ftype: "+ftype);
+    								formResponse(response, null);		// add CORS header even for error response
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
     							}
@@ -563,6 +584,7 @@ public class CTweb {
     		}
 
 //    		System.err.println("Unable to respond to: "+pathInfo);
+			formResponse(response, null);		// add CORS header even for error response
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
     	}
@@ -572,7 +594,7 @@ public class CTweb {
  
     private static void formResponse(HttpServletResponse resp, StringBuilder sbresp) {
 		resp.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
-		resp.addHeader("Access-Control-Allow-Methods", "GET, POST");   // CORS enable
+		resp.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
 		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time");
 		if(sbresp == null) return;
 		try {
