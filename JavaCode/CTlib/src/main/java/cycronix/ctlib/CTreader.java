@@ -273,7 +273,7 @@ public class CTreader {
 
 					// side effect:  build ChanList for registration
 					String fname = listOfFiles[i].getName();
-					if(ChanList.indexOf(fname) < 0)  {
+					if(ChanList.indexOf(fname) < 0 && !fname.endsWith(".tmp"))  {		// MJM 1/9/17:  skip tmp files
 						ChanList.add(fname);	// add if not already there
 						//	CTinfo.debugPrint("Chanlist.add: "+fname);
 					}

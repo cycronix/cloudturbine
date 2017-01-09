@@ -392,6 +392,7 @@ public class CTweb {
     			}
     			else {									// Channel level request for data
     				CTinfo.debugPrint("data request: "+pathInfo);
+    				
     				String source = pathParts[2];
     				for(int i=3; i<pathParts.length-1; i++) source += ("/"+pathParts[i]);		// multi-level source name
     				//    			String chan = pathParts[3];				//  presumes /CT/Source/Chan with no sub-level nesting
@@ -405,7 +406,7 @@ public class CTweb {
 
     				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     				if(tdata == null) {		// empty response for WebTurbine compatibility
-    					CTinfo.debugPrint("no such channel: "+source+File.separator+chan);
+    					System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     					return;
     				}
@@ -417,16 +418,38 @@ public class CTweb {
     	    				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     	    				return;
     					}
+    					
     					int numData = time.length;
-    					CTinfo.debugPrint("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype);
+    					CTinfo.debugPrint("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
 
+        				// check for If-None-Match and skip duplicates
+        				if(duration==0 && fetch=='b') {				// only works for single-object requests
+        					String ifnonematch = request.getHeader("If-None-Match");
+        					if(ifnonematch != null) {
+        						String[] matchparts = ifnonematch.split(":");
+        						if(matchparts.length == 2) {
+        							String matchchan = matchparts[0];
+        							long matchtime = Long.parseLong(matchparts[1]);		// int-msec
+        							long gottime = (long)(1000.* time[0]);				// int-msec for compare
+        							String reqchan = source + "/" + chan;		// reconstruct full path
+//        							System.err.println("If-None-Match: "+ifnonematch+", matchchan: "+matchchan+", matchtime: "+matchtime+", gottime: "+gottime+", chan: "+reqchan);
+        							if((matchtime == gottime) && matchchan.equals(reqchan)) {
+        								CTinfo.debugPrint("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference);
+        								response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
+        								return;
+        							}
+        						}
+        					}
+        				}
+        					
     					if(numData > MaxDat && ftype != 'b') {		// unlimited binary fetch
     						System.err.println("limiting output points to: "+MaxDat);
     						numData = MaxDat;
     					}
+    					
     					// if(time.length == 0) System.err.println("CTserver warning: no data!");
     					if(numData > 0) {
-    						if(ftype == 's') ftype = CTinfo.fileType(chan,'s');
+    						if(ftype == 's' && fetch=='b') ftype = CTinfo.fileType(chan,'s');	// over-ride for certain binary types
     						CTinfo.debugPrint("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
 
     						switch(ftype) {
@@ -437,6 +460,7 @@ public class CTweb {
     							byte[][]bdata = tdata.getData();
 
     							if(bdata == null || bdata[0] == null) {
+    								System.err.println("No data for request: "+pathInfo);
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
     							}
@@ -513,7 +537,7 @@ public class CTweb {
     						default:
     							strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
     							if(strdata != null) {
-    								if(fetch=='t')
+    								if(fetch=='t') 
     									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i])+"\n");		// most recent
     								else if(fetch=='d')
     									for(int i=time.length-numData; i<numData; i++) sbresp.append(strdata[i]+"\n");		
@@ -538,6 +562,7 @@ public class CTweb {
     			System.err.println("doGet Exception: "+e); e.printStackTrace(); 
     		}
 
+//    		System.err.println("Unable to respond to: "+pathInfo);
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
     	}
