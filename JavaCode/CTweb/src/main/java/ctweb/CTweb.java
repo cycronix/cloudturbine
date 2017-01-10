@@ -304,7 +304,7 @@ public class CTweb {
     				in.close();
     				out.flush();
     			} catch(Exception e) {
-    				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
+//    				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
 					formResponse(response, null);		// add CORS header even for error response
     				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     			}
