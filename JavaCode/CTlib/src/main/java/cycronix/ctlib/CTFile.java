@@ -346,10 +346,15 @@ class CTFile extends File {
 				File[] files = super.listFiles();
 //				if(files!=null && files.length>0 && files[0].isFile()) return true;
 				// check last (vs first) file to avoid .DS_Store or other hidden files messing up test (MJM 7/12/16)
-				String checkname = files[files.length-1].getName();
+//				String checkname = files[files.length-1].getName();
 //				System.err.println("isFileFolder, files.length: "+files.length+", checkname: "+checkname+", isTimeFile: "+isTimeFile(checkname) );
-				if(files!=null && files.length>0 && !isTimeFile(checkname)) return true;
-				else							  return false;		// needs testing
+//				if(files!=null && files.length>0 && !isTimeFile(checkname)) return true;
+//				else							  return false;		// needs testing
+				
+				// more robust:  if any time files in folder, this is NOT a file folder
+				if(files==null) return false;
+				for(int i=0; i<files.length; i++) if(isTimeFile(files[i].getName())) return false;
+				return true;
 			} else return false;
 		}
 /*		
