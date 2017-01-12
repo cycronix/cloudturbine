@@ -1,23 +1,3 @@
-package cycronix.ctlib;
-
-//---------------------------------------------------------------------------------	
-// CTdata: ArrayList of time,data couples
-// Matt Miller, Cycronix
-// 02/18/2014
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-
-/**
- * CloudTurbine utility class to manage ArrayList of time,data couples
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 2014/03/06
- * 
-*/
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -37,7 +17,26 @@ import java.util.Date;
  * under the License.
  *******************************************************************************/
 
+package cycronix.ctlib;//---------------------------------------------------------------------------------	
+
+// Matt Miller, Cycronix
+// 02/18/2014
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+
+/**
+ * CloudTurbine utility class to manage ArrayList of time,data couples
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 2014/03/06
+ * 
+*/
+
+//-----------------------------------------------------------------------------------------------------------------------------
 // CTdata:  ArrayList of time,data couples
+
 public class CTdata {
 	private ArrayList<Double>timelist=new ArrayList<Double>();
 	private ArrayList<byte[]>datalist=new ArrayList<byte[]>();

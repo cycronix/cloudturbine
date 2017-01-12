@@ -16,15 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  *******************************************************************************/
-package cycronix.ctlib;
 
-/**
- * Utility class for CloudTurbine debugging and file info.
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 2016/05/02
- * 
-*/
+package cycronix.ctlib;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +32,14 @@ import java.util.regex.Pattern;
 
 import cycronix.ctlib.CTFile.FileType;
 
+/**
+ * Utility class for CloudTurbine debugging and file info.
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 2016/05/02
+ * 
+*/
+//--------------------------------------------------------------------------------------------------------
 
 public class CTinfo {
 

@@ -19,11 +19,6 @@
 
 package cycronix.ctlib;
 
-//---------------------------------------------------------------------------------	
-//CTwriter:  write data to CloudTurbine-format folders, with zip-option
-//Matt Miller, Cycronix
-//02/11/2014
-
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -57,7 +52,10 @@ import java.util.zip.ZipOutputStream;
  * 
 */
 
-//------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------	
+//CTwriter:  write data to CloudTurbine-format folders, with zip-option
+//Matt Miller, Cycronix
+//02/11/2014
 
 public class CTwriter {
 

@@ -1,21 +1,3 @@
-package cycronix.ctlib;
-
-//---------------------------------------------------------------------------------	
-// CTmap: map of CTdata's by name
-// Matt Miller, Cycronix
-// 02/18/2014
-
-import java.util.Map;
-import java.util.TreeMap;
-
-/**
- * A CloudTurbine utility class to manage TreeMap of name-CTdata pairs
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 2014/03/06
- * 
-*/
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -34,6 +16,24 @@ import java.util.TreeMap;
  * specific language governing permissions and limitations
  * under the License.
  *******************************************************************************/
+
+package cycronix.ctlib;
+
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * A CloudTurbine utility class to manage TreeMap of name-CTdata pairs
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 2014/03/06
+ * 
+*/
+
+//---------------------------------------------------------------------------------	
+//CTmap: map of CTdata's by name
+//Matt Miller, Cycronix
+//02/18/2014
 
 // CTmap:  map of CTdata's by name
 public class CTmap extends TreeMap<String,CTdata>{

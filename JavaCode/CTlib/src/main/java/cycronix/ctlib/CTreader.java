@@ -1,33 +1,3 @@
-package cycronix.ctlib;
-
-//---------------------------------------------------------------------------------	
-// CTreader:  read CloudTurbine files stored by timestamp folders
-// adapted from CTread, generalize without DT specific reference
-// Matt Miller, Cycronix
-// 02/18/2014
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import static java.nio.file.FileVisitResult.*;
-import java.nio.file.FileVisitOption;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumSet;
-import java.nio.file.attribute.BasicFileAttributes;
-
-/**
- * A class to read data from CloudTurbine folder/files.
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 2014/03/06
- * 
-*/
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -46,6 +16,34 @@ import java.nio.file.attribute.BasicFileAttributes;
  * specific language governing permissions and limitations
  * under the License.
  *******************************************************************************/
+
+package cycronix.ctlib;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.FileVisitOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.nio.file.attribute.BasicFileAttributes;
+
+/**
+ * A class to read data from CloudTurbine folder/files.
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 2014/03/06
+ * 
+*/
+
+//---------------------------------------------------------------------------------	
+//CTreader:  read CloudTurbine files stored by timestamp folders
+//adapted from CTread, generalize without DT specific reference
+//Matt Miller, Cycronix
+//02/18/2014
 
 //---------------------------------------------------------------------------------	
 
