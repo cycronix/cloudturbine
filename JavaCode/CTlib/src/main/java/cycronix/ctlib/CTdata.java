@@ -229,6 +229,7 @@ public class CTdata {
 		
 		prevtime = 0;
 		String oldZipFile=null;
+//		if(duration==0) nframe = 1;			// cluge to get rid of double-returns?
 		
 		// step through elements of timelist, datalist Arrays
 		for(int i=0; i<nframe; i++) {					// multiple frames per arraylist element
@@ -358,7 +359,7 @@ public class CTdata {
 				}
 				oldZipFile = thisZipFile;		
 			}
-			if(time > end) break;		// double-check t>end
+			if(time >= end) break;		// double-check t>end (was t>end)
 			prevtime = time; 
 		}
 		return ctd;
