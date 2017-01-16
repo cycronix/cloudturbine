@@ -146,6 +146,9 @@ import java.util.*;
 
 import com.sun.nio.file.SensitivityWatchEventModifier;
 
+// For linear regression
+import org.apache.commons.math3.stat.regression.SimpleRegression;
+
 /**
  * Example to watch a directory (or tree) for changes to files.
  */
@@ -364,8 +367,13 @@ public class FileWatch {
     	List<Double> latencyList = new ArrayList<Double>();
     	List<String> filenameList = new ArrayList<String>();
     	List<Long> sinkCreationTimeList = new ArrayList<Long>();
+    	List<Double> normalizedSinkCreationTimeList = new ArrayList<Double>();
     	List<Long> sourceCreationTimeList = new ArrayList<Long>();
+    	List<Double> normalizedSourceCreationTimeList = new ArrayList<Double>();
+    	List<Integer> cumulativeNumFilesList = new ArrayList<Integer>();
     	List<Integer> sequenceNumberList = new ArrayList<Integer>();
+    	List<String> outOfOrderStrList = new ArrayList<String>();
+    	int cumulativeNumberOfFiles = 0;
     	double latency_sum = 0.0;
     	for (Map.Entry<Double, String> entry : fileData.entrySet()) {
     		
@@ -393,6 +401,8 @@ public class FileWatch {
 	        filenameList.add(filename);
 	        sinkCreationTimeList.add(new Long(sinkCreationTime));
 	        sourceCreationTimeList.add(new Long(sourceCreationTime));
+	        cumulativeNumberOfFiles = cumulativeNumberOfFiles + 1;
+	        cumulativeNumFilesList.add(new Integer(cumulativeNumberOfFiles));
 	        sequenceNumberList.add(new Integer(sequenceNumber));
     	}
     	int num_entries = latencyList.size();
@@ -415,6 +425,47 @@ public class FileWatch {
     	}
     	
     	//
+    	// Calculate the final values to be written to file
+    	//
+    	// Calculate test metrics:
+    	//     Rku (files/sec), Lav (sec), Lmax (sec), Lgr (sec/file)
+    	// To calculate these we need the following linear regressions:
+    	// 1. index from file vs. create time at source, normalized
+    	//       slope = the actual source rate
+    	// 2. cumulative number of files at sink vs. create time at sink, normalized
+    	//       slope = keep up rate, Rku (files/sec)
+    	//       only applicable for a "fast" file test
+    	// 3. latency vs. create time at source, normalized (sec)
+    	//       y-intercept = average latency, Lav (sec)
+    	//       only applicable for a "slow" file test
+    	// 4. latency vs. index from file
+    	//       slope = latency growth rate, Lgr (sec/file)
+    	//       only applicable for a "slow" file test
+    	//
+    	// Lmax = maximum latency = Lav + 3 * (stddev of latency values)
+    	//
+    	int previousIndex = 0;
+    	for (int i=0; i<array_length; ++i) {
+	        double latency = latencyList.get(i).doubleValue();
+	    	long sourceCreationTime = sourceCreationTimeList.get(i).longValue();
+	    	long sinkCreationTime = sinkCreationTimeList.get(i).longValue();
+	    	int cumNumFiles = cumulativeNumFilesList.get(i).intValue();
+	    	int sequenceNumber = sequenceNumberList.get(i).intValue();
+	    	
+	    	// NOTE: variable "firstLine" is the string version of sequenceNumber
+	        double normalizedSourceCreationTime = (sourceCreationTime - earliestSourceCreationTime)/1000.0;
+	        normalizedSourceCreationTimeList.add(new Double(normalizedSourceCreationTime));
+	        double normalizedSinkCreationTime = (sinkCreationTime - earliestSourceCreationTime)/1000.0;
+	        normalizedSinkCreationTimeList.add(new Double(normalizedSinkCreationTime));
+	        String outOfOrderStr = " ";
+	        if (sequenceNumber != (previousIndex + 1)) {
+	        	outOfOrderStr = "YES";
+	        }
+	        outOfOrderStrList.add(outOfOrderStr);
+	        previousIndex = sequenceNumber;
+	    }
+    	
+    	//
     	// Write out the data 
     	//
     	try {
@@ -428,24 +479,23 @@ public class FileWatch {
     	    writer.write("std dev of latency\t" + String.format("%.3f",latency_stddev) + "\tsec\n\n");
     	    writer.write("Filename\tCreate time at source (msec)\tCreate time at source, normalized (sec)\tCreate time at sink (msec)\tCreate time at sink, normalized (sec)\tLatency (sec)\tCumulative number of files at sink\tIndex from file\tOut of order or missing?\n");
     	    
-    	    int cumulativeNumberOfFiles = 0;
-    	    int previousIndex = 0;
+    	    previousIndex = 0;
     	    for (int i=0; i<array_length; ++i) {
     	        double latency = latencyList.get(i).doubleValue();
     	    	String filename = filenameList.get(i);
     	    	long sourceCreationTime = sourceCreationTimeList.get(i).longValue();
     	    	long sinkCreationTime = sinkCreationTimeList.get(i).longValue();
+    	    	int cumNumFiles = cumulativeNumFilesList.get(i).intValue();
     	    	int sequenceNumber = sequenceNumberList.get(i).intValue();
     	    	
     	    	// NOTE: variable "firstLine" is the string version of sequenceNumber
-    	        cumulativeNumberOfFiles = i+1;
     	        double normalizedSourceCreationTime = (sourceCreationTime - earliestSourceCreationTime)/1000.0;
     	        double normalizedSinkCreationTime = (sinkCreationTime - earliestSourceCreationTime)/1000.0;
     	        String outOfOrderStr = " ";
     	        if (sequenceNumber != (previousIndex + 1)) {
     	        	outOfOrderStr = "YES";
     	        }
-    	        writer.write(filename + "\t" + sourceCreationTime + "\t" + String.format("%.3f",normalizedSourceCreationTime) + "\t" + sinkCreationTime + "\t" + String.format("%.3f",normalizedSinkCreationTime) + "\t" + String.format("%.3f",latency) + "\t" + cumulativeNumberOfFiles + "\t" + sequenceNumber + "\t" + outOfOrderStr + "\n");
+    	        writer.write(filename + "\t" + sourceCreationTime + "\t" + String.format("%.3f",normalizedSourceCreationTime) + "\t" + sinkCreationTime + "\t" + String.format("%.3f",normalizedSinkCreationTime) + "\t" + String.format("%.3f",latency) + "\t" + cumNumFiles + "\t" + sequenceNumber + "\t" + outOfOrderStr + "\n");
     	        writer.flush();
     	        previousIndex = sequenceNumber;
     	    }

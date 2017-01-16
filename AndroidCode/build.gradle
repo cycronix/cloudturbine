@@ -8,7 +8,7 @@ buildscript {
     }
     dependencies {
     	// The following specifies the version of the Android Plugin for Gradle
-		classpath 'com.android.tools.build:gradle:2.2.0'
+		classpath 'com.android.tools.build:gradle:2.2.3'
     }
 }
 
