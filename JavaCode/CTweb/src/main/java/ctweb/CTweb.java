@@ -436,7 +436,7 @@ public class CTweb {
     					CTinfo.debugPrint("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
 
         				// check for If-None-Match and skip duplicates.
-        				if(duration==0 && fetch=='b') {				// only works for single-object requests
+        				if(duration==0 && fetch=='b' && reference.equals("absolute")) {		// only works for single-object requests
         					String ifnonematch = request.getHeader("If-None-Match");
         					if(ifnonematch != null) {
         						String[] matchparts = ifnonematch.split(":");
