@@ -1,12 +1,3 @@
-/**
- * CloudTurbine example: test various block formats
- * Writes same data in permutations of 3 cases: pack, zip, num (8 total tests)
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 09/01/2016
- * 
-*/
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -39,6 +30,15 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import cycronix.ctlib.*;
+
+/**
+ * CloudTurbine example: test various block formats
+ * Writes same data in permutations of 3 cases: pack, zip, num (8 total tests)
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 09/01/2016
+ * 
+*/
 
 public class CTblocktest {
 	static int nsamp = 1000;			// total number of data samples (per chan) was 1000

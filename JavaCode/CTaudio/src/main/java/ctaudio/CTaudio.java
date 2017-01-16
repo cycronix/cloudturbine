@@ -1,11 +1,3 @@
-/**
- * CloudTurbine Audio:
- * Record system audio to CT
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 01/16/2017
- * 
-*/
 
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -29,14 +21,21 @@
 package ctaudio;
 
 import javax.swing.*;
-
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTwriter;
-
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import javax.sound.sampled.*;
+
+/**
+ * CloudTurbine Audio:
+ * Record system audio to CT
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 01/16/2017
+ * 
+*/
 
 public class CTaudio extends JFrame {
 
