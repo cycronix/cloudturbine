@@ -1,4 +1,3 @@
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,75 +17,38 @@
  * under the License.
  *******************************************************************************/
 
-package ctaudio;
+package erigo.ctscreencap;
 
-import javax.swing.*;
+import java.io.IOException;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.TargetDataLine;
+
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTwriter;
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import javax.sound.sampled.*;
 
 /**
- * CloudTurbine Audio:
- * Record system audio to CT
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 01/16/2017
  * 
-*/
-
-public class CTaudio extends JFrame {
+ * Capture audio stream, write to CT.
+ * @author mattmiller
+ *
+ */
+public class AudiocapTask {
 
 	protected boolean running;
-	ByteArrayOutputStream out;
 	int frequency = 8000; 				//8000, 22050, 44100
 
-	public CTaudio() {
-		super("Capture Sound Demo");
-		setDefaultCloseOperation(EXIT_ON_CLOSE);
-		Container content = getContentPane();
-
-		final JButton capture = new JButton("Capture");
-		final JButton stop = new JButton("Stop");
-
-		capture.setEnabled(true);
-		stop.setEnabled(false);
-
-		ActionListener captureListener = 
-				new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				capture.setEnabled(false);
-				stop.setEnabled(true);
-				//       play.setEnabled(false);
-				captureAudio();
-			}
-		};
-		capture.addActionListener(captureListener);
-		content.add(capture, BorderLayout.NORTH);
-
-		ActionListener stopListener = 
-				new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				capture.setEnabled(true);
-				stop.setEnabled(false);
-				//       play.setEnabled(true);
-				running = false;
-			}
-		};
-		stop.addActionListener(stopListener);
-		content.add(stop, BorderLayout.CENTER);
-
-	};
-
-	private void captureAudio() {
+	// constructor
+	public AudiocapTask(String outputFolder) {
 		try {
-			CTwriter ctw = new CTwriter("CTdata/CTaudio");
+			CTwriter ctw = new CTwriter(outputFolder+"/CTaudio");
 			CTinfo.setDebug(false);
 			ctw.setBlockMode(true,true);		// pack, zip
 			ctw.autoFlush(0);					// no autoflush
-			//	 ctw.autoSegment(0);				// no segments
+			//	 ctw.autoSegment(0);			// no segments
 
 			final AudioFormat format = getFormat();
 
@@ -100,30 +62,26 @@ public class CTaudio extends JFrame {
 				byte buffer[] = new byte[bufferSize];
 				long fcount = 0;
 				long startTime = System.currentTimeMillis();
-				
+
 				public void run() {
-//					out = new ByteArrayOutputStream();
 					running = true;
 					try {
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length);
 							if (count > 0) {
-//								out.write(buffer, 0, count);
 								ctw.setTime(startTime + fcount*1000);		// force exactly 1sec intervals?  (gapless but drift?)
 								fcount++;
 								ctw.putData("audio.wav",addWaveHeader(buffer));
 								ctw.flush();
 							}
 						}
-//						out.close();
 					} catch (Exception e) {
 						System.err.println("I/O problems: " + e);
 						System.exit(-1);
 					}
 				}
 			};
-			
-	
+
 			Thread captureThread = new Thread(runner);
 			captureThread.start();
 		} 
@@ -133,7 +91,7 @@ public class CTaudio extends JFrame {
 		}
 		catch(Exception e) {
 			System.err.println("CT error: "+e);
-			System.exit(ABORT);
+			System.exit(-1);
 		}
 	}
 
@@ -146,11 +104,6 @@ public class CTaudio extends JFrame {
 		return new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
 	}
 
-	public static void main(String args[]) {
-		JFrame frame = new CTaudio();
-		frame.pack();
-		frame.show();
-	}
 
 	private byte[] addWaveHeader(byte[] dataBuffer) throws IOException {
 		byte RECORDER_BPP = 16;
@@ -214,5 +167,4 @@ public class CTaudio extends JFrame {
 
 		return waveBuffer;
 	}
-
 }
