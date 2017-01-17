@@ -1,3 +1,12 @@
+/**
+ * FileWatch
+ * Watch a directory for new files; report on timing.
+ * <p>
+ * @author John P. Wilson (JPW), Erigo Technologies
+ * @version 01/16/2017
+ * 
+*/
+
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -136,22 +145,13 @@ package erigo.filewatch;
  *
  */
 
-import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.nio.file.WatchEvent.Kind;
-
 import static java.nio.file.StandardWatchEventKinds.*;
 import java.io.*;
 import java.util.*;
-
 import com.sun.nio.file.SensitivityWatchEventModifier;
-
-// For linear regression
 import org.apache.commons.math3.stat.regression.SimpleRegression;
-
-/**
- * Example to watch a directory (or tree) for changes to files.
- */
 
 public class FileWatch {
     
@@ -350,19 +350,8 @@ public class FileWatch {
     		return;
     	}
     	
-    	BufferedWriter writer = null;
-    	
-    	long earliestSourceCreationTime = Long.MAX_VALUE;
-    	double latency_min = Double.MAX_VALUE;
-    	double latency_max = -Double.MAX_VALUE;
-    	double latency_avg = 0.0;
-    	double latency_variance = 0.0;
-    	double latency_stddev = 0.0;
-    	
     	//
-    	// Preprocess the data to get it set for writing to file:
-    	// o To normalize times, determine the file with the earliest source creation time
-    	// o Determine min, max, average and standard deviation of latency
+    	// Pre-process the data to calculate all needed metrics
     	//
     	List<Double> latencyList = new ArrayList<Double>();
     	List<String> filenameList = new ArrayList<String>();
@@ -372,9 +361,13 @@ public class FileWatch {
     	List<Double> normalizedSourceCreationTimeList = new ArrayList<Double>();
     	List<Integer> cumulativeNumFilesList = new ArrayList<Integer>();
     	List<Integer> sequenceNumberList = new ArrayList<Integer>();
-    	List<String> outOfOrderStrList = new ArrayList<String>();
+    	List<Boolean> outOfOrderList = new ArrayList<Boolean>();
     	int cumulativeNumberOfFiles = 0;
+    	long earliestSourceCreationTime = Long.MAX_VALUE;
     	double latency_sum = 0.0;
+    	double latency_min = Double.MAX_VALUE;
+    	double latency_max = -Double.MAX_VALUE;
+    	int previousIndex = 0;
     	for (Map.Entry<Double, String> entry : fileData.entrySet()) {
     		
     		// Strip the decimal part of the time off - it was only added in processEvents() to make unique hash keys
@@ -391,7 +384,7 @@ public class FileWatch {
 	        long sourceCreationTime = fiObj.sourceCreationTime;
 	        int sequenceNumber = fiObj.sequenceNumber;
 	        
-	        // Save data
+	        // Save data in Lists
 	        earliestSourceCreationTime = Math.min(earliestSourceCreationTime,sourceCreationTime);
 	        double latency = (sinkCreationTime - sourceCreationTime)/1000.0;
 	        latency_sum = latency_sum + latency;
@@ -404,31 +397,58 @@ public class FileWatch {
 	        cumulativeNumberOfFiles = cumulativeNumberOfFiles + 1;
 	        cumulativeNumFilesList.add(new Integer(cumulativeNumberOfFiles));
 	        sequenceNumberList.add(new Integer(sequenceNumber));
+	        if (sequenceNumber != (previousIndex + 1)) {
+	        	outOfOrderList.add(Boolean.valueOf(true));
+	        } else {
+	        	outOfOrderList.add(Boolean.valueOf(false));
+	        }
+	        previousIndex = sequenceNumber;
     	}
+    	
+    	// Calculate latency statistics (average and standard deviation)
     	int num_entries = latencyList.size();
-    	latency_avg = latency_sum / num_entries;
+    	double latency_avg = latency_sum / num_entries;
+    	double latency_variance = 0.0;
     	for (double next_latency: latencyList) {
     		latency_variance = latency_variance + Math.pow((next_latency-latency_avg), 2.0);
     	}
     	latency_variance = latency_variance / ((double)num_entries);
-    	latency_stddev = Math.sqrt(latency_variance);
+    	double latency_stddev = Math.sqrt(latency_variance);
+    	
+    	// Calculate normalized source and sink creation times
+    	for (int i=0; i<num_entries; ++i) {
+	        long sourceCreationTime = sourceCreationTimeList.get(i).longValue();
+	    	long sinkCreationTime = sinkCreationTimeList.get(i).longValue();
+	    	double normalizedSourceCreationTime = (sourceCreationTime - earliestSourceCreationTime)/1000.0;
+	        normalizedSourceCreationTimeList.add(new Double(normalizedSourceCreationTime));
+	        double normalizedSinkCreationTime = (sinkCreationTime - earliestSourceCreationTime)/1000.0;
+	        normalizedSinkCreationTimeList.add(new Double(normalizedSinkCreationTime));
+	    }
     	
     	// Check that the data arrays are all the same length
-    	int array_length = latencyList.size();
-    	if ( (filenameList.size() != array_length) ||
-    		 (sinkCreationTimeList.size() != array_length) ||
-    		 (sourceCreationTimeList.size() != array_length) ||
-    		 (sequenceNumberList.size() != array_length) )
+    	if ( (latencyList.size() != num_entries) ||
+    		 (filenameList.size() != num_entries) ||
+    		 (sinkCreationTimeList.size() != num_entries) ||
+    		 (normalizedSinkCreationTimeList.size() != num_entries) ||
+    		 (sourceCreationTimeList.size() != num_entries) ||
+    		 (normalizedSourceCreationTimeList.size() != num_entries) ||
+    		 (cumulativeNumFilesList.size() != num_entries) ||
+    		 (sequenceNumberList.size() != num_entries) ||
+    		 (outOfOrderList.size() != num_entries) )
     	{
     		System.err.println("ERROR: data arrays are not the same size!");
     		return;
     	}
     	
     	//
-    	// Calculate the final values to be written to file
-    	//
     	// Calculate test metrics:
-    	//     Rku (files/sec), Lav (sec), Lmax (sec), Lgr (sec/file)
+    	//     o actual source rate
+    	//     o Rku (files/sec)
+    	//     o Lav (sec)
+    	//     o Lmax (sec)
+    	//     o Lgr (sec/file)
+    	//     o Lmax (sec) = maximum latency = Lav + 3 * (stddev of latency)
+    	//
     	// To calculate these we need the following linear regressions:
     	// 1. index from file vs. create time at source, normalized
     	//       slope = the actual source rate
@@ -442,63 +462,83 @@ public class FileWatch {
     	//       slope = latency growth rate, Lgr (sec/file)
     	//       only applicable for a "slow" file test
     	//
-    	// Lmax = maximum latency = Lav + 3 * (stddev of latency values)
+    	// We use the Simple regression class available from Apache Commons Math:
+    	// http://commons.apache.org/proper/commons-math/userguide/stat.html#a1.4_Simple_regression
+    	// http://commons.apache.org/proper/commons-math/apidocs/org/apache/commons/math4/stat/regression/SimpleRegression.html
     	//
-    	int previousIndex = 0;
-    	for (int i=0; i<array_length; ++i) {
-	        double latency = latencyList.get(i).doubleValue();
-	    	long sourceCreationTime = sourceCreationTimeList.get(i).longValue();
-	    	long sinkCreationTime = sinkCreationTimeList.get(i).longValue();
-	    	int cumNumFiles = cumulativeNumFilesList.get(i).intValue();
-	    	int sequenceNumber = sequenceNumberList.get(i).intValue();
-	    	
-	    	// NOTE: variable "firstLine" is the string version of sequenceNumber
-	        double normalizedSourceCreationTime = (sourceCreationTime - earliestSourceCreationTime)/1000.0;
-	        normalizedSourceCreationTimeList.add(new Double(normalizedSourceCreationTime));
-	        double normalizedSinkCreationTime = (sinkCreationTime - earliestSourceCreationTime)/1000.0;
-	        normalizedSinkCreationTimeList.add(new Double(normalizedSinkCreationTime));
-	        String outOfOrderStr = " ";
-	        if (sequenceNumber != (previousIndex + 1)) {
-	        	outOfOrderStr = "YES";
-	        }
-	        outOfOrderStrList.add(outOfOrderStr);
-	        previousIndex = sequenceNumber;
+    	SimpleRegression actual_source_rate_reg = new SimpleRegression();
+    	SimpleRegression Rku_reg = new SimpleRegression();
+    	SimpleRegression Lav_reg = new SimpleRegression();
+    	SimpleRegression Lgr_reg = new SimpleRegression();
+    	for (int i=0; i<num_entries; ++i) {
+    		// Here's the data columns written out in order
+    		// filenameList.get(i)
+    		// sourceCreationTimeList.get(i).longValue()
+    		// normalizedSourceCreationTimeList.get(i).doubleValue()
+    		// sinkCreationTimeList.get(i).longValue()
+    		// normalizedSinkCreationTimeList.get(i).doubleValue()
+    		// latencyList.get(i).doubleValue()
+    		// cumulativeNumFilesList.get(i).intValue()
+    		// sequenceNumberList.get(i).intValue()
+    		// outOfOrderList.get(i).booleanValue()
+    		actual_source_rate_reg.addData(normalizedSourceCreationTimeList.get(i).doubleValue(), (double)sequenceNumberList.get(i).intValue());
+        	Rku_reg.addData(normalizedSinkCreationTimeList.get(i).doubleValue(), (double)cumulativeNumFilesList.get(i).intValue());
+        	Lav_reg.addData(normalizedSourceCreationTimeList.get(i).doubleValue(), latencyList.get(i).doubleValue());
+        	Lgr_reg.addData((double)sequenceNumberList.get(i).intValue(), latencyList.get(i).doubleValue());
 	    }
+    	double Lmax = Lav_reg.getIntercept() + 3.0 * (latency_stddev);
     	
     	//
     	// Write out the data 
     	//
+    	BufferedWriter writer = null;
     	try {
+    		
     	    File dataFile=new File(filenameI);
     	    writer = new BufferedWriter(new FileWriter(dataFile));
-    	    // Write out header
+    	    
+    	    // Write header, including statistics and metrics
     	    writer.write("\nFile sharing test\ntest start time\t" + earliestSourceCreationTime + "\tmsec since epoch\n");
     	    writer.write("min latency\t" + String.format("%.3f",latency_min) + "\tsec\n");
     	    writer.write("max latency\t" + String.format("%.3f",latency_max) + "\tsec\n");
     	    writer.write("avg latency\t" + String.format("%.3f",latency_avg) + "\tsec\n");
-    	    writer.write("std dev of latency\t" + String.format("%.3f",latency_stddev) + "\tsec\n\n");
-    	    writer.write("Filename\tCreate time at source (msec)\tCreate time at source, normalized (sec)\tCreate time at sink (msec)\tCreate time at sink, normalized (sec)\tLatency (sec)\tCumulative number of files at sink\tIndex from file\tOut of order or missing?\n");
+    	    writer.write("std dev of latency\t" + String.format("%.3f",latency_stddev) + "\tsec\n");
+    	    writer.write("calc max latency, Lmax\t" + String.format("%.3f",Lmax) + "\tsec\n");
+    	    // Write out regression data
+    	    writer.write("Regression\tslope\tintercept\tR-squared\tMetric of interest\n\t\t\t\tname\tvalue\n");
+    	    double slope = actual_source_rate_reg.getSlope();
+    	    double intercept = actual_source_rate_reg.getIntercept();
+    	    double rsquared = actual_source_rate_reg.getRSquare();
+    	    writer.write("source rate\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tsource rate, files/sec (slope)\t" + String.format("%5g",slope) + "\n");
+    	    slope = Rku_reg.getSlope();
+    	    intercept = Rku_reg.getIntercept();
+    	    rsquared = Rku_reg.getRSquare();
+    	    writer.write("actual sink rate\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tRku, files/sec (slope)\t" + String.format("%5g",slope) + "\n");
+    	    slope = Lav_reg.getSlope();
+    	    intercept = Lav_reg.getIntercept();
+    	    rsquared = Lav_reg.getRSquare();
+    	    writer.write("latency vs create time at source\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tLav, avg latency, sec (intercept)\t" + String.format("%5g",intercept) + "\n");
+    	    slope = Lgr_reg.getSlope();
+    	    intercept = Lgr_reg.getIntercept();
+    	    rsquared = Lgr_reg.getRSquare();
+    	    writer.write("latency vs index from file\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tLgr, latency growth, sec/file (slope)\t" + String.format("%5g",slope) + "\n");
+    	    writer.write("\nFilename\tCreate time at source (msec)\tCreate time at source, normalized (sec)\tCreate time at sink (msec)\tCreate time at sink, normalized (sec)\tLatency (sec)\tCumulative number of files at sink\tIndex from file\tOut of order or missing?\n");
     	    
-    	    previousIndex = 0;
-    	    for (int i=0; i<array_length; ++i) {
-    	        double latency = latencyList.get(i).doubleValue();
-    	    	String filename = filenameList.get(i);
-    	    	long sourceCreationTime = sourceCreationTimeList.get(i).longValue();
-    	    	long sinkCreationTime = sinkCreationTimeList.get(i).longValue();
-    	    	int cumNumFiles = cumulativeNumFilesList.get(i).intValue();
-    	    	int sequenceNumber = sequenceNumberList.get(i).intValue();
-    	    	
-    	    	// NOTE: variable "firstLine" is the string version of sequenceNumber
-    	        double normalizedSourceCreationTime = (sourceCreationTime - earliestSourceCreationTime)/1000.0;
-    	        double normalizedSinkCreationTime = (sinkCreationTime - earliestSourceCreationTime)/1000.0;
-    	        String outOfOrderStr = " ";
-    	        if (sequenceNumber != (previousIndex + 1)) {
-    	        	outOfOrderStr = "YES";
-    	        }
-    	        writer.write(filename + "\t" + sourceCreationTime + "\t" + String.format("%.3f",normalizedSourceCreationTime) + "\t" + sinkCreationTime + "\t" + String.format("%.3f",normalizedSinkCreationTime) + "\t" + String.format("%.3f",latency) + "\t" + cumNumFiles + "\t" + sequenceNumber + "\t" + outOfOrderStr + "\n");
+    	    // Write data for each file
+    	    for (int i=0; i<num_entries; ++i) {
+    	        writer.write(
+    	        	filenameList.get(i) + "\t" +
+    	            sourceCreationTimeList.get(i).longValue() + "\t" +
+    	        	String.format("%.3f",normalizedSourceCreationTimeList.get(i).doubleValue()) + "\t" +
+    	        	sinkCreationTimeList.get(i).longValue() + "\t" +
+    	        	String.format("%.3f",normalizedSinkCreationTimeList.get(i).doubleValue()) + "\t" +
+    	            String.format("%.3f",latencyList.get(i).doubleValue()) + "\t" +
+    	            cumulativeNumFilesList.get(i).intValue() + "\t" +
+    	            sequenceNumberList.get(i).intValue() + "\t" +
+    	            outOfOrderList.get(i).toString() + "\n");
     	        writer.flush();
-    	        previousIndex = sequenceNumber;
     	    }
+    	    
     	} catch (Exception e) {
     		e.printStackTrace();
     	}
