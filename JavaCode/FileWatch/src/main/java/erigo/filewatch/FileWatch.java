@@ -505,7 +505,7 @@ public class FileWatch {
     	    writer.write("std dev of latency\t" + String.format("%.3f",latency_stddev) + "\tsec\n");
     	    writer.write("calc max latency, Lmax\t" + String.format("%.3f",Lmax) + "\tsec\n");
     	    // Write out regression data
-    	    writer.write("Regression data\nname\tslope\tintercept\tR-squared\tMetric of interest\n\t\t\t\tname\tvalue\n");
+    	    writer.write("Regression\tslope\tintercept\tR-squared\tMetric of interest\n\t\t\t\tname\tvalue\n");
     	    double slope = actual_source_rate_reg.getSlope();
     	    double intercept = actual_source_rate_reg.getIntercept();
     	    double rsquared = actual_source_rate_reg.getRSquare();
@@ -517,11 +517,11 @@ public class FileWatch {
     	    slope = Lav_reg.getSlope();
     	    intercept = Lav_reg.getIntercept();
     	    rsquared = Lav_reg.getRSquare();
-    	    writer.write("latency vs create time at source\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tLav avg latency, sec (intercept)\t" + String.format("%5g",intercept) + "\n");
+    	    writer.write("latency vs create time at source\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tLav, avg latency, sec (intercept)\t" + String.format("%5g",intercept) + "\n");
     	    slope = Lgr_reg.getSlope();
     	    intercept = Lgr_reg.getIntercept();
     	    rsquared = Lgr_reg.getRSquare();
-    	    writer.write("latecny vs file index\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tLgr latency growth, sec/file (slope)\t" + String.format("%5g",slope) + "\n");
+    	    writer.write("latency vs index from file\t" + String.format("%5g",slope) + "\t" + String.format("%5g",intercept) + "\t" + String.format("%5g",rsquared) + "\tLgr, latency growth, sec/file (slope)\t" + String.format("%5g",slope) + "\n");
     	    writer.write("\nFilename\tCreate time at source (msec)\tCreate time at source, normalized (sec)\tCreate time at sink (msec)\tCreate time at sink, normalized (sec)\tLatency (sec)\tCumulative number of files at sink\tIndex from file\tOut of order or missing?\n");
     	    
     	    // Write data for each file
