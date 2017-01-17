@@ -103,6 +103,7 @@ public class CTscreencap extends TimerTask {
 	public Rectangle regionToCapture = null;   // The region to capture
 	public BlockingQueue<byte[]> queue = null; // Queue of byte arrays containing screen captures to be sent to CT
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
+	public boolean bAudioCapture = false;		// record synchronous audio?
 	
 	//
 	// main() function; create an instance of CTscreencap
@@ -152,7 +153,8 @@ public class CTscreencap extends TimerTask {
 		options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
 		options.addOption("x", "debug", false, "use debug mode");
 		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")");		// MJM
-		
+		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")");		// MJM
+
 		// The following example is for: -outputfolder <folder>   (location of output files)
 		Option outputFolderOption = Option.builder("outputfolder")
                 .argName("folder")
@@ -247,6 +249,8 @@ public class CTscreencap extends TimerTask {
 	    bDebugMode = line.hasOption("debug");
 	    // changeDetect mode? MJM
 	    bChangeDetect = line.hasOption("change_detect");
+	    // audio capture mode? MJM
+	    bAudioCapture = line.hasOption("audio_cap");
 	    // Image quality
 	    String imageQualityStr = line.getOptionValue("q",""+imageQuality);
 	    try {
@@ -347,6 +351,8 @@ public class CTscreencap extends TimerTask {
 		//
 		timerObj = new Timer();
         timerObj.schedule(this, 0, capturePeriodMillis);
+        
+        if(bAudioCapture) new AudiocapTask(outputFolder);		// start audio capture (MJM)
         
         //
         // Grab screen capture byte arrays off the blocking queue and send them to CT
