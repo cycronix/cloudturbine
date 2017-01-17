@@ -307,10 +307,10 @@ public class CTscreencap extends TimerTask {
 		
 		// Setup CTwriter
 		try {
+			CTinfo.setDebug(bDebugMode);
 			ctw = new CTwriter(outputFolder + sourceName);
 			ctw.autoFlush(autoFlushMillis);
 			ctw.setZipMode(bZipMode);
-			CTinfo.setDebug(bDebugMode);
 			ctw.autoSegment(0);
 		} catch (IOException ioe) {
 			System.err.println("Error trying to create CloudTurbine writer object:\n" + ioe);

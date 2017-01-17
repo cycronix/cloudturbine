@@ -27,7 +27,6 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
 
-import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTwriter;
 
 /**
@@ -45,7 +44,6 @@ public class AudiocapTask {
 	public AudiocapTask(String outputFolder) {
 		try {
 			CTwriter ctw = new CTwriter(outputFolder+"/CTaudio");
-			CTinfo.setDebug(false);
 			ctw.setBlockMode(true,true);		// pack, zip
 			ctw.autoFlush(0);					// no autoflush
 			//	 ctw.autoSegment(0);			// no segments

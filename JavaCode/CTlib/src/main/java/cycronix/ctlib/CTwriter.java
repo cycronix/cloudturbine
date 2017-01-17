@@ -191,7 +191,7 @@ public class CTwriter {
 				autoFlush = Long.MAX_VALUE;
 		else	autoFlush = timePerBlock;				// msec
 		
-//		System.err.println("autoFlush set, timePerBlock: "+timePerBlock+", asyncFlag: "+asyncFlag+", autoFlush: "+autoFlush);
+		CTinfo.debugPrint("autoFlush set, timePerBlock: "+timePerBlock+", asyncFlag: "+asyncFlag+", autoFlush: "+autoFlush);
 	}
 	
 	/**
@@ -486,7 +486,7 @@ public class CTwriter {
 			if(initBaseTime) segmentTime(thisFtime);		// catch alternate initialization
 		}
 
-		CTinfo.debugPrint("putData: "+outName+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime);
+		CTinfo.debugPrint("putData: "+outName+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime+", autoFlush: "+autoFlush);
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize
 		else if(!asyncFlush && ((thisFtime - lastFtime) >= autoFlush)) {
