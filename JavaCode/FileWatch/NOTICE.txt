@@ -14,6 +14,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+------------------------------------------------------------------------------
+
 This code is based on the WatchDir example program from Oracle:
 
     http://docs.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
@@ -48,3 +50,10 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+------------------------------------------------------------------------------
+
+FileWatch uses the JFreeChart library (Dave Gilbert, david.gilbert@object-refinery.com,
+JFreeChart Project Leader) for chart/plot support. For information on this library,
+see http://www.jfree.org/jfreechart/. JFreeChart is covered by the GNU Lesser GPL, Version 3
+(see http://www.gnu.org/licenses/lgpl.html).

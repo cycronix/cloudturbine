@@ -150,6 +150,9 @@ import java.nio.file.WatchEvent.Kind;
 import static java.nio.file.StandardWatchEventKinds.*;
 import java.io.*;
 import java.util.*;
+
+import javax.swing.SwingUtilities;
+
 import com.sun.nio.file.SensitivityWatchEventModifier;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
@@ -489,7 +492,20 @@ public class FileWatch {
     	double Lmax = Lav_reg.getIntercept() + 3.0 * (latency_stddev);
     	
     	//
-    	// Write out the data 
+    	// Write out data to console
+    	//
+    	System.err.println("\nTest metrics:");
+    	System.err.println("Actual source rate = " + String.format("%5g",actual_source_rate_reg.getSlope()) + " files/sec");
+    	System.err.println("Metrics applicable to \"fast\" file tests:");
+    	System.err.println("   Rku = " + String.format("%5g",Rku_reg.getSlope()) + " files/sec");
+    	System.err.println("Metrics applicable to \"slow\" file tests:");
+    	System.err.println("   Lav = " + String.format("%5g",Lav_reg.getIntercept()) + " sec");
+    	System.err.println("   Lmax observed = " + String.format("%.3f",latency_max) + " sec");
+    	System.err.println("   Lmax calculated (Lav + 3*(stddev of latency)) = " + String.format("%.3f",Lmax) + " sec");
+    	System.err.println("   Lgr = " + String.format("%5g",Lgr_reg.getSlope()) + " sec/file");
+    	
+    	//
+    	// Write out data to file
     	//
     	BufferedWriter writer = null;
     	try {
@@ -548,6 +564,36 @@ public class FileWatch {
     	} catch (IOException e) {
     		// nothing to do
     	}
+    	
+    	//
+    	// Display plots
+    	//
+    	SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+            	new DisplayPlot(
+            	    "Latency",
+            	    "Create time at source (sec)",
+            	    "Latency (sec)",
+            	    normalizedSourceCreationTimeList,
+            	    latencyList,
+            	    300,300)
+            	.setVisible(true);
+            	// Need to convert cumulativeNumFilesList to List<Double> to send it to the plot routine
+            	List<Double> doubleList = new ArrayList<Double>();
+            	for (int i=0; i<num_entries; ++i) {
+            		doubleList.add(new Double((double)cumulativeNumFilesList.get(i).intValue()));
+            	}
+            	new DisplayPlot(
+                	"Throughput",
+                	"Create time at sink (sec)",
+                	"Number of files at sink",
+                	normalizedSinkCreationTimeList,
+                	doubleList,
+                	400,400)
+                .setVisible(true);
+            }
+        });
     	
     }
     
