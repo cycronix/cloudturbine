@@ -46,6 +46,10 @@ package erigo.filewatch;
  * 
  * 2. Example from CodeJava:
  *    http://www.codejava.net/java-se/graphics/using-jfreechart-to-draw-xy-line-chart-with-xydataset
+ * 
+ * For further information about JFreeChart:
+ * - Javadoc: http://www.jfree.org/jfreechart/api/javadoc/index.html
+ * - Homepage: http://www.jfree.org/jfreechart/
  */
 
 import java.awt.BorderLayout;
