@@ -28,30 +28,32 @@
 
 package erigo.filewatch;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.geom.Ellipse2D;
-
 /*
  * Copyright 2015-2017 Erigo Technologies LLC
  */
 
 /*
- * This code is based on the "Function2DDemo1" example provided by
- * David Gilbert (JFreeChart Project Leader) at:
- * http://www.jfree.org/phpBB2/viewtopic.php?p=61448
+ * DisplayPlot is based on the following examples from the web:
  * 
- * Copyright header from this function:
- * --------------------
- * Function2DDemo1.java
- * --------------------
- * (C) Copyright 2007, by Object Refinery Limited.
+ * 1. "Function2DDemo1" example provided by
+ *    David Gilbert (JFreeChart Project Leader) at:
+ *    http://www.jfree.org/phpBB2/viewtopic.php?p=61448
+ *    Copyright header from this class:
+ *    --------------------
+ *    Function2DDemo1.java
+ *    --------------------
+ *    (C) Copyright 2007, by Object Refinery Limited.
  * 
- * This function is also based on the example at CodeJava:
- * http://www.codejava.net/java-se/graphics/using-jfreechart-to-draw-xy-line-chart-with-xydataset
+ * 2. Example from CodeJava:
+ *    http://www.codejava.net/java-se/graphics/using-jfreechart-to-draw-xy-line-chart-with-xydataset
  */
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.geom.Ellipse2D;
+import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -63,10 +65,8 @@ import org.jfree.chart.renderer.xy.XYShapeRenderer;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-import org.jfree.ui.ApplicationFrame;
-import org.jfree.ui.RefineryUtilities;
 
-public class DisplayPlot extends ApplicationFrame {
+public class DisplayPlot extends JFrame {
     
     /**
 	 * 
@@ -87,8 +87,10 @@ public class DisplayPlot extends ApplicationFrame {
      * @param yaxisLabelI	Label for y-axis
      * @param xDataI		x-axis data
      * @param yDataI		y-axis data
+     * @param xLocI			x-pos of lower left corner of the JFrame
+     * @param yLocI			y-pos of lower left corner of the JFrame
      */
-    public DisplayPlot(String chartTitleI,String xaxisLabelI,String yaxisLabelI,List<Double> xDataI,List<Double> yDataI) {
+    public DisplayPlot(String chartTitleI,String xaxisLabelI,String yaxisLabelI,List<Double> xDataI,List<Double> yDataI,int xLocI,int yLocI) {
         super("FileWatch data");
         chartTitle = chartTitleI;
         xaxisLabel = xaxisLabelI;
@@ -99,16 +101,18 @@ public class DisplayPlot extends ApplicationFrame {
         JFreeChart chart = createChart(dataset);
         JPanel chartPanel =  new ChartPanel(chart);
         chartPanel.setPreferredSize(new java.awt.Dimension(650, 400));
-        setContentPane(chartPanel);
+        add(chartPanel, BorderLayout.CENTER);
         pack();
-        RefineryUtilities.centerFrameOnScreen(this);
-        setVisible(true);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        // Position plot
+        // setLocationRelativeTo(null);  // to place in center of screen; not good if there are multiple plots
+        setLocation(xLocI,yLocI);
     }
     
     /**
      * Add all the data to a new XYDataset
      */
-    XYDataset createDataset() {
+    private XYDataset createDataset() {
     	XYSeriesCollection dataset = new XYSeriesCollection();
 		XYSeries series = new XYSeries("first dataset");
 		for (int i=0; i<xData.size(); ++i) {
@@ -125,7 +129,7 @@ public class DisplayPlot extends ApplicationFrame {
      *
      * @return A chart instance.
      */
-    JFreeChart createChart(XYDataset dataset) {
+    private JFreeChart createChart(XYDataset dataset) {
         // create the chart...
         JFreeChart chart = ChartFactory.createXYLineChart(
             chartTitle,
@@ -155,15 +159,17 @@ public class DisplayPlot extends ApplicationFrame {
 		
     	XYPlot plot = chart.getXYPlot();
 		
+    	// XYLineAndShapeRenderer does both lines and shapes
 		// XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
 		// For XYLineAndShapeRenderer: set thickness for series (using strokes)
 		// renderer.setSeriesStroke(0, new BasicStroke(1.0f));
 		
+    	// XYShapeRenderer does shapes only
     	XYShapeRenderer renderer = new XYShapeRenderer();
-    	renderer.setSeriesShape(0, new Ellipse2D.Double(-1,-1,2,2));
+    	renderer.setSeriesShape(0, new Ellipse2D.Double(-1.5,-1.5,3,3));
 		
 		// sets paint color
-		renderer.setSeriesPaint(0, Color.ORANGE);
+		renderer.setSeriesPaint(0, Color.RED);
 		
 		// sets paint color for plot outlines (chart borders)
 		// plot.setOutlinePaint(Color.BLUE);

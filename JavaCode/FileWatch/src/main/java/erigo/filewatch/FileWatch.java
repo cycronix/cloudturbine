@@ -150,6 +150,9 @@ import java.nio.file.WatchEvent.Kind;
 import static java.nio.file.StandardWatchEventKinds.*;
 import java.io.*;
 import java.util.*;
+
+import javax.swing.SwingUtilities;
+
 import com.sun.nio.file.SensitivityWatchEventModifier;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
@@ -502,11 +505,6 @@ public class FileWatch {
     	System.err.println("   Lgr = " + String.format("%5g",Lgr_reg.getSlope()) + " sec/file");
     	
     	//
-    	// Display plot
-    	//
-    	new DisplayPlot("Latency","Create time at source (sec)","Latency (sec)",normalizedSourceCreationTimeList,latencyList);
-    	
-    	//
     	// Write out data to file
     	//
     	BufferedWriter writer = null;
@@ -566,6 +564,36 @@ public class FileWatch {
     	} catch (IOException e) {
     		// nothing to do
     	}
+    	
+    	//
+    	// Display plots
+    	//
+    	SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+            	new DisplayPlot(
+            	    "Latency",
+            	    "Create time at source (sec)",
+            	    "Latency (sec)",
+            	    normalizedSourceCreationTimeList,
+            	    latencyList,
+            	    300,300)
+            	.setVisible(true);
+            	// Need to convert cumulativeNumFilesList to List<Double> to send it to the plot routine
+            	List<Double> doubleList = new ArrayList<Double>();
+            	for (int i=0; i<num_entries; ++i) {
+            		doubleList.add(new Double((double)cumulativeNumFilesList.get(i).intValue()));
+            	}
+            	new DisplayPlot(
+                	"Throughput",
+                	"Create time at sink (sec)",
+                	"Number of files at sink",
+                	normalizedSinkCreationTimeList,
+                	doubleList,
+                	400,400)
+                .setVisible(true);
+            }
+        });
     	
     }
     
