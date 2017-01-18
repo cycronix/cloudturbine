@@ -48,5 +48,7 @@ dependencies {
     // compile name: 'CTlib'
     // Get the commons-math library to perform linear regression
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+    // JFreeChart
+    compile group: 'org.jfree', name: 'jfreechart', version: '1.0.19'
 }
 

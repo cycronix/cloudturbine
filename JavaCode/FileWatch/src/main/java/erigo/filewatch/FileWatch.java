@@ -489,7 +489,25 @@ public class FileWatch {
     	double Lmax = Lav_reg.getIntercept() + 3.0 * (latency_stddev);
     	
     	//
-    	// Write out the data 
+    	// Write out data to console
+    	//
+    	System.err.println("\nTest metrics:");
+    	System.err.println("Actual source rate = " + String.format("%5g",actual_source_rate_reg.getSlope()) + " files/sec");
+    	System.err.println("Metrics applicable to \"fast\" file tests:");
+    	System.err.println("   Rku = " + String.format("%5g",Rku_reg.getSlope()) + " files/sec");
+    	System.err.println("Metrics applicable to \"slow\" file tests:");
+    	System.err.println("   Lav = " + String.format("%5g",Lav_reg.getIntercept()) + " sec");
+    	System.err.println("   Lmax observed = " + String.format("%.3f",latency_max) + " sec");
+    	System.err.println("   Lmax calculated (Lav + 3*(stddev of latency)) = " + String.format("%.3f",Lmax) + " sec");
+    	System.err.println("   Lgr = " + String.format("%5g",Lgr_reg.getSlope()) + " sec/file");
+    	
+    	//
+    	// Display plot
+    	//
+    	new DisplayPlot("Latency","Create time at source (sec)","Latency (sec)",normalizedSourceCreationTimeList,latencyList);
+    	
+    	//
+    	// Write out data to file
     	//
     	BufferedWriter writer = null;
     	try {
