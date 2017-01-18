@@ -32,20 +32,21 @@ import cycronix.ctlib.CTwriter;
 /**
  * 
  * Capture audio stream, write to CT.
- * @author mattmiller
+ * @author Matt Miller, Cycronix
  *
  */
 public class AudiocapTask {
 
 	protected boolean running;
 	int frequency = 8000; 				//8000, 22050, 44100
-
+	CTwriter ctw_audio=null;
+	
 	// constructor
 	public AudiocapTask(String outputFolder) {
 		try {
-			CTwriter ctw = new CTwriter(outputFolder+"/CTaudio");
-			ctw.setBlockMode(true,true);		// pack, zip
-			ctw.autoFlush(0);					// no autoflush
+			ctw_audio = new CTwriter(outputFolder+"/CTaudio");
+			ctw_audio.setBlockMode(true,true);		// pack, zip
+			ctw_audio.autoFlush(0);					// no autoflush
 			//	 ctw.autoSegment(0);			// no segments
 
 			final AudioFormat format = getFormat();
@@ -67,10 +68,10 @@ public class AudiocapTask {
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length);
 							if (count > 0) {
-								ctw.setTime(startTime + fcount*1000);		// force exactly 1sec intervals?  (gapless but drift?)
+								ctw_audio.setTime(startTime + fcount*1000);		// force exactly 1sec intervals?  (gapless but drift?)
 								fcount++;
-								ctw.putData("audio.wav",addWaveHeader(buffer));
-								ctw.flush();
+								ctw_audio.putData("audio.wav",addWaveHeader(buffer));
+								ctw_audio.flush();
 							}
 						}
 					} catch (Exception e) {
@@ -93,6 +94,11 @@ public class AudiocapTask {
 		}
 	}
 
+	public void shutDown() {
+		running = false;
+		if(ctw_audio != null) ctw_audio.close();
+	}
+	
 	private AudioFormat getFormat() {
 		float sampleRate = frequency;
 		int sampleSizeInBits = 16;

@@ -105,6 +105,8 @@ public class CTscreencap extends TimerTask {
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bAudioCapture = false;		// record synchronous audio?
 	
+	private AudiocapTask audioTask=null;		// audio-capture task (optional)
+	
 	//
 	// main() function; create an instance of CTscreencap
 	//
@@ -132,6 +134,8 @@ public class CTscreencap extends TimerTask {
         		}
         		ctw.close();
         		ctw = null;
+        		// shut down audio
+        		if(audioTask != null) audioTask.shutDown();
         		// Sleep for a bit to allow any currently running tasks to finish
         		try {
             		Thread.sleep(1000);
@@ -352,7 +356,7 @@ public class CTscreencap extends TimerTask {
 		timerObj = new Timer();
         timerObj.schedule(this, 0, capturePeriodMillis);
         
-        if(bAudioCapture) new AudiocapTask(outputFolder);		// start audio capture (MJM)
+        if(bAudioCapture) audioTask = new AudiocapTask(outputFolder);		// start audio capture (MJM)
         
         //
         // Grab screen capture byte arrays off the blocking queue and send them to CT
