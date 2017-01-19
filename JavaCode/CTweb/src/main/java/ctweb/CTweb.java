@@ -509,11 +509,9 @@ public class CTweb {
 
     							CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
 
-//    							formResponse(response,null);
-
-//    							if(chan.endsWith(".jpg")) 	response.setContentType("application/image/jpeg");
-    							if(chan.endsWith(".jpg")) 	response.setContentType("image/jpeg");
-    							else						response.setContentType("application/octet-stream");
+    							if(chan.endsWith(".jpg")) 		response.setContentType("image/jpeg");
+    							else if(chan.endsWith(".wav")) 	response.setContentType("audio/wav");
+    							else							response.setContentType("application/octet-stream");
 
     							formResponse(response,null);
 
@@ -627,6 +625,7 @@ public class CTweb {
 		else if	(fname.endsWith(".js")) mime = "application/javascript";
 		else if	(fname.endsWith(".jpg")) mime = "image/jpeg";
 		else if	(fname.endsWith(".png")) mime = "image/png";
+		else if	(fname.endsWith(".wav")) mime = "audio/wav";
 		if(debug) System.err.println("fname: "+fname+", mime type: "+mime);
 		return mime;
     }
