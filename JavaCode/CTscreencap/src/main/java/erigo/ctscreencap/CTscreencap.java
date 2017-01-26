@@ -339,6 +339,7 @@ public class CTscreencap extends TimerTask implements ActionListener {
 	            regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 	        } else {
 	        	// Display a frame containing a translucent panel which will specify the capture region
+	        	JFrame.setDefaultLookAndFeelDecorated(true);
 	        	// For thread safety: Schedule a job for the event-dispatching thread to create and show the GUI
 	        	SwingUtilities.invokeLater(new Runnable() {
 	        	    public void run() {
@@ -461,7 +462,7 @@ public class CTscreencap extends TimerTask implements ActionListener {
 	private void createAndShowGUI() {
 		
 		// Make sure we have nice window decorations.
-		JFrame.setDefaultLookAndFeelDecorated(true);
+		// JFrame.setDefaultLookAndFeelDecorated(true);
 		
 		// Create the GUI components
 		GridBagLayout framegbl = new GridBagLayout();
