@@ -17,6 +17,7 @@ limitations under the License.
 package erigo.ctscreencap;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GraphicsDevice;
@@ -29,6 +30,8 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
@@ -96,7 +99,7 @@ import cycronix.ctlib.CTinfo;
  * @version 01/26/2017
  *
  */
-public class CTscreencap extends TimerTask implements ActionListener {
+public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener {
 	
 	// Encoded byte array of the cursor image data from "Cursor_NoShadow.png"
 	public static String encoded_cursor_noshadow = "iVBORw0KGgoAAAANSUhEUgAAABQAAAAgCAYAAAASYli2AAACa0lEQVR42q2WT2jSYRjHR+QtwX/oREVBhIYxGzJNyEOIXTp0yr8HYTRQlNz8O6dgoJ4FT2ZeJAw8CEkdhBYMFHfypLBDsZ3CUYcijErn7+l9BCPZbJrvF97L+/D7/N7neZ8/74rVan27QlngdDpfUQWKxWJwuVwvqQG73S6srq7C1tbWMyrAwWAAnU4HhEIhbG9vZ6kAUe12GwQCAbjd7jQVIOro6Ah4PB7j9XpjVICow8ND4HA4jM/ne0IFiKrX68DlcpmdnZ3HVICoWq02dn93d9dBBYiqVCrA5/NHoVDoIRUgqlQqYUoh9D4VICqfz2NFnUej0btUgKhsNgsymWy4t7e3SQWIymQyoFAofsVisVtUgKh4PA4qlepHIpFQUQEyDAOBQADW1ta+E7hsaeAESmoe1tfXvxH3RUsDUaPRCPsoaLXaL8lkkrcQ8OTkBFqt1oXVaDRAo9GAXq//TKA35gaSmgY2m81g3GYti8Xybm7g8fHxuK7JKTj/ldgHBwdweno6tWcymXBMPF8YWK1WgcVigd/vv7CvVqv7CwHL5TJ2F4bMlhzph9Dv9//YhsMhSKVSjKdrLmCxWMSZMiJJ+wgNBoPhU6FQmDplKpUCs9n8/kpgLpcDkUh0HgwGH0wMHo/nKaYEJvFEvV4PbxvLTzkTmE6nQSKRDMPh8L2/DeRGr2N3aTabU6e02Wxgt9tfzwTK5fJBJBK5c5mRfPjG4XBMxZEML1AqlT8vpaFhf3//9qy/YUdBF8/OzsZze2NjA9fXmd2bFPbNq9KAXMIHnU43noKkdl+QUFxb6mmBaWI0Gj/+y5OJfgOMmgOC3DbusQAAAABJRU5ErkJggg==";
@@ -450,6 +453,10 @@ public class CTscreencap extends TimerTask implements ActionListener {
 			// Update capture region
 			Point loc = capturePanel.getLocationOnScreen();
 			Dimension dim = capturePanel.getSize();
+			if ( (dim.width <= 0) || (dim.height <= 0) ) {
+				// Don't try to do a screen capture with a non-existent capture area
+				return;
+			}
 			Rectangle tempRegionToCapture = new Rectangle(loc,dim);
 			regionToCapture = tempRegionToCapture;
 		}
@@ -466,7 +473,7 @@ public class CTscreencap extends TimerTask implements ActionListener {
 	private void createAndShowGUI() {
 		
 		// Make sure we have nice window decorations.
-		JFrame.setDefaultLookAndFeelDecorated(true);
+		// JFrame.setDefaultLookAndFeelDecorated(true);
 		
 		// Create the GUI components
 		GridBagLayout framegbl = new GridBagLayout();
@@ -476,6 +483,8 @@ public class CTscreencap extends TimerTask implements ActionListener {
 		// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
 		// For running on Mac, the following line appears to be critical
         guiFrame.setUndecorated(true);
+        
+        guiFrame.addMouseMotionListener(this);
 		
 		guiFrame.setBackground(new Color(0,0,0,0));
 		GridBagLayout gbl = new GridBagLayout();
@@ -586,12 +595,14 @@ public class CTscreencap extends TimerTask implements ActionListener {
 	}
 	
 	public void moveFrame() {
+		/*
 		Rectangle bounds = guiFrame.getBounds();
 		int x = bounds.x + 5;
 		int y = bounds.y + 5;
 		int width = bounds.width + 5;
 		int height = bounds.height + 5;
 		guiFrame.setBounds(x,y,width,height);
+		*/
 	}
 	
 	//
@@ -671,5 +682,170 @@ public class CTscreencap extends TimerTask implements ActionListener {
 		byte[] cursor_bytes = baos.toByteArray();
 		Base64.Encoder byte_encoder = Base64.getEncoder();
 		return byte_encoder.encodeToString(cursor_bytes);
+	}
+	
+	private final static int NO_COMMAND			= 0;
+	private final static int MOVE_FRAME			= 1;
+	private final static int RESIZE_FRAME_NW	= 2;
+	private final static int RESIZE_FRAME_N		= 3;
+	private final static int RESIZE_FRAME_NE	= 4;
+	private final static int RESIZE_FRAME_E		= 5;
+	private final static int RESIZE_FRAME_SE	= 6;
+	private final static int RESIZE_FRAME_S		= 7;
+	private final static int RESIZE_FRAME_SW	= 8;
+	private final static int RESIZE_FRAME_W		= 9;
+	private int mouseCommandMode = NO_COMMAND;
+	private Point mouseStartingPoint = null;
+	private Rectangle frameStartingBounds = null;
+	
+	@Override
+	public void mouseDragged(MouseEvent mouseEventI) {
+		// Make sure the screen capture area isn't removed
+		boolean bDontMakeThinner = false;
+		boolean bDontMakeShorter = false;
+		if (capturePanel.getHeight() < 10) {
+			bDontMakeShorter = true;
+		}
+		if (capturePanel.getWidth() < 10) {
+			bDontMakeThinner = true;
+		}
+		// System.err.println("mouseDragged: " + mouseEventI.getX() + "," + mouseEventI.getY());
+		Point currentPoint = mouseEventI.getLocationOnScreen();
+		int currentPosX = 0;
+		int currentPosY = 0;
+		int deltaX = 0;
+		int deltaY = 0;
+		if (mouseCommandMode != NO_COMMAND) {
+			currentPoint = mouseEventI.getLocationOnScreen();
+			currentPosX = currentPoint.x;
+			currentPosY = currentPoint.y;
+			deltaX = currentPosX - mouseStartingPoint.x;
+			deltaY = currentPosY - mouseStartingPoint.y;
+			// System.err.println("\n" + deltaX + "," + deltaY);
+		}
+		int currentGUIFrameHeight = guiFrame.getBounds().height;
+		int currentGUIFrameWidth = guiFrame.getBounds().width;
+		if (mouseCommandMode == MOVE_FRAME) {
+			Point updatedGUIFrameLoc = new Point(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY);
+			guiFrame.setLocation(updatedGUIFrameLoc);
+		} else if (mouseCommandMode == RESIZE_FRAME_NW) {
+			int desiredChangeInHeight = (frameStartingBounds.height-deltaY) - currentGUIFrameHeight;
+			int desiredCchangeInWidth = (frameStartingBounds.width-deltaX) - currentGUIFrameWidth;
+			if ( (bDontMakeShorter && (desiredChangeInHeight < 0)) || (bDontMakeThinner && (desiredCchangeInWidth < 0)) ) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY,frameStartingBounds.width-deltaX,frameStartingBounds.height-deltaY);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_N) {
+			if (bDontMakeShorter && (deltaY > 0)) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,frameStartingBounds.width,frameStartingBounds.height-deltaY);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_NE) {
+			if ( (bDontMakeShorter && (deltaY > 0)) || (bDontMakeThinner && (deltaX < 0)) ) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,frameStartingBounds.width+deltaX,frameStartingBounds.height-deltaY);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_E) {
+			if (bDontMakeThinner && (deltaX < 0)) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,frameStartingBounds.width+deltaX,frameStartingBounds.height);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_SE) {
+			if ( (bDontMakeShorter && (deltaY < 0)) || (bDontMakeThinner && (deltaX < 0)) ) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,frameStartingBounds.width+deltaX,frameStartingBounds.height+deltaY);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_S) {
+			if (bDontMakeShorter && (deltaY < 0)) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,frameStartingBounds.width,frameStartingBounds.height+deltaY);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_SW) {
+			if ( (bDontMakeShorter && (deltaY < 0)) || (bDontMakeThinner && (deltaX > 0)) ) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,frameStartingBounds.width-deltaX,frameStartingBounds.height+deltaY);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else if (mouseCommandMode == RESIZE_FRAME_W) {
+			if (bDontMakeThinner && (deltaX > 0)) {
+				return;
+			}
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,frameStartingBounds.width-deltaX,frameStartingBounds.height);
+			guiFrame.setBounds(updatedGUIFrameBounds);
+		} else {
+			// See if we need to go into a particular command mode
+			mouseCommandMode = getGUIFrameCommandMode(mouseEventI.getPoint());
+			mouseStartingPoint = mouseEventI.getLocationOnScreen();
+			frameStartingBounds = guiFrame.getBounds();
+		}
+	}
+	
+	@Override
+	public void mouseMoved(MouseEvent mouseEventI) {
+		// System.err.println("mouseMoved: " + mouseEventI.getX() + "," + mouseEventI.getY());
+		mouseCommandMode = NO_COMMAND;
+		// Set mouse Cursor based on the current mouse position
+		int commandMode = getGUIFrameCommandMode(mouseEventI.getPoint());
+		switch (commandMode) {
+			case NO_COMMAND:		guiFrame.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+									break;
+			case MOVE_FRAME:		guiFrame.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+									break;
+			case RESIZE_FRAME_NW:	guiFrame.setCursor(new Cursor(Cursor.NW_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_N:	guiFrame.setCursor(new Cursor(Cursor.N_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_NE:	guiFrame.setCursor(new Cursor(Cursor.NE_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_E:	guiFrame.setCursor(new Cursor(Cursor.E_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_SE:	guiFrame.setCursor(new Cursor(Cursor.SE_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_S:	guiFrame.setCursor(new Cursor(Cursor.S_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_SW:	guiFrame.setCursor(new Cursor(Cursor.SW_RESIZE_CURSOR));
+									break;
+			case RESIZE_FRAME_W:	guiFrame.setCursor(new Cursor(Cursor.W_RESIZE_CURSOR));
+									break;
+			default:				guiFrame.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+									break;
+		}
+	}
+	
+	private int getGUIFrameCommandMode(Point mousePosI) {
+		int borderThickness = 5;
+		int cornerActiveWidth = 20;
+		int menubarHeight = 20;
+		Rectangle frameBounds = guiFrame.getBounds();
+		int frameWidth = frameBounds.width;
+		int frameHeight = frameBounds.height;
+		int cursorX = mousePosI.x;
+		int cursorY = mousePosI.y;
+		if ( (cursorY <= cornerActiveWidth) && ( (cursorX <= borderThickness) || ( (cursorY <= borderThickness) && (cursorX <= cornerActiveWidth) ) )  ) {
+			return RESIZE_FRAME_NW;
+		} else if ( (cursorY <= borderThickness) && (cursorX > cornerActiveWidth) && (cursorX < (frameWidth-cornerActiveWidth)) ) {
+			return RESIZE_FRAME_N;
+		} else if ( (cursorY <= cornerActiveWidth) && ( (cursorX >= (frameWidth-borderThickness)) || ( (cursorY <= borderThickness) && (cursorX >= (frameWidth-cornerActiveWidth)) ) )  ) {
+			return RESIZE_FRAME_NE;
+		} else if ( (cursorY <= menubarHeight) && (cursorX > cornerActiveWidth) && (cursorX < (frameWidth-cornerActiveWidth)) ) {
+			return MOVE_FRAME;
+		} else if ( (cursorY > cornerActiveWidth) && (cursorY < (frameHeight-cornerActiveWidth)) && (cursorX >= (frameWidth-borderThickness)) ) {
+			return RESIZE_FRAME_E;
+		} else if ( (cursorY >= (frameHeight-cornerActiveWidth)) && ( (cursorX >= (frameWidth-borderThickness)) || ( (cursorY >= (frameHeight-borderThickness)) && (cursorX >= (frameWidth-cornerActiveWidth)) ) )  ) {
+			return RESIZE_FRAME_SE;
+		} else if ( (cursorY >= (frameHeight-borderThickness)) && (cursorX > cornerActiveWidth) && (cursorX < (frameWidth-cornerActiveWidth)) ) {
+			return RESIZE_FRAME_S;
+		} else if ( (cursorY >= (frameHeight-cornerActiveWidth)) && ( (cursorX <= borderThickness) || ( (cursorY >= (frameHeight-borderThickness)) && (cursorX <= cornerActiveWidth) ) )  ) {
+			return RESIZE_FRAME_SW;
+		} else if ( (cursorY > cornerActiveWidth) && (cursorY < (frameHeight-cornerActiveWidth)) && (cursorX <= borderThickness) ) {
+			return RESIZE_FRAME_W;
+		}
+		return NO_COMMAND;
 	}
 }
