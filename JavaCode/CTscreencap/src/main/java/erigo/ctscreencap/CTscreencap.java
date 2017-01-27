@@ -338,8 +338,6 @@ public class CTscreencap extends TimerTask implements ActionListener {
 	            System.err.println("Translucency is not supported; capturing the entire screen; click Ctrl+c when finished\n.");
 	            regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 	        } else {
-	        	// Display a frame containing a translucent panel which will specify the capture region
-	        	JFrame.setDefaultLookAndFeelDecorated(true);
 	        	// For thread safety: Schedule a job for the event-dispatching thread to create and show the GUI
 	        	SwingUtilities.invokeLater(new Runnable() {
 	        	    public void run() {
@@ -443,6 +441,12 @@ public class CTscreencap extends TimerTask implements ActionListener {
 			if ( (guiFrame == null) || (!guiFrame.isShowing()) ) {
 				return;
 			}
+			final CTscreencap temporaryCTS = this;
+			SwingUtilities.invokeLater(new Runnable() {
+	            public void run() {
+	            	temporaryCTS.moveFrame();
+	            }
+	        });
 			// Update capture region
 			Point loc = capturePanel.getLocationOnScreen();
 			Dimension dim = capturePanel.getSize();
@@ -462,11 +466,17 @@ public class CTscreencap extends TimerTask implements ActionListener {
 	private void createAndShowGUI() {
 		
 		// Make sure we have nice window decorations.
-		// JFrame.setDefaultLookAndFeelDecorated(true);
+		JFrame.setDefaultLookAndFeelDecorated(true);
 		
 		// Create the GUI components
 		GridBagLayout framegbl = new GridBagLayout();
 		guiFrame = new JFrame("CTscreencap");
+		
+		// The following couple lines are from http://alvinalexander.com/source-code/java/how-create-transparenttranslucent-java-jframe-mac-os-x
+		// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
+		// For running on Mac, the following line appears to be critical
+        guiFrame.setUndecorated(true);
+		
 		guiFrame.setBackground(new Color(0,0,0,0));
 		GridBagLayout gbl = new GridBagLayout();
 		JPanel guiPanel = new JPanel(gbl);
@@ -573,6 +583,15 @@ public class CTscreencap extends TimerTask implements ActionListener {
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
 		return menuBar;
+	}
+	
+	public void moveFrame() {
+		Rectangle bounds = guiFrame.getBounds();
+		int x = bounds.x + 5;
+		int y = bounds.y + 5;
+		int width = bounds.width + 5;
+		int height = bounds.height + 5;
+		guiFrame.setBounds(x,y,width,height);
 	}
 	
 	//
