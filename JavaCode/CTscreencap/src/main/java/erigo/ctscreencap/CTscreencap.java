@@ -529,7 +529,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		controlsPanel.setBackground(new Color(211,211,211,255));
 		capturePanel = new JPanel();
 		capturePanel.setBackground(new Color(0,0,0,16));
-        guiFrame.setAlwaysOnTop(true);
+        //guiFrame.setAlwaysOnTop(true);
         
 		int row = 0;
 		
