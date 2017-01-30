@@ -70,18 +70,22 @@ import cycronix.ctlib.CTinfo;
 /**
  * 
  * Periodically perform a screen capture and save it to CloudTurbine as an image.
+ * Optionally, capture audio and save it to CloudTurbine as a series of ".wav" files.
  * 
  * The following classes are involved in this application:
  * 1. CTscreencap: main method; the constructor manages the flow of the whole program
- * 2. DefineCaptureRegion: user selects the region of the screen they wish to capture
+ * 2. DefineCaptureRegion: NO LONGER USED; we previously used this class to allow the
+ *       user to select the region of the screen they wish to capture; this is now
+ *       done dynamically by the user moving and resizing the main application frame
  * 3. ScreencapTask: generates a screen capture
- * 4. Utility: contains utility methods
+ * 4. AudiocapTask: capture and save audio to CloudTurbine as ".wav" files
+ * 5. Utility: contains utility methods
  * 
  * The CTscreencap constructor is the main work-horse and "manager" for the application.
  * It does the following:
  * 1. Setup a shutdown hook to capture Ctrl+c to cleanly shut down the program
  * 2. Parse command line arguments
- * 3. Have user specify the region of the screen they wish to capture
+ * 3. (NO LONGER USED: Have user specify the region of the screen they wish to capture)
  * 4. Setup a periodic timer to call CTscreencap.run(); each time this
  *    timer expires, it creates an instance of ScreencapTask to generate
  *    a screen capture and put it on the blocking queue.
@@ -89,14 +93,28 @@ import cycronix.ctlib.CTinfo;
  *    grabs screen capture byte arrays off the blocking queue and send
  *    them to CT.
  * 
- * Limitations/to-do:
- * 1. Does not support multiple monitors on all computers.
- * 2. Currently, the user can specify a region of the screen to capture. Would be
- *    great to add an option to capture a specific application window; this would
- *    probably involve writing native OS-specific code.
+ * The JFrame that pops up contains a semi-translucent window (i.e., opacity less than 1.0) which
+ * specifies the image capture region.  The Java 1.8 Javadoc for java.awt.Frame.setOpacity()
+ * specifies:
+ * 
+ *  *  The following conditions must be met in order to set the opacity value less than 1.0f:
+ *  *
+ *  *      The TRANSLUCENT translucency must be supported by the underlying system
+ *  *      The window must be undecorated (see setUndecorated(boolean) and Dialog.setUndecorated(boolean))
+ *  *      The window must not be in full-screen mode (see GraphicsDevice.setFullScreenWindow(Window)) 
+ *  *
+ *  *  If the requested opacity value is less than 1.0f, and any of the above conditions are not met, the window opacity will not change, and the IllegalComponentStateException will be thrown. 
+ * 
+ * We see this behavior immediately upon CTscreencap startup under Mac OS if the JFrame is "decorated"
+ * (an IllegalComponentStateException exception is thrown right away).  Surprisingly, for some unknown
+ * reason, the transparency works with a decorated JFrame under Windows OS - however, we don't want
+ * to count on that.  To be Java compliant, we won't use a decorated window.  This creates the challenge
+ * of how do we support moving and resizing the window?  We do this by creating our own simple
+ * window manager: CTscreencap implements MouseMotionListener by defining mouseDragged() and
+ * mouseMoved().
  * 
  * @author John P. Wilson
- * @version 01/26/2017
+ * @version 01/30/2017
  *
  */
 public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener {
@@ -131,6 +149,24 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 	private JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JPanel controlsPanel = null;		// Panel which contains UI controls
 	private JPanel capturePanel = null;			// Translucent panel which defines the region to capture
+	
+	// Since translucent panels can only be contained within undecorated Frames (see comments in header above)
+	// and since undecorated Frames don't support moving/resizing, we implement our own basic "window manager"
+	// by catching mouse move and drag events (see mouseDragged() and mouseMoved() methods below).  The following
+	// members are used in this implementation.
+	private final static int NO_COMMAND			= 0;
+	private final static int MOVE_FRAME			= 1;
+	private final static int RESIZE_FRAME_NW	= 2;
+	private final static int RESIZE_FRAME_N		= 3;
+	private final static int RESIZE_FRAME_NE	= 4;
+	private final static int RESIZE_FRAME_E		= 5;
+	private final static int RESIZE_FRAME_SE	= 6;
+	private final static int RESIZE_FRAME_S		= 7;
+	private final static int RESIZE_FRAME_SW	= 8;
+	private final static int RESIZE_FRAME_W		= 9;
+	private int mouseCommandMode = NO_COMMAND;
+	private Point mouseStartingPoint = null;
+	private Rectangle frameStartingBounds = null;
 	
 	//
 	// main() function; create an instance of CTscreencap
@@ -444,13 +480,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 			if ( (guiFrame == null) || (!guiFrame.isShowing()) ) {
 				return;
 			}
-			final CTscreencap temporaryCTS = this;
-			SwingUtilities.invokeLater(new Runnable() {
-	            public void run() {
-	            	temporaryCTS.moveFrame();
-	            }
-	        });
-			// Update capture region
+			// Update capture region (this is used by ScreencapTask)
 			Point loc = capturePanel.getLocationOnScreen();
 			Dimension dim = capturePanel.getSize();
 			if ( (dim.width <= 0) || (dim.height <= 0) ) {
@@ -479,9 +509,11 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		GridBagLayout framegbl = new GridBagLayout();
 		guiFrame = new JFrame("CTscreencap");
 		
-		// The following couple lines are from http://alvinalexander.com/source-code/java/how-create-transparenttranslucent-java-jframe-mac-os-x
+		// To support a semi-transparent frame, the window must be undecorated
+		// See notes in the class header up above about this; also see
+		// http://alvinalexander.com/source-code/java/how-create-transparenttranslucent-java-jframe-mac-os-x
+		// Here's another way to set semi-transparency
 		// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
-		// For running on Mac, the following line appears to be critical
         guiFrame.setUndecorated(true);
         
         guiFrame.addMouseMotionListener(this);
@@ -594,17 +626,6 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		return menuBar;
 	}
 	
-	public void moveFrame() {
-		/*
-		Rectangle bounds = guiFrame.getBounds();
-		int x = bounds.x + 5;
-		int y = bounds.y + 5;
-		int width = bounds.width + 5;
-		int height = bounds.height + 5;
-		guiFrame.setBounds(x,y,width,height);
-		*/
-	}
-	
 	//
 	// Callback for UI controls and menu items
 	//
@@ -639,6 +660,10 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
     		// Nothing to do
     	}
 		System.err.println("\nExit CTscreencap\n");
+		// If we *are* called from the shutdown hook, don't exit
+		// (Java support for the shutdown hook must include its own
+		//  code to call exit and if we call exit here, that gets
+		//  screwed up.)
 		if (!bCalledFromShutdownHookI) {
 			System.exit(0);
 		}
@@ -684,108 +709,145 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		return byte_encoder.encodeToString(cursor_bytes);
 	}
 	
-	private final static int NO_COMMAND			= 0;
-	private final static int MOVE_FRAME			= 1;
-	private final static int RESIZE_FRAME_NW	= 2;
-	private final static int RESIZE_FRAME_N		= 3;
-	private final static int RESIZE_FRAME_NE	= 4;
-	private final static int RESIZE_FRAME_E		= 5;
-	private final static int RESIZE_FRAME_SE	= 6;
-	private final static int RESIZE_FRAME_S		= 7;
-	private final static int RESIZE_FRAME_SW	= 8;
-	private final static int RESIZE_FRAME_W		= 9;
-	private int mouseCommandMode = NO_COMMAND;
-	private Point mouseStartingPoint = null;
-	private Rectangle frameStartingBounds = null;
-	
+	/**
+	 * 
+	 * mouseDragged
+	 * 
+	 * Implement the mouseDragged method defined by interface MouseMotionListener.
+	 * 
+	 * This method implements the "guts" of our homemade window manager; this method
+	 * handles moving and resizing the frame.
+	 * 
+	 * Why have we implemented our own window manager?  Since translucent panels
+	 * can only be contained within undecorated Frames (see comments in the top
+	 * header above) and since undecorated Frames don't support moving/resizing,
+	 * we implement our own basic "window manager" by catching mouse move and drag
+	 * events.
+	 * 
+	 * @author John P. Wilson
+	 * @see java.awt.event.MouseMotionListener#mouseDragged(java.awt.event.MouseEvent)
+	 */
 	@Override
 	public void mouseDragged(MouseEvent mouseEventI) {
-		// Make sure the screen capture area isn't removed
+		// System.err.println("mouseDragged: " + mouseEventI.getX() + "," + mouseEventI.getY());
+		// Keep the screen capture area to at least a minimum width and height
 		boolean bDontMakeThinner = false;
 		boolean bDontMakeShorter = false;
-		if (capturePanel.getHeight() < 10) {
+		if (capturePanel.getHeight() < 20) {
 			bDontMakeShorter = true;
 		}
-		if (capturePanel.getWidth() < 10) {
+		if (capturePanel.getWidth() < 20) {
 			bDontMakeThinner = true;
 		}
-		// System.err.println("mouseDragged: " + mouseEventI.getX() + "," + mouseEventI.getY());
 		Point currentPoint = mouseEventI.getLocationOnScreen();
-		int currentPosX = 0;
-		int currentPosY = 0;
+		int currentPosX = currentPoint.x;
+		int currentPosY = currentPoint.y;
 		int deltaX = 0;
 		int deltaY = 0;
-		if (mouseCommandMode != NO_COMMAND) {
-			currentPoint = mouseEventI.getLocationOnScreen();
-			currentPosX = currentPoint.x;
-			currentPosY = currentPoint.y;
+		if ( (mouseCommandMode != NO_COMMAND) && (mouseStartingPoint != null) ) {
 			deltaX = currentPosX - mouseStartingPoint.x;
 			deltaY = currentPosY - mouseStartingPoint.y;
-			// System.err.println("\n" + deltaX + "," + deltaY);
 		}
-		int currentGUIFrameHeight = guiFrame.getBounds().height;
-		int currentGUIFrameWidth = guiFrame.getBounds().width;
+		int oldFrameWidth = guiFrame.getBounds().width;
+		int oldFrameHeight = guiFrame.getBounds().height;
 		if (mouseCommandMode == MOVE_FRAME) {
 			Point updatedGUIFrameLoc = new Point(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY);
 			guiFrame.setLocation(updatedGUIFrameLoc);
 		} else if (mouseCommandMode == RESIZE_FRAME_NW) {
-			int desiredChangeInHeight = (frameStartingBounds.height-deltaY) - currentGUIFrameHeight;
-			int desiredCchangeInWidth = (frameStartingBounds.width-deltaX) - currentGUIFrameWidth;
-			if ( (bDontMakeShorter && (desiredChangeInHeight < 0)) || (bDontMakeThinner && (desiredCchangeInWidth < 0)) ) {
+			int newFrameWidth = frameStartingBounds.width-deltaX;
+			int newFrameHeight = frameStartingBounds.height-deltaY;
+			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY,frameStartingBounds.width-deltaX,frameStartingBounds.height-deltaY);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_N) {
-			if (bDontMakeShorter && (deltaY > 0)) {
+			int newFrameWidth = frameStartingBounds.width;
+			int newFrameHeight = frameStartingBounds.height-deltaY;
+			if (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,frameStartingBounds.width,frameStartingBounds.height-deltaY);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_NE) {
-			if ( (bDontMakeShorter && (deltaY > 0)) || (bDontMakeThinner && (deltaX < 0)) ) {
+			int newFrameWidth = frameStartingBounds.width+deltaX;
+			int newFrameHeight = frameStartingBounds.height-deltaY;
+			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,frameStartingBounds.width+deltaX,frameStartingBounds.height-deltaY);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_E) {
-			if (bDontMakeThinner && (deltaX < 0)) {
+			int newFrameWidth = frameStartingBounds.width+deltaX;
+			int newFrameHeight = frameStartingBounds.height;
+			if (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,frameStartingBounds.width+deltaX,frameStartingBounds.height);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_SE) {
-			if ( (bDontMakeShorter && (deltaY < 0)) || (bDontMakeThinner && (deltaX < 0)) ) {
+			int newFrameWidth = frameStartingBounds.width+deltaX;
+			int newFrameHeight = frameStartingBounds.height+deltaY;
+			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,frameStartingBounds.width+deltaX,frameStartingBounds.height+deltaY);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_S) {
-			if (bDontMakeShorter && (deltaY < 0)) {
+			int newFrameWidth = frameStartingBounds.width;
+			int newFrameHeight = frameStartingBounds.height+deltaY;
+			if (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,frameStartingBounds.width,frameStartingBounds.height+deltaY);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_SW) {
-			if ( (bDontMakeShorter && (deltaY < 0)) || (bDontMakeThinner && (deltaX > 0)) ) {
+			int newFrameWidth = frameStartingBounds.width-deltaX;
+			int newFrameHeight = frameStartingBounds.height+deltaY;
+			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,frameStartingBounds.width-deltaX,frameStartingBounds.height+deltaY);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_W) {
-			if (bDontMakeThinner && (deltaX > 0)) {
+			int newFrameWidth = frameStartingBounds.width-deltaX;
+			int newFrameHeight = frameStartingBounds.height;
+			if (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) {
 				return;
 			}
-			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,frameStartingBounds.width-deltaX,frameStartingBounds.height);
+			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else {
 			// See if we need to go into a particular command mode
+			mouseStartingPoint = null;
+			frameStartingBounds = null;
 			mouseCommandMode = getGUIFrameCommandMode(mouseEventI.getPoint());
-			mouseStartingPoint = mouseEventI.getLocationOnScreen();
-			frameStartingBounds = guiFrame.getBounds();
+			if (mouseCommandMode != NO_COMMAND) {
+				mouseStartingPoint = mouseEventI.getLocationOnScreen();
+				frameStartingBounds = guiFrame.getBounds();
+			}
 		}
 	}
 	
+	/**
+	 * 
+	 * mouseMoved
+	 * 
+	 * Implement the mouseMoved method defined by interface MouseMotionListener.
+	 * 
+	 * This method is part of our homemade window manager; specifically, this method
+	 * handles setting the appropriate mouse cursor based on where the user has
+	 * positioned the mouse on the JFrame window.
+	 * 
+	 * Why have we implemented our own window manager?  Since translucent panels
+	 * can only be contained within undecorated Frames (see comments in the top
+	 * header above) and since undecorated Frames don't support moving/resizing,
+	 * we implement our own basic "window manager" by catching mouse move and drag
+	 * events.
+	 * 
+	 * @author John P. Wilson
+	 * @see java.awt.event.MouseMotionListener#mouseMoved(java.awt.event.MouseEvent)
+	 */
 	@Override
 	public void mouseMoved(MouseEvent mouseEventI) {
 		// System.err.println("mouseMoved: " + mouseEventI.getX() + "," + mouseEventI.getY());
@@ -818,32 +880,92 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		}
 	}
 	
+	/**
+	 * getGUIFrameCommandMode
+	 * 
+	 * Based on the given mouse position, determine what the corresponding mouse
+	 * "command mode" should be.  For instance, if the mouse is near the upper-
+	 * right corner of the window, this method will return RESIZE_FRAME_NE
+	 * because the mouse is in position to resize the frame from that corner.
+	 * 
+	 * Several offsets are defined in variables to specify if the cursor is
+	 * in a special region of the window for which moving or resizing can
+	 * take place:
+	 * 
+	 *  	borderThickness:	a thickness all around the entire window, specifies
+	 *  						a "frame" around the window; if the mouse is within
+	 *  						this distance of the edge of the window, then this
+	 *  						method will return one of the following "resize"
+	 *  						commands, indicating that the mouse cursor is in
+	 *  						position to resize the JFrame along that edge:
+	 *  							RESIZE_FRAME_NW
+	 *								RESIZE_FRAME_N
+	 *								RESIZE_FRAME_NE
+	 *								RESIZE_FRAME_E
+	 *								RESIZE_FRAME_SE
+	 *								RESIZE_FRAME_S
+	 *								RESIZE_FRAME_SW
+	 *								RESIZE_FRAME_W
+	 *		cornerActiveLength:	the accepted vertical or horizontal distance from
+	 *							a window corner in order to be considered within
+	 *							the "active" region of that corner; for example,
+	 *							let's say the cursor is along the top edge of the
+	 *							JFrame, 15 pixels from the upper right (NE) corner
+	 *							and cornerActiveLength = 20; in this case, the
+	 *							cursor is within the "active" area for that corner
+	 *							and this method would return RESIZE_FRAME_NE;
+	 *							if instead the cursor was 21 pixels from the corner
+	 *							along the top edge of the JFrame, the cursor would
+	 *							not be considered within the active area for the
+	 *							corner but is instead in the active area for resizing
+	 *							at the top of the window and this method will
+	 *							return RESIZE_FRAME_N
+	 *		menubarHeight:		thickness at the top of the window which we
+	 *							consider to be the menu bar region; if the mouse
+	 *							is located within this region at the top of the
+	 *							window but not within borderThickness of the very
+	 *							edge of the JFrame, then this method will return
+	 *							MOVE_FRAME, indicating that the mouse cursor is
+	 *							in position to move the JFrame
+	 * 
+	 * @author John P. Wilson
+	 * @param  mousePosI  Mouse position
+	 */
 	private int getGUIFrameCommandMode(Point mousePosI) {
 		int borderThickness = 5;
-		int cornerActiveWidth = 20;
+		int cornerActiveLength = 20;
 		int menubarHeight = 20;
 		Rectangle frameBounds = guiFrame.getBounds();
 		int frameWidth = frameBounds.width;
 		int frameHeight = frameBounds.height;
 		int cursorX = mousePosI.x;
 		int cursorY = mousePosI.y;
-		if ( (cursorY <= cornerActiveWidth) && ( (cursorX <= borderThickness) || ( (cursorY <= borderThickness) && (cursorX <= cornerActiveWidth) ) )  ) {
+		if ( (cursorY <= cornerActiveLength) && ( (cursorX <= borderThickness) || ( (cursorY <= borderThickness) && (cursorX <= cornerActiveLength) ) )  ) {
+			// Mouse is in the upper left corner of the window
 			return RESIZE_FRAME_NW;
-		} else if ( (cursorY <= borderThickness) && (cursorX > cornerActiveWidth) && (cursorX < (frameWidth-cornerActiveWidth)) ) {
+		} else if ( (cursorY <= borderThickness) && (cursorX > cornerActiveLength) && (cursorX < (frameWidth-cornerActiveLength)) ) {
+			// Mouse is near the top of the window
 			return RESIZE_FRAME_N;
-		} else if ( (cursorY <= cornerActiveWidth) && ( (cursorX >= (frameWidth-borderThickness)) || ( (cursorY <= borderThickness) && (cursorX >= (frameWidth-cornerActiveWidth)) ) )  ) {
+		} else if ( (cursorY <= cornerActiveLength) && ( (cursorX >= (frameWidth-borderThickness)) || ( (cursorY <= borderThickness) && (cursorX >= (frameWidth-cornerActiveLength)) ) )  ) {
+			// Mouse is in the upper right corner of the window
 			return RESIZE_FRAME_NE;
-		} else if ( (cursorY <= menubarHeight) && (cursorX > cornerActiveWidth) && (cursorX < (frameWidth-cornerActiveWidth)) ) {
+		} else if ( (cursorY <= menubarHeight) && (cursorX > cornerActiveLength) && (cursorX < (frameWidth-cornerActiveLength)) ) {
+			// Mouse is in the top region of the window (in the menu bar region) but not near one of the corners
 			return MOVE_FRAME;
-		} else if ( (cursorY > cornerActiveWidth) && (cursorY < (frameHeight-cornerActiveWidth)) && (cursorX >= (frameWidth-borderThickness)) ) {
+		} else if ( (cursorY > cornerActiveLength) && (cursorY < (frameHeight-cornerActiveLength)) && (cursorX >= (frameWidth-borderThickness)) ) {
+			// Mouse is on the right side of the window
 			return RESIZE_FRAME_E;
-		} else if ( (cursorY >= (frameHeight-cornerActiveWidth)) && ( (cursorX >= (frameWidth-borderThickness)) || ( (cursorY >= (frameHeight-borderThickness)) && (cursorX >= (frameWidth-cornerActiveWidth)) ) )  ) {
+		} else if ( (cursorY >= (frameHeight-cornerActiveLength)) && ( (cursorX >= (frameWidth-borderThickness)) || ( (cursorY >= (frameHeight-borderThickness)) && (cursorX >= (frameWidth-cornerActiveLength)) ) )  ) {
+			// Mouse is in the lower right corner of the window
 			return RESIZE_FRAME_SE;
-		} else if ( (cursorY >= (frameHeight-borderThickness)) && (cursorX > cornerActiveWidth) && (cursorX < (frameWidth-cornerActiveWidth)) ) {
+		} else if ( (cursorY >= (frameHeight-borderThickness)) && (cursorX > cornerActiveLength) && (cursorX < (frameWidth-cornerActiveLength)) ) {
+			// Mouse is near the bottom of the window
 			return RESIZE_FRAME_S;
-		} else if ( (cursorY >= (frameHeight-cornerActiveWidth)) && ( (cursorX <= borderThickness) || ( (cursorY >= (frameHeight-borderThickness)) && (cursorX <= cornerActiveWidth) ) )  ) {
+		} else if ( (cursorY >= (frameHeight-cornerActiveLength)) && ( (cursorX <= borderThickness) || ( (cursorY >= (frameHeight-borderThickness)) && (cursorX <= cornerActiveLength) ) )  ) {
+			// Mouse is in the lower left corner of the window
 			return RESIZE_FRAME_SW;
-		} else if ( (cursorY > cornerActiveWidth) && (cursorY < (frameHeight-cornerActiveWidth)) && (cursorX <= borderThickness) ) {
+		} else if ( (cursorY > cornerActiveLength) && (cursorY < (frameHeight-cornerActiveLength)) && (cursorX <= borderThickness) ) {
+			// Mouse is on the left side of the window
 			return RESIZE_FRAME_W;
 		}
 		return NO_COMMAND;
