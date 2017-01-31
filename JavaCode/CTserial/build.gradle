@@ -1,4 +1,18 @@
 
+// Example of a plugin to check and apply license headers;
+// see https://github.com/hierynomus/license-gradle-plugin
+//
+// plugins {
+//     id "com.github.hierynomus.license" version "0.13.1"
+// }
+// license {
+//     header rootProject.file('../HEADER')
+//     dryRun true
+//     strictCheck true
+//     ext.year = Calendar.getInstance().get(Calendar.YEAR)
+//     ext.name = 'Erigo Technologies LLC'
+// }
+
 // Here's another way to define "resources" which will be included in the
 // JAR file (will be put at the top level in the JAR file).
 //sourceSets {
