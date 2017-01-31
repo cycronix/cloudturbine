@@ -17,6 +17,8 @@ limitations under the License.
 package erigo.ctscreencap;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -39,11 +41,13 @@ public class AudiocapTask {
 	CTwriter ctw_audio=null;
 	
 	// constructor
-	public AudiocapTask(String dstFolder) {
+//	public AudiocapTask(String dstFolder) {
+	public AudiocapTask(CTwriter ctw, long flushMillis) {
+
 		try {
-			ctw_audio = new CTwriter(dstFolder);
-			ctw_audio.setBlockMode(true,true);		// pack, zip
-			ctw_audio.autoFlush(0);					// no autoflush
+//			ctw_audio = new CTwriter(dstFolder);
+//			ctw_audio.setBlockMode(true,true);		// pack, zip
+//			ctw_audio.autoFlush(0);					// no autoflush
 			//	 ctw.autoSegment(0);			// no segments
 
 			final AudioFormat format = getFormat();
@@ -54,22 +58,34 @@ public class AudiocapTask {
 			line.open(format);
 			line.start();
 			Runnable runner = new Runnable() {
-				int bufferSize = (int)format.getSampleRate() * format.getFrameSize();		// bytes in 1 sec
+				double flushInterval = flushMillis / 1000.;
+				long oldTime = 0;
+				int bufferSize = (int)Math.round(format.getSampleRate() * format.getFrameSize() * flushInterval);		// bytes per flushMillis
 				byte buffer[] = new byte[bufferSize];
-				long fcount = 0;
-				long startTime = System.currentTimeMillis();
 
 				public void run() {
 					running = true;
 					try {
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length);
-							if (count > 0) {
-								ctw_audio.setTime(startTime + fcount*1000);		// force exactly 1sec intervals?  (gapless but drift?)
-								fcount++;
-								ctw_audio.putData("audio.wav",addWaveHeader(buffer));
-								ctw_audio.flush();
+//							if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
+																			//  webscan not up to task of handling empty data in RT
+							long time = System.currentTimeMillis();
+							if(oldTime != 0) {		// consistent timing if close
+								long dt = time - oldTime;
+								if(Math.abs(flushMillis - dt) < 100) time = oldTime + flushMillis;
+//								System.err.println("time: "+time+", oldTime: "+oldTime+", dt: "+dt+", flushMillis: "+flushMillis);
 							}
+							if (count > 0) {
+								synchronized(this) {
+//									if(oldTime == 0) ctw.flush();				// flush any queued images first time
+									ctw.setTime(time);
+									ctw.putData("audio.wav",addWaveHeader(buffer));
+									ctw.flush();		// gapless?   
+								}
+//								ctw.flush();		
+							}
+							oldTime = time;
 						}
 					} catch (Exception e) {
 						System.err.println("I/O problems: " + e);
@@ -167,5 +183,15 @@ public class AudiocapTask {
 		System.arraycopy(dataBuffer, 0, waveBuffer, header.length, dataBuffer.length);
 
 		return waveBuffer;
+	}
+	
+	// check if audio buffer has sound volume above threshold
+	boolean audioThreshold(byte[] bytes, int threshold) {
+		// to turn bytes to shorts as either big endian or little endian. 
+		short[] shorts = new short[bytes.length/2];
+		ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);
+		for(int i=0; i<shorts.length; i++) if(shorts[i] > threshold) return true;
+		System.err.println("Audio below threshold!");
+		return false;
 	}
 }

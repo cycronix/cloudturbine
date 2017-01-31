@@ -139,7 +139,8 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 	public Timer timerObj = null;				// Timer object
 	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
 	public Rectangle regionToCapture = null;	// The region to capture
-	public BlockingQueue<byte[]> queue = null; 	// Queue of byte arrays containing screen captures to be sent to CT
+//	public BlockingQueue<byte[]> queue = null; 	// Queue of byte arrays containing screen captures to be sent to CT
+	public BlockingQueue<TimeValue> queue = null; 	// Queue of byte arrays containing screen captures to be sent to CT
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bAudioCapture = false;		// record synchronous audio?
 	public boolean bFullScreen = false;			// automatically capture the full screen?
@@ -390,7 +391,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		try {
 			CTinfo.setDebug(bDebugMode);
 			ctw = new CTwriter(outputFolder + sourceName);
-			ctw.autoFlush(autoFlushMillis);
+			if(!bAudioCapture) ctw.autoFlush(autoFlushMillis);		// if no audio, auto-flush on video
 			ctw.setZipMode(bZipMode);
 			ctw.autoSegment(0);
 		} catch (IOException ioe) {
@@ -399,7 +400,9 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		}
 		
 		// Setup the asynchronous event queue to store by arrays
-		queue = new LinkedBlockingQueue<byte[]>();
+//		queue = new LinkedBlockingQueue<byte[]>();
+		queue = new LinkedBlockingQueue<TimeValue>();
+
 		
 		// Decode the String corresponding to binary cursor data; produce a BufferedImage with it
 		Base64.Decoder byte_decoder = Base64.getDecoder();
@@ -429,8 +432,8 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         if (bAudioCapture) {
         	// start audio capture (MJM)
         	// String audioFolder = outputFolder + "CTaudio";
-        	String audioFolder = outputFolder + sourceName + "_audio";
-        	audioTask = new AudiocapTask(audioFolder);
+//        	String audioFolder = outputFolder + sourceName + "_audio";
+        	audioTask = new AudiocapTask(ctw, autoFlushMillis);
         }
         
         //
@@ -442,14 +445,21 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
     			return;
     		}
         	byte[] jpegByteArray = null;
+        	long currentTime=0;
         	try {
-				jpegByteArray = queue.take();
+        		TimeValue tv = queue.take();
+        		currentTime = tv.time;
+        		jpegByteArray = tv.value;
+//				jpegByteArray = queue.take();
 			} catch (InterruptedException e) {
 				System.err.println("Caught exception working with the LinkedBlockingQueue:\n" + e);
 			}
         	if (jpegByteArray != null) {
         		try {
-					ctw.putData(channelName,jpegByteArray);
+        			synchronized(this) {
+        				ctw.setTime(currentTime);
+        				ctw.putData(channelName,jpegByteArray);
+        			}
 				} catch (Exception e) {
 					if (!bShutdown) {
 					    System.err.println("Caught CTwriter exception:\n" + e);
@@ -457,7 +467,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 				}
         		System.out.print("x");
         		numScreenCaps += 1;
-        		if ((numScreenCaps % 20) == 0) {
+        		if ((numScreenCaps % 40) == 0) {
         			System.err.print("\n");
         		}
         	}
@@ -970,4 +980,5 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		}
 		return NO_COMMAND;
 	}
+	
 }
