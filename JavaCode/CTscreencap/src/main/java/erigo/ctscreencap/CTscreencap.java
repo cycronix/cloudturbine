@@ -96,8 +96,13 @@ import cycronix.ctlib.CTinfo;
  *    grabs screen capture byte arrays off the blocking queue and send
  *    them to CT.
  * 
- * The JFrame that pops up contains a semi-translucent window (i.e., opacity less than 1.0) which
- * specifies the image capture region.  The Java 1.8 Javadoc for java.awt.Frame.setOpacity()
+ * If the user isn't capturing the entire screen, then (depending on the
+ * support offered by the GraphicsDevice) the JFrame that pops up will
+ * either be a Shaped window containing a "cut out" section (the user will
+ * be able to reach through this cut out area and manipulate windows behind
+ * the JFrame) or else contain a translucent panel (i.e., opacity less than
+ * 1.0).  The "cut out" section or the translucent section define the image
+ * capture region.  Note that the Java 1.8 Javadoc for java.awt.Frame.setOpacity()
  * specifies:
  * 
  *  *  The following conditions must be met in order to set the opacity value less than 1.0f:
@@ -110,14 +115,14 @@ import cycronix.ctlib.CTinfo;
  * 
  * We see this behavior immediately upon CTscreencap startup under Mac OS if the JFrame is "decorated"
  * (an IllegalComponentStateException exception is thrown right away).  Surprisingly, for some unknown
- * reason, the transparency works with a decorated JFrame under Windows OS - however, we don't want
+ * reason, the transparency works with a *decorated* JFrame under Windows OS - however, we don't want
  * to count on that.  To be Java compliant, we won't use a decorated window.  This creates the challenge
- * of how do we support moving and resizing the window?  We do this by creating our own simple
- * window manager: CTscreencap implements MouseMotionListener by defining mouseDragged() and
- * mouseMoved().
+ * of how do we support moving and resizing the window (without decoration on the window, there is no
+ * inherent way to move and resize the window)?  We do this by creating our own simple window manager:
+ * CTscreencap implements MouseMotionListener by defining mouseDragged() and mouseMoved().
  * 
  * @author John P. Wilson
- * @version 01/30/2017
+ * @version 01/31/2017
  *
  */
 public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener {
@@ -512,10 +517,28 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         threadObj.start();
 	}
 	
-	//
-	// Pop up the GUI
-	// this method should be run in the event-dispatching thread
-	//
+	/**
+	 * Pop up the GUI
+	 * 
+	 * This method should be run in the event-dispatching thread.
+	 * 
+	 * The GUI is created in one of two modes depending on whether Shaped
+	 * windows are supported on the platform:
+	 * 
+	 * 1. If Shaped windows are supported then guiPanel (the container to
+	 *    which all other components are added) is RED and capturePanel is
+	 *    inset a small amount to this panel so that the RED border is seen
+	 *    around the outer edge.  A componentResized() method is defined
+	 *    which creates the hollowed out region that was capturePanel.
+	 * 2. If Shaped windows are not supported then guiPanel is transparent
+	 *    and capturePanel is translucent.  In this case, the user can't
+	 *    "reach through" capturePanel to interact with GUIs on the other
+	 *    side.
+	 * 
+	 * @param  bShapedWindowSupportedI  Does the underlying GraphicsDevice support the
+	 * 									PERPIXEL_TRANSPARENT translucency that is
+	 * 									required for Shaped windows?
+	 */
 	private void createAndShowGUI(boolean bShapedWindowSupportedI) {
 		
 		// No window decorations for translucent/transparent windows
@@ -526,16 +549,16 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		GridBagLayout framegbl = new GridBagLayout();
 		guiFrame = new JFrame("CTscreencap");
 		
-		// To support a semi-transparent frame, the window must be undecorated
+		// To support a translucent window, the window must be undecorated
 		// See notes in the class header up above about this; also see
 		// http://alvinalexander.com/source-code/java/how-create-transparenttranslucent-java-jframe-mac-os-x
-		// Here's another way to set semi-transparency
-		// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
         guiFrame.setUndecorated(true);
         
         guiFrame.addMouseMotionListener(this);
         
         guiFrame.setBackground(new Color(0,0,0,0));
+        // Here's another way to set translucency
+     	// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
 		GridBagLayout gbl = new GridBagLayout();
 		JPanel guiPanel = new JPanel(gbl);
 		// if Shaped windows are supported, make guiPanel red;
@@ -552,7 +575,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		controlsPanel.setBackground(new Color(211,211,211,255));
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
-			// Only make capturePanel semi-transparent if we aren't doing the Shaped window option
+			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
 			capturePanel.setBackground(new Color(0,0,0,16));
 		}
 		capturePanel.setPreferredSize(new Dimension(500,400));
