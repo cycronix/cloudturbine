@@ -64,8 +64,8 @@ public class CTwriter {
 	private ByteArrayOutputStream baos = null;
 	protected String destName;
 
-	protected boolean zipFlag=false;
-	protected boolean packFlag=false;
+	protected boolean zipFlag=false;		// zip data files
+	protected boolean packFlag=false;		// pack multiple puts of numeric data into bigger blocks
 	protected boolean byteSwap=false;		// false: Intel little-endian, true: Java/network big-endian
 	
 	private boolean gzipFlag=false;
@@ -332,41 +332,40 @@ public class CTwriter {
 	 * Write collected entries to block (compacted) file
 	 * @throws IOException
 	 */
-/*	
-	public void flush() throws IOException {
-		flush(false,0L);
-	}
 	
 	public void flush(boolean gapless) throws IOException {
-		flush(gapless,0L);
-	}
-
-	// flush(blockTime) for case of single-putData array with non-zero duration
-	// Note: blockTime should be time of last point in block, e.g. blockStart + blockInterval*(blockSize-1)/blockSize
-	public void flush(long blockEndTime) throws IOException {
-		flush(false,blockEndTime);
-	}
-*/
-
-//	public void flush(boolean gapless) throws IOException {		// sync slows external writes?
-//	public synchronized void flush(boolean gapless, long blockTime) throws IOException {	
-	
-	public void flush() throws IOException {
-		flush(false);
-	}
-
-	public synchronized void flush(boolean gapless) throws IOException {
-		try {	
+		flush();
+		
+		if(thisFtime>blockTime) {
 			long bcount = blockData.size();								// zero-based block counter:
-//			if(bcount > 1 && blockEndTime > 0) thisFtime = blockEndTime;		
 
+			if(bcount > 1) {
+				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
+				blockTime = thisFtime+dt;
+			}
+			else	blockTime = thisFtime;
+		}
+		else	blockTime = 0;						// reset to new block folder	
+	}
+	
+/*	// attempt at setting block duration at time of flush.  Probably too late, needs to be set at putData?
+	public void flush(long blockDuration) throws IOException {	
+		if(thisFtime>blockTime) {
+			blockTime = thisFtime - blockDuration;
+			flush();		// flush after tweek this block's start 
+		}
+		else {
+			flush();
+			blockTime = 0;						// reset to new block folder	
+		}
+	}
+*/	
+	public synchronized void flush() throws IOException {
+		try {	
 			// if data has been queued in blocks, write it out once per channel before normal flush
 			for(Entry<String, ByteArrayOutputStream>e: blockData.entrySet()) {	// entry keys are by name; full block per channel per flush
 				long thisTime = timeData.get(e.getKey());			// per packed-channel end-time
 				CTinfo.debugPrint("flush block: "+e.getKey()+" at time: "+thisTime);
-//				writeData(thisFtime, e.getKey(), e.getValue().toByteArray());
-//				if(bcount == 1) prevFtime = thisFtime;		// no prior data!
-//				writeData(prevFtime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
 				writeData(thisTime, e.getKey(), e.getValue().toByteArray());	// prior data, prior ftime
 			}
 			blockData.clear(); timeData.clear();
@@ -383,27 +382,14 @@ public class CTwriter {
 			}
 			
 			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
-//				double trim = ((double)blockTime/1000.) - trimTime;			// relative??
-//				double trim = ((double)System.currentTimeMillis()/1000.) - trimTime;
-//				System.err.println("trim, thisFtime: "+thisFtime+", trimTime: "+trimTime+", blockTime: "+blockTime);
 				double trim = blockTime/1000. - trimTime;	// relative to putData time, 
-															// use blockTime (less than thisFtime) as trim will only look at old block-times
+				// use blockTime (less than thisFtime) as trim will only look at old block-times
 				CTinfo.debugPrint("trimming at: "+trim);
 				dotrim(trim);			
 			}
 
-			lastFtime = thisFtime;						// remember last time flushed
-			
-			// default next folder-blockTime next point for gapless time
-			if(gapless && packFlag && (bcount>1) && (thisFtime>blockTime)) {
-				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
-				blockTime = thisFtime+dt;			
-			}
-			else	blockTime = 0;						// reset to new block folder		
-			
-//			blockCount++;				// new block per flush
-//			if((blocksPerSegment>0) && ((blockCount%blocksPerSegment)==0)) 	// reset baseTime per segmentInterval
-//				rebaseFlag = true;
+			lastFtime = thisFtime;				// remember last time flushed	
+			blockTime = 0;						// reset to new block folder	
 		} 
 		catch(Exception e) { 
 			System.err.println("flush failed"); 
