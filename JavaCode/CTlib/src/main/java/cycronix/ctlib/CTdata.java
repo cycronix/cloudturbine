@@ -280,7 +280,6 @@ public class CTdata {
 				double dt = 0.;
 				double refTime = 0.;
 				String thisZipFile=null;
-				// see if can glean incTime from (filetime - ziptime)
 				
 				// first block in zip, use dt = blockTime - zipFileTime
 				// subsequent blocks in zip, use dt = blockTime(i+1) - blockTime(i)
@@ -290,27 +289,24 @@ public class CTdata {
 					thisZipFile = file.getParent();			// could be zip or folder
 					if(thisZipFile != null) {
 						if(thisZipFile.equals(oldZipFile)) 	refTime = prevtime;						// multi-block per Zip
-//						else								refTime = file.fileTime(thisZipFile);	// single (or first) block per Zip
 						else								refTime = file.baseTime();
 
 						if(refTime > 0 && count>1) {
 							double interval = time - refTime;
-//							dt = interval / count;
 							if(count>1) dt = interval / (count-1);		// block start-time at 0, end-time at Tblock*(n-1)/n
 							CTinfo.debugPrint("thisZip: "+thisZipFile+", oldZipFile: "+oldZipFile+", refTime: "+refTime+", prevtime: "+prevtime+", interval: "+interval+", dt: "+dt);
 						}
 					}
 				}
-				// for priority of getting back-to-back data, use waveHeader as fall-back				
-//				else 
-				if(dt==0 && waveHeader > 0) {						// grab sampleRate out of audio.wav header if available
+				
+				// grab sampleRate out of audio.wav header if available
+				if(waveHeader > 0) {						
 					int offset = 24;									// Wave header sampleRate entry location
 					int value = (data[3+offset] << (Byte.SIZE * 3));
 					value |= (data[2+offset] & 0xFF) << (Byte.SIZE * 2);
 					value |= (data[1+offset] & 0xFF) << (Byte.SIZE * 1);
 					value |= (data[0+offset] & 0xFF);
 					dt = 1. / value;
-//					time += dt*count;			// counter adjustment below?
 					CTinfo.debugPrint("got WaveHeader! sampRate: "+value+", dt: "+dt+", totalcount: "+count);
 				}
 				
@@ -319,23 +315,18 @@ public class CTdata {
 					CTinfo.debugPrint("CTdata, blockdata zero dt, using backup incTime: "+incTime+", count: "+count);
 				}
 				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");	
-//				time -= dt*count;		// adjust to start of multi-point block
-//				time -= dt*(count-1);	// adjust to start of multi-point block
 				time = refTime;		// MJM 7/28/16:  blocks start at 0-relative time for consistency with non-block times
 				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				
 				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count);
 				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
-//					CTinfo.debugPrint("count: "+count+", start: "+start+", end: "+end+", time: "+time+", j: "+j+", dt: "+dt);
-//					if(j==(count-1)) time = endBlock;	// precisely get endtime, e.g. for newest 
 					if(duration==0 && j==(count-1)) time = end;		// tweek for +=dt round off error
 
 					if(time < start) continue;
 					else if(time <= end) {
 						int idx = j + waveHeader/wordSize;
 						byte[] barray = Arrays.copyOfRange(data, idx*wordSize, (idx+1)*wordSize);	// parse bytes into words
-//						System.err.println("ctd add time<end");
 						ctd.add(time, barray);
 					}
 					else if((duration == 0) && (time > end)) {		// special at-or-before
@@ -346,11 +337,9 @@ public class CTdata {
 						}
 						if(idx < 0) idx=0;
 						else		time -= dt;
-//						int idx = (j>0)?(j-1):0;
 
 						idx += waveHeader/wordSize;
 						byte[] barray = Arrays.copyOfRange(data, idx*wordSize, (idx+1)*wordSize);
-//						System.err.println("ctd add at-or-before");;
 						ctd.add(time, barray);
 						break;
 					}
