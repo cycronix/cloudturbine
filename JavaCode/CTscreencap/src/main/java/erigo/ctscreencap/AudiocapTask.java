@@ -81,7 +81,7 @@ public class AudiocapTask {
 //									if(oldTime == 0) ctw.flush();				// flush any queued images first time
 									ctw.setTime(time);
 									ctw.putData("audio.wav",addWaveHeader(buffer));
-									ctw.flush();		// gapless?   
+									ctw.flush(true);		// gapless?   
 								}
 //								ctw.flush();		
 							}
