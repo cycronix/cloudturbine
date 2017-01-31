@@ -30,10 +30,13 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -93,8 +96,13 @@ import cycronix.ctlib.CTinfo;
  *    grabs screen capture byte arrays off the blocking queue and send
  *    them to CT.
  * 
- * The JFrame that pops up contains a semi-translucent window (i.e., opacity less than 1.0) which
- * specifies the image capture region.  The Java 1.8 Javadoc for java.awt.Frame.setOpacity()
+ * If the user isn't capturing the entire screen, then (depending on the
+ * support offered by the GraphicsDevice) the JFrame that pops up will
+ * either be a Shaped window containing a "cut out" section (the user will
+ * be able to reach through this cut out area and manipulate windows behind
+ * the JFrame) or else contain a translucent panel (i.e., opacity less than
+ * 1.0).  The "cut out" section or the translucent section define the image
+ * capture region.  Note that the Java 1.8 Javadoc for java.awt.Frame.setOpacity()
  * specifies:
  * 
  *  *  The following conditions must be met in order to set the opacity value less than 1.0f:
@@ -107,14 +115,14 @@ import cycronix.ctlib.CTinfo;
  * 
  * We see this behavior immediately upon CTscreencap startup under Mac OS if the JFrame is "decorated"
  * (an IllegalComponentStateException exception is thrown right away).  Surprisingly, for some unknown
- * reason, the transparency works with a decorated JFrame under Windows OS - however, we don't want
+ * reason, the transparency works with a *decorated* JFrame under Windows OS - however, we don't want
  * to count on that.  To be Java compliant, we won't use a decorated window.  This creates the challenge
- * of how do we support moving and resizing the window?  We do this by creating our own simple
- * window manager: CTscreencap implements MouseMotionListener by defining mouseDragged() and
- * mouseMoved().
+ * of how do we support moving and resizing the window (without decoration on the window, there is no
+ * inherent way to move and resize the window)?  We do this by creating our own simple window manager:
+ * CTscreencap implements MouseMotionListener by defining mouseDragged() and mouseMoved().
  * 
  * @author John P. Wilson
- * @version 01/30/2017
+ * @version 01/31/2017
  *
  */
 public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener {
@@ -378,10 +386,13 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 	            System.err.println("Translucency is not supported; capturing the entire screen; click Ctrl+c when finished\n.");
 	            regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 	        } else {
+	        	// Check to see if Shaped windows are supported
+	        	// (see https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html)
+	        	final boolean bShapedWindowSupported = graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSPARENT);
 	        	// For thread safety: Schedule a job for the event-dispatching thread to create and show the GUI
 	        	SwingUtilities.invokeLater(new Runnable() {
 	        	    public void run() {
-	        	    	temporaryCTS.createAndShowGUI();
+	        	    	temporaryCTS.createAndShowGUI(bShapedWindowSupported);
 	        	    }
 	        	});
 	        }
@@ -400,9 +411,8 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		}
 		
 		// Setup the asynchronous event queue to store by arrays
-//		queue = new LinkedBlockingQueue<byte[]>();
+		// queue = new LinkedBlockingQueue<byte[]>();
 		queue = new LinkedBlockingQueue<TimeValue>();
-
 		
 		// Decode the String corresponding to binary cursor data; produce a BufferedImage with it
 		Base64.Decoder byte_decoder = Base64.getDecoder();
@@ -431,8 +441,6 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         //
         if (bAudioCapture) {
         	// start audio capture (MJM)
-        	// String audioFolder = outputFolder + "CTaudio";
-//        	String audioFolder = outputFolder + sourceName + "_audio";
         	audioTask = new AudiocapTask(ctw, autoFlushMillis);
         }
         
@@ -447,10 +455,13 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         	byte[] jpegByteArray = null;
         	long currentTime=0;
         	try {
+        		// We used to queue just the byte array of the JPG,
+        		// but now queue TimeValue objects which is a combo
+        		// of the JPG and time
+        		// jpegByteArray = queue.take();
         		TimeValue tv = queue.take();
         		currentTime = tv.time;
         		jpegByteArray = tv.value;
-//				jpegByteArray = queue.take();
 			} catch (InterruptedException e) {
 				System.err.println("Caught exception working with the LinkedBlockingQueue:\n" + e);
 			}
@@ -506,40 +517,69 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         threadObj.start();
 	}
 	
-	//
-	// Pop up the GUI
-	// this method should be run in the event-dispatching thread
-	//
-	private void createAndShowGUI() {
+	/**
+	 * Pop up the GUI
+	 * 
+	 * This method should be run in the event-dispatching thread.
+	 * 
+	 * The GUI is created in one of two modes depending on whether Shaped
+	 * windows are supported on the platform:
+	 * 
+	 * 1. If Shaped windows are supported then guiPanel (the container to
+	 *    which all other components are added) is RED and capturePanel is
+	 *    inset a small amount to this panel so that the RED border is seen
+	 *    around the outer edge.  A componentResized() method is defined
+	 *    which creates the hollowed out region that was capturePanel.
+	 * 2. If Shaped windows are not supported then guiPanel is transparent
+	 *    and capturePanel is translucent.  In this case, the user can't
+	 *    "reach through" capturePanel to interact with GUIs on the other
+	 *    side.
+	 * 
+	 * @param  bShapedWindowSupportedI  Does the underlying GraphicsDevice support the
+	 * 									PERPIXEL_TRANSPARENT translucency that is
+	 * 									required for Shaped windows?
+	 */
+	private void createAndShowGUI(boolean bShapedWindowSupportedI) {
 		
-		// Make sure we have nice window decorations.
+		// No window decorations for translucent/transparent windows
+		// (see note below)
 		// JFrame.setDefaultLookAndFeelDecorated(true);
 		
 		// Create the GUI components
 		GridBagLayout framegbl = new GridBagLayout();
 		guiFrame = new JFrame("CTscreencap");
 		
-		// To support a semi-transparent frame, the window must be undecorated
+		// To support a translucent window, the window must be undecorated
 		// See notes in the class header up above about this; also see
 		// http://alvinalexander.com/source-code/java/how-create-transparenttranslucent-java-jframe-mac-os-x
-		// Here's another way to set semi-transparency
-		// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
         guiFrame.setUndecorated(true);
         
         guiFrame.addMouseMotionListener(this);
-		
-		guiFrame.setBackground(new Color(0,0,0,0));
+        
+        guiFrame.setBackground(new Color(0,0,0,0));
+        // Here's another way to set translucency
+     	// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
 		GridBagLayout gbl = new GridBagLayout();
 		JPanel guiPanel = new JPanel(gbl);
-		guiPanel.setBackground(new Color(0,0,0,0));
+		// if Shaped windows are supported, make guiPanel red;
+		// otherwise make it transparent
+		if (bShapedWindowSupportedI) {
+			guiPanel.setBackground(Color.RED);
+		} else {
+			guiPanel.setBackground(new Color(0,0,0,0));
+		}
 		guiFrame.setFont(new Font("Dialog", Font.PLAIN, 12));
 		guiPanel.setFont(new Font("Dialog", Font.PLAIN, 12));
 		GridBagLayout controlsgbl = new GridBagLayout();
 		controlsPanel = new JPanel(controlsgbl);
 		controlsPanel.setBackground(new Color(211,211,211,255));
 		capturePanel = new JPanel();
-		capturePanel.setBackground(new Color(0,0,0,16));
-        //guiFrame.setAlwaysOnTop(true);
+		if (!bShapedWindowSupportedI) {
+			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
+			capturePanel.setBackground(new Color(0,0,0,16));
+		}
+		capturePanel.setPreferredSize(new Dimension(500,400));
+        guiFrame.setAlwaysOnTop(true);
         
 		int row = 0;
 		
@@ -583,7 +623,14 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		gbc.fill = GridBagConstraints.NONE;
 		
 		// Second row: the translucent panel
-		gbc.insets = new Insets(0, 0, 0, 0);
+		if (bShapedWindowSupportedI) {
+			// Doing the Shaped window; set capturePanel inside guiPanel
+			// a bit so the red from guiPanel shows at the edges
+			gbc.insets = new Insets(5, 5, 5, 5);
+		} else {
+			// No shaped window; have capturePanel fill the area
+			gbc.insets = new Insets(0, 0, 0, 0);
+		}
 		gbc.fill = GridBagConstraints.BOTH;
 		gbc.weightx = 100;
 		gbc.weighty = 100;
@@ -605,6 +652,24 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		JMenuBar menuBar = createMenu();
 		guiFrame.setJMenuBar(menuBar);
 		
+		if (bShapedWindowSupportedI) {
+			// We are using Shapred windows; create the "hollowed out" GUI
+			guiFrame.addComponentListener(new ComponentAdapter() {
+				// The region defined by the capturePanel will be "hollowed out"
+				// so that the user can reach through guiFrame and interact
+				// with applications which are behind it.
+				// If the window is resized, the shape is recalculated here.
+				@Override
+				public void componentResized(ComponentEvent e) {
+					// Create a rectangle to cover the entire guiFrame
+					Area guiShape = new Area(new Rectangle(0, 0, guiFrame.getWidth(), guiFrame.getHeight()));
+					// Create another rectangle to define the hollowed out region of capturePanel
+					guiShape.subtract(new Area(new Rectangle(capturePanel.getX(), capturePanel.getY()+23, capturePanel.getWidth(), capturePanel.getHeight())));
+					guiFrame.setShape(guiShape);
+				}
+			});
+		}
+		
 		// Display the window.
 		guiFrame.pack();
 		
@@ -615,6 +680,9 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 				exit(false);
 			}
 		});
+		
+		// Center on the screen
+		guiFrame.setLocationRelativeTo(null);
 		
 		guiFrame.setVisible(true);
 		
