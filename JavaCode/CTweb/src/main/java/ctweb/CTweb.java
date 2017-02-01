@@ -626,6 +626,7 @@ public class CTweb {
 		else if	(fname.endsWith(".jpg")) mime = "image/jpeg";
 		else if	(fname.endsWith(".png")) mime = "image/png";
 		else if	(fname.endsWith(".wav")) mime = "audio/wav";
+		else if (fname.endsWith(".csv")) mime = "text/css";
 		if(debug) System.err.println("fname: "+fname+", mime type: "+mime);
 		return mime;
     }
