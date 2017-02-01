@@ -6,6 +6,6 @@ This repository contains utilities, apps, and API libraries related to CloudTurb
 Some highlights:
 
 <li>CTlib - Java API interface to read/write CT files
-<li>CTserver - HTTP interface to CT data files (compatible with WebScan)
+<li>CTweb - HTTP interface to CT data files (compatible with WebScan)
 
 For complete details, see http://cloudturbine.com/.
