@@ -562,7 +562,7 @@ public class CTweb {
     								else
     									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");		
 
-
+    								response.setContentType(mimeType(pathInfo, "text/html"));
     								formResponse(response, sbresp);
     								return;
     							}
