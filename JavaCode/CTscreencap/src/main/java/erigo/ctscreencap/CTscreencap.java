@@ -557,27 +557,45 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         guiFrame.addMouseMotionListener(this);
         
         guiFrame.setBackground(new Color(0,0,0,0));
+        guiFrame.getContentPane().setBackground(new Color(0,0,0,0));  // JPW tweak 1
         // Here's another way to set translucency
      	// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
 		GridBagLayout gbl = new GridBagLayout();
 		JPanel guiPanel = new JPanel(gbl);
 		// if Shaped windows are supported, make guiPanel red;
 		// otherwise make it transparent
+		
+		// JPW tweak 2
+		/*
 		if (bShapedWindowSupportedI) {
 			guiPanel.setBackground(Color.RED);
 		} else {
 			guiPanel.setBackground(new Color(0,0,0,0));
 		}
+		*/
+		guiPanel.setBackground(new Color(0,0,0,0));
+		guiPanel.setOpaque(false);
+		
+		
+		
 		guiFrame.setFont(new Font("Dialog", Font.PLAIN, 12));
 		guiPanel.setFont(new Font("Dialog", Font.PLAIN, 12));
 		GridBagLayout controlsgbl = new GridBagLayout();
 		controlsPanel = new JPanel(controlsgbl);
 		controlsPanel.setBackground(new Color(211,211,211,255));
 		capturePanel = new JPanel();
+		
+		// JPW tweak 3
+		/*
 		if (!bShapedWindowSupportedI) {
 			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
 			capturePanel.setBackground(new Color(0,0,0,16));
 		}
+		*/
+		capturePanel.setBackground(new Color(0,0,0,0));
+		
+		
+		
 		capturePanel.setPreferredSize(new Dimension(500,400));
         guiFrame.setAlwaysOnTop(true);
         
