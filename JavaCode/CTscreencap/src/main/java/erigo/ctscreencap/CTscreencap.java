@@ -404,7 +404,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 			ctw = new CTwriter(outputFolder + sourceName);
 			if(!bAudioCapture) ctw.autoFlush(autoFlushMillis);		// if no audio, auto-flush on video
 			ctw.setZipMode(bZipMode);
-			ctw.autoSegment(0);
+			ctw.autoSegment(100);
 		} catch (IOException ioe) {
 			System.err.println("Error trying to create CloudTurbine writer object:\n" + ioe);
 			return;

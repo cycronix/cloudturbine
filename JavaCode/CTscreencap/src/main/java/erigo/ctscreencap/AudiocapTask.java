@@ -26,6 +26,7 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
 
+import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTwriter;
 
 /**
@@ -44,12 +45,7 @@ public class AudiocapTask {
 //	public AudiocapTask(String dstFolder) {
 	public AudiocapTask(CTwriter ctw, long flushMillis) {
 
-		try {
-//			ctw_audio = new CTwriter(dstFolder);
-//			ctw_audio.setBlockMode(true,true);		// pack, zip
-//			ctw_audio.autoFlush(0);					// no autoflush
-			//	 ctw.autoSegment(0);			// no segments
-
+		try {		
 			final AudioFormat format = getFormat();
 
 			DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
@@ -73,15 +69,15 @@ public class AudiocapTask {
 							long time = System.currentTimeMillis();
 							if(oldTime != 0) {		// consistent timing if close
 								long dt = time - oldTime;
-								if(Math.abs(flushMillis - dt) < 100) time = oldTime + flushMillis;
+								if(Math.abs(flushMillis - dt) < (flushMillis/10)) time = oldTime + flushMillis;
 //								System.err.println("time: "+time+", oldTime: "+oldTime+", dt: "+dt+", flushMillis: "+flushMillis);
 							}
 							if (count > 0) {
 								synchronized(this) {
-//									if(oldTime == 0) ctw.flush();				// flush any queued images first time
-									ctw.setTime(time);
-									ctw.putData("audio.wav",addWaveHeader(buffer));
-									ctw.flush(true);		// gapless?   
+//									ctw.setTime(time);
+//									ctw.putData("audio.wav",addWaveHeader(buffer));
+//									ctw.flush(true);		// gapless?   							
+									ctw.flush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
 								}
 //								ctw.flush();		
 							}
