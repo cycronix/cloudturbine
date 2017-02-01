@@ -350,13 +350,13 @@ public class CTwriter {
 	}
 
 	// put and flush block of data over interval in single call (e.g. audio)
-	public void flush(String chan, byte[] data, long start, long duration) throws Exception { 
-		if(!zipFlag) throw new IOException("cannot block-flush in non-zip mode");
+	public void flush(String chan, byte[] data, long time, long duration) throws Exception { 
+		if(!zipFlag) throw new IOException("cannot block-flush in non-zip mode");		// need to fix this by queuing all types of data
 		
-		blockTime = start - duration;					// force this blockTime to start of block-interval
+		blockTime = time - duration;					// force this blockTime to start of block-interval
 		if(blockTime < segmentTime) newSegment();		// no negative blocks!
-		CTinfo.debugPrint("block flush, start: "+start+", duration: "+duration+", blockTime: "+blockTime);
-		setTime(start);
+		CTinfo.debugPrint("block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime);
+		setTime(time);									// given time is *end* time of this block
 		putData(chan, data);							// add this data
 		flush();										// do a normal flush at this point
 	}
