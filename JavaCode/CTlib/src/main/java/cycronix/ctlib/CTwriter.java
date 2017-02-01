@@ -339,6 +339,7 @@ public class CTwriter {
 		if(thisFtime>blockTime) {
 			long bcount = blockData.size();								// zero-based block counter:
 
+			// set blockTime for next block to match end time of current block
 			if(bcount > 1) {
 				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
 				blockTime = thisFtime+dt;
@@ -347,19 +348,19 @@ public class CTwriter {
 		}
 		else	blockTime = 0;						// reset to new block folder	
 	}
-	
-/*	// attempt at setting block duration at time of flush.  Probably too late, needs to be set at putData?
-	public void flush(long blockDuration) throws IOException {	
-		if(thisFtime>blockTime) {
-			blockTime = thisFtime - blockDuration;
-			flush();		// flush after tweek this block's start 
-		}
-		else {
-			flush();
-			blockTime = 0;						// reset to new block folder	
-		}
+
+	// put and flush block of data over interval in single call (e.g. audio)
+	public void flush(String chan, byte[] data, long start, long duration) throws Exception { 
+		if(!zipFlag) throw new IOException("cannot block-flush in non-zip mode");
+		
+		blockTime = start - duration;					// force this blockTime to start of block-interval
+		if(blockTime < segmentTime) newSegment();		// no negative blocks!
+		CTinfo.debugPrint("block flush, start: "+start+", duration: "+duration+", blockTime: "+blockTime);
+		setTime(start);
+		putData(chan, data);							// add this data
+		flush();										// do a normal flush at this point
 	}
-*/	
+		
 	public synchronized void flush() throws IOException {
 		try {	
 			// if data has been queued in blocks, write it out once per channel before normal flush
@@ -376,6 +377,12 @@ public class CTwriter {
 					destName = destPath + baseTimeStr + ".zip";		// write all data to single zip
 					packFlush = false;								// careful:  can't packFlush same source more than once!
 				}
+				else {
+					if(timeRelative) destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
+					else			 destName = destPath + baseTimeStr + File.separator + blockTime  + ".zip";
+				}
+				CTinfo.debugPrint("flush to destName: "+destName);
+
 				if(baos.size() > 0) {
 					writeToStream(destName, baos.toByteArray());	
 				}
@@ -576,10 +583,9 @@ public class CTwriter {
 			//  zip mode:  queue up data in ZipOutputStream
 			if(zipFlag) {
 				if(zos == null) {    			
-					if(timeRelative) destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
-					else			 destName = destPath + baseTimeStr + File.separator + blockTime  + ".zip";
-
-					CTinfo.debugPrint("create destName: "+destName);
+//					if(timeRelative) destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
+//					else			 destName = destPath + baseTimeStr + File.separator + blockTime  + ".zip";
+//					CTinfo.debugPrint("create destName: "+destName);
 					baos = new ByteArrayOutputStream();
 					zos = new ZipOutputStream(baos);
 					zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
@@ -601,7 +607,7 @@ public class CTwriter {
 				zos.write(bdata); 
 				zos.closeEntry();		// note: zip file not written until flush() called
 
-				CTinfo.debugPrint("PutZip: "+name+" to: "+destName);
+				CTinfo.debugPrint("PutZip: "+name);
 			}
 			// non zip mode:  write data to outputstream 
 			else {
