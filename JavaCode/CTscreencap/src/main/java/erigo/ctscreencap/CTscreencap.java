@@ -44,8 +44,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -54,14 +57,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -129,15 +136,17 @@ import cycronix.ctlib.CTinfo;
  * @version 01/31/2017
  *
  */
-public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener {
+public class CTscreencap extends TimerTask implements ActionListener,ChangeListener,MouseMotionListener {
 	
 	// Encoded byte array of the cursor image data from "Cursor_NoShadow.png"
 	public static String encoded_cursor_noshadow = "iVBORw0KGgoAAAANSUhEUgAAABQAAAAgCAYAAAASYli2AAACa0lEQVR42q2WT2jSYRjHR+QtwX/oREVBhIYxGzJNyEOIXTp0yr8HYTRQlNz8O6dgoJ4FT2ZeJAw8CEkdhBYMFHfypLBDsZ3CUYcijErn7+l9BCPZbJrvF97L+/D7/N7neZ8/74rVan27QlngdDpfUQWKxWJwuVwvqQG73S6srq7C1tbWMyrAwWAAnU4HhEIhbG9vZ6kAUe12GwQCAbjd7jQVIOro6Ah4PB7j9XpjVICow8ND4HA4jM/ne0IFiKrX68DlcpmdnZ3HVICoWq02dn93d9dBBYiqVCrA5/NHoVDoIRUgqlQqYUoh9D4VICqfz2NFnUej0btUgKhsNgsymWy4t7e3SQWIymQyoFAofsVisVtUgKh4PA4qlepHIpFQUQEyDAOBQADW1ta+E7hsaeAESmoe1tfXvxH3RUsDUaPRCPsoaLXaL8lkkrcQ8OTkBFqt1oXVaDRAo9GAXq//TKA35gaSmgY2m81g3GYti8Xybm7g8fHxuK7JKTj/ldgHBwdweno6tWcymXBMPF8YWK1WgcVigd/vv7CvVqv7CwHL5TJ2F4bMlhzph9Dv9//YhsMhSKVSjKdrLmCxWMSZMiJJ+wgNBoPhU6FQmDplKpUCs9n8/kpgLpcDkUh0HgwGH0wMHo/nKaYEJvFEvV4PbxvLTzkTmE6nQSKRDMPh8L2/DeRGr2N3aTabU6e02Wxgt9tfzwTK5fJBJBK5c5mRfPjG4XBMxZEML1AqlT8vpaFhf3//9qy/YUdBF8/OzsZze2NjA9fXmd2bFPbNq9KAXMIHnU43noKkdl+QUFxb6mmBaWI0Gj/+y5OJfgOMmgOC3DbusQAAAABJRU5ErkJggg==";
 	
 	public final static double DEFAULT_FPS = 5.0;         // default frames/sec
+	public final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	public final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 	
-	public long capturePeriodMillis;			// period between screen captures (msec)
+	public double framesPerSec;					// how many frames to capture per second
+	public long capturePeriodMillis;			// capture period in milliseconds
 	public String outputFolder = ".";			// location of output files
 	public String sourceName = "CTscreencap";	// output source name
 	public String channelName = "image.jpg";	// output channel name
@@ -204,6 +213,12 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         		temporaryCTS.exit(true);
             }
         });
+        
+        // Create a String version of FPS_VALUES
+        String FPS_VALUES_STR = new String(FPS_VALUES[0].toString());
+        for (int i=1; i<FPS_VALUES.length; ++i) {
+        	FPS_VALUES_STR = FPS_VALUES_STR + "," + FPS_VALUES[i].toString();
+        }
 		
 		//
 		// Parse command line arguments
@@ -231,7 +246,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		Option filesPerSecOption = Option.builder("fps")
                 .argName("framespersec")
                 .hasArg()
-                .desc("Desired frame rate (frames/sec); default = " + DEFAULT_FPS)
+                .desc("Desired frame rate (frames/sec); default = " + DEFAULT_FPS + "; accepted values = " + FPS_VALUES_STR)
                 .build();
 		options.addOption(filesPerSecOption);
 		Option autoFlushOption = Option.builder("f")
@@ -300,17 +315,20 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 	    	outputFolder = outputFolder + File.separator;
 	    }
 	    // How many frames (i.e., screen dumps) to capture per second
-	    double framesPerSec = 0.0;
 	    try {
 	    	framesPerSec = Double.parseDouble(line.getOptionValue("fps",""+DEFAULT_FPS));
 	    	if (framesPerSec <= 0.0) {
 	    		throw new NumberFormatException("value must be greater than 0.0");
 	    	}
+	    	// Make sure framesPerSec is one of the accepted values
+	    	Double userVal = framesPerSec;
+	    	if (!Arrays.asList(FPS_VALUES).contains(userVal)) {
+	    		throw new NumberFormatException(new String("framespersec value must be one of: " + FPS_VALUES_STR));
+	    	}
 	    } catch (NumberFormatException nfe) {
-	    	System.err.println("\nError parsing \"fps\" (it should be a floating point value):\n" + nfe);
+	    	System.err.println("\nError parsing \"fps\"; it must be one of the accepted floating point values:\n" + nfe);
 	    	return;
 	    }
-	    capturePeriodMillis = (long)(1000.0 / framesPerSec);
 	    // Run CT in debug mode?
 	    bDebugMode = line.hasOption("debug");
 	    // changeDetect mode? MJM
@@ -437,6 +455,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		// LinkedBlockingQueue managed by CTscreencap.  CTscreencap is executing a continual
 		// while() loop to grab the next screencap and send it to CT (see while loop below).
 		//
+		capturePeriodMillis = (long)(1000.0 / framesPerSec);
 		timerObj = new Timer();
         timerObj.schedule(this, 0, capturePeriodMillis);
         
@@ -549,17 +568,17 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		// (see note below)
 		// JFrame.setDefaultLookAndFeelDecorated(true);
 		
-		// Create the GUI components
+		//
+		// Create GUI components
+		//
 		GridBagLayout framegbl = new GridBagLayout();
 		guiFrame = new JFrame("CTscreencap");
-		
 		// To support a translucent window, the window must be undecorated
 		// See notes in the class header up above about this; also see
 		// http://alvinalexander.com/source-code/java/how-create-transparenttranslucent-java-jframe-mac-os-x
         guiFrame.setUndecorated(true);
-        
+        // Use MouseMotionListener to implement our own simple "window manager" for moving and resizing the window
         guiFrame.addMouseMotionListener(this);
-        
         guiFrame.setBackground(new Color(0,0,0,0));
         guiFrame.getContentPane().setBackground(new Color(0,0,0,0));
 		GridBagLayout gbl = new GridBagLayout();
@@ -571,12 +590,27 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		} else {
 			guiPanel.setBackground(new Color(0,0,0,0));
 		}
-		
 		guiFrame.setFont(new Font("Dialog", Font.PLAIN, 12));
 		guiPanel.setFont(new Font("Dialog", Font.PLAIN, 12));
 		GridBagLayout controlsgbl = new GridBagLayout();
+		// *** controlsPanel contains the UI controls at the top of guiFrame
 		controlsPanel = new JPanel(controlsgbl);
 		controlsPanel.setBackground(new Color(211,211,211,255));
+		JComboBox<Double> fpsCB = new JComboBox<Double>(FPS_VALUES);
+		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
+		fpsCB.setSelectedIndex(tempIndex);
+		fpsCB.addActionListener(this);
+		// The slider will use range 0 - 1000
+		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
+		imgQualSlider.setBackground(controlsPanel.getBackground());
+		imgQualSlider.addChangeListener(this);
+		//Create the label table
+		Hashtable<Integer, JLabel> labelTable = new Hashtable<Integer, JLabel>();
+		labelTable.put( new Integer( 0 ), new JLabel("Low") );
+		labelTable.put( new Integer( 1000 ), new JLabel("High") );
+		imgQualSlider.setLabelTable( labelTable );
+		imgQualSlider.setPaintLabels(true);
+		// *** capturePanel 
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
 			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
@@ -598,6 +632,10 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 			guiFrame.setAlwaysOnTop(true);
 		}
         
+		//
+		// Add components to the GUI
+		//
+		
 		int row = 0;
 		
 		GridBagConstraints gbc = new GridBagConstraints();
@@ -606,7 +644,9 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		
+		//
 		// First row: the controls panel
+		//
 		gbc.insets = new Insets(0, 0, 0, 0);
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.weightx = 100;
@@ -618,28 +658,34 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		++row;
 		
 		// Add controls to the controls panel
-		JLabel label1 = new JLabel("Image quality",SwingConstants.LEFT);
-		JLabel label2 = new JLabel("Frame rate",SwingConstants.LEFT);
+		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
+		JLabel imgQualLabel = new JLabel("image quality",SwingConstants.LEFT);
 		JButton exitButton = new JButton("Exit");
 		exitButton.addActionListener(this);
-		gbc.anchor = GridBagConstraints.WEST;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		gbc.weightx = 100;
-		gbc.weighty = 0;
 		gbc.insets = new Insets(10, 10, 0, 10);
-		Utility.add(controlsPanel, label1, controlsgbl, gbc, 0, 0, 1, 1);
+		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
 		gbc.insets = new Insets(10, 10, 10, 10);
-		Utility.add(controlsPanel, label2, controlsgbl, gbc, 0, 1, 1, 1);
+		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
+		//gbc.anchor = GridBagConstraints.WEST;
+		//gbc.fill = GridBagConstraints.HORIZONTAL;
+		//gbc.weightx = 100;
+		//gbc.weighty = 0;
+		gbc.insets = new Insets(10, 0, 0, 10);
+		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
 		gbc.insets = new Insets(10, 0, 10, 10);
+		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 1, 1);
+		
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		Utility.add(controlsPanel, exitButton, controlsgbl, gbc, 1, 0, 1, 2);
+		Utility.add(controlsPanel, exitButton, controlsgbl, gbc, 2, 0, 1, 2);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
 		
-		// Second row: the translucent panel
+		//
+		// Second row: the translucent/transparent capture panel
+		//
 		if (bShapedWindowSupportedI) {
 			// Doing the Shaped window; set capturePanel inside guiPanel
 			// a bit so the red from guiPanel shows at the edges
@@ -657,7 +703,9 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		gbc.weighty = 0;
 		++row;
 		
+		//
 		// Add guiPanel to guiFrame
+		//
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.BOTH;
 		gbc.weightx = 100;
@@ -665,17 +713,25 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		gbc.insets = new Insets(0, 0, 0, 0);
 		Utility.add(guiFrame, guiPanel, framegbl, gbc, 0, 0, 1, 1);
 		
+		//
 		// Add menu
+		//
 		JMenuBar menuBar = createMenu();
 		guiFrame.setJMenuBar(menuBar);
 		
+		//
+		// If Shaped windows are supported, the region defined by capturePanel
+		// will be "hollowed out" so that the user can reach through guiFrame
+		// and interact with applications which are behind it.
+		//
+		// NOTE: This doesn't work on Mac OS (we've tried, but nothing seems
+		//       to work to allow a user to reach through guiFrame to interact
+		//       with windows behind).  May be a limitation or bug on Mac OS:
+		//       https://bugs.openjdk.java.net/browse/JDK-8013450
+		//
 		if (bShapedWindowSupportedI) {
-			// We are using Shapred windows; create the "hollowed out" GUI
 			guiFrame.addComponentListener(new ComponentAdapter() {
-				// The region defined by the capturePanel will be "hollowed out"
-				// so that the user can reach through guiFrame and interact
-				// with applications which are behind it.
-				// If the window is resized, the shape is recalculated here.
+				// As the window is resized, the shape is recalculated here.
 				@Override
 				public void componentResized(ComponentEvent e) {
 					// Create a rectangle to cover the entire guiFrame
@@ -687,7 +743,9 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 			});
 		}
 		
-		// Display the window.
+		//
+		// Final guiFrame configuration details and displaying the GUI
+		//
 		guiFrame.pack();
 		
 		guiFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -701,22 +759,49 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		// Center on the screen
 		guiFrame.setLocationRelativeTo(null);
 		
-		// Set the icon
-		try {
-            InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
-            BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
-            InputStream imageInputStreamMed = guiFrame.getClass().getResourceAsStream("/Icon_64x64.png");
-            BufferedImage bufferedImageMed = ImageIO.read(imageInputStreamMed);
-            InputStream imageInputStreamSmall = guiFrame.getClass().getResourceAsStream("/Icon_32x32.png");
-            BufferedImage bufferedImageSmall = ImageIO.read(imageInputStreamSmall);
-            List<BufferedImage> iconList = new ArrayList<BufferedImage>();
-            iconList.add(bufferedImageLarge);
-            iconList.add(bufferedImageMed);
-            iconList.add(bufferedImageSmall);
-            guiFrame.setIconImages(iconList);
-        } catch (IOException excepI) {
-            System.err.println("Exception thrown trying to set icon: " + excepI);
-        }
+		//
+		// Set the taskbar/dock icon; note that Mac OS has its own way of doing it
+		//
+		if (bMacOS) {
+			// The following solution from:
+			// http://stackoverflow.com/questions/11253772/setting-the-default-application-icon-image-in-java-swing-on-os-x
+			// https://gist.github.com/bchapuis/1562406
+			try {
+				InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
+				// Here's the call we really want to make, but we will do this via reflection
+		        // com.apple.eawt.Application.getApplication().setDockIconImage( bufferedImageLarge );
+				Class<?> util = Class.forName("com.apple.eawt.Application");
+			    Method getApplication = util.getMethod("getApplication", new Class[0]);
+			    // The following is the equivalent of invoking: com.apple.eawt.Application.getApplication()
+			    Object application = getApplication.invoke(util);
+			    Class<?> params[] = new Class[1];
+			    params[0] = Image.class;
+			    Method setDockIconImage = util.getMethod("setDockIconImage", params);
+			    // The following is the equivalent of invoking: com.apple.eawt.Application.getApplication().setDockIconImage(bufferedImageLarge)
+			    setDockIconImage.invoke(application, bufferedImageLarge);
+		    }
+		    catch (Exception excepI) {
+		    	System.err.println("Exception thrown trying to set icon: " + excepI);
+		    }
+		} else {
+			// The following has been tested under Windows 10 and Ubuntu 12.04 LTS
+			try {
+				InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
+				InputStream imageInputStreamMed = guiFrame.getClass().getResourceAsStream("/Icon_64x64.png");
+				BufferedImage bufferedImageMed = ImageIO.read(imageInputStreamMed);
+				InputStream imageInputStreamSmall = guiFrame.getClass().getResourceAsStream("/Icon_32x32.png");
+				BufferedImage bufferedImageSmall = ImageIO.read(imageInputStreamSmall);
+				List<BufferedImage> iconList = new ArrayList<BufferedImage>();
+				iconList.add(bufferedImageLarge);
+				iconList.add(bufferedImageMed);
+				iconList.add(bufferedImageSmall);
+				guiFrame.setIconImages(iconList);
+			} catch (IOException excepI) {
+				System.err.println("Exception thrown trying to set icon: " + excepI);
+			}
+		}
 		
 		guiFrame.setVisible(true);
 		
@@ -741,14 +826,31 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 	//
 	// Callback for UI controls and menu items
 	//
+	@Override
 	public void actionPerformed(ActionEvent eventI) {
 		Object source = eventI.getSource();
-
 		if (source == null) {
 			return;
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
 		}
+	}
+	
+	//
+	// Callback for the UI JSlider which adjusts the image quality
+	//
+	@Override
+	public void stateChanged(ChangeEvent eventI) {
+		Object sourceObj = eventI.getSource();
+		if (!(sourceObj instanceof JSlider)) {
+			return;
+		}
+		JSlider source = (JSlider)sourceObj;
+        //if (!source.getValueIsAdjusting()) {
+            float currentVal = (float)source.getValue();
+            imageQuality = currentVal/1000.0f;
+            System.err.println("\nimageQuality = " + imageQuality);
+        //}
 	}
 	
 	//
