@@ -24,6 +24,7 @@ import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Image;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -33,7 +34,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -43,7 +43,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -126,7 +129,7 @@ import cycronix.ctlib.CTinfo;
  * @version 01/31/2017
  *
  */
-public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener,MouseListener {
+public class CTscreencap extends TimerTask implements ActionListener,MouseMotionListener {
 	
 	// Encoded byte array of the cursor image data from "Cursor_NoShadow.png"
 	public static String encoded_cursor_noshadow = "iVBORw0KGgoAAAANSUhEUgAAABQAAAAgCAYAAAASYli2AAACa0lEQVR42q2WT2jSYRjHR+QtwX/oREVBhIYxGzJNyEOIXTp0yr8HYTRQlNz8O6dgoJ4FT2ZeJAw8CEkdhBYMFHfypLBDsZ3CUYcijErn7+l9BCPZbJrvF97L+/D7/N7neZ8/74rVan27QlngdDpfUQWKxWJwuVwvqQG73S6srq7C1tbWMyrAwWAAnU4HhEIhbG9vZ6kAUe12GwQCAbjd7jQVIOro6Ah4PB7j9XpjVICow8ND4HA4jM/ne0IFiKrX68DlcpmdnZ3HVICoWq02dn93d9dBBYiqVCrA5/NHoVDoIRUgqlQqYUoh9D4VICqfz2NFnUej0btUgKhsNgsymWy4t7e3SQWIymQyoFAofsVisVtUgKh4PA4qlepHIpFQUQEyDAOBQADW1ta+E7hsaeAESmoe1tfXvxH3RUsDUaPRCPsoaLXaL8lkkrcQ8OTkBFqt1oXVaDRAo9GAXq//TKA35gaSmgY2m81g3GYti8Xybm7g8fHxuK7JKTj/ldgHBwdweno6tWcymXBMPF8YWK1WgcVigd/vv7CvVqv7CwHL5TJ2F4bMlhzph9Dv9//YhsMhSKVSjKdrLmCxWMSZMiJJ+wgNBoPhU6FQmDplKpUCs9n8/kpgLpcDkUh0HgwGH0wMHo/nKaYEJvFEvV4PbxvLTzkTmE6nQSKRDMPh8L2/DeRGr2N3aTabU6e02Wxgt9tfzwTK5fJBJBK5c5mRfPjG4XBMxZEML1AqlT8vpaFhf3//9qy/YUdBF8/OzsZze2NjA9fXmd2bFPbNq9KAXMIHnU43noKkdl+QUFxb6mmBaWI0Gj/+y5OJfgOMmgOC3DbusQAAAABJRU5ErkJggg==";
@@ -558,9 +561,7 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
         guiFrame.addMouseMotionListener(this);
         
         guiFrame.setBackground(new Color(0,0,0,0));
-//        guiFrame.getContentPane().setBackground(new Color(0,0,0,0));  // JPW tweak 1
-        // Here's another way to set translucency
-     	// guiFrame.getRootPane().putClientProperty("Window.alpha", new Float(0.2f));
+        guiFrame.getContentPane().setBackground(new Color(0,0,0,0));
 		GridBagLayout gbl = new GridBagLayout();
 		JPanel guiPanel = new JPanel(gbl);
 		// if Shaped windows are supported, make guiPanel red;
@@ -571,20 +572,6 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 			guiPanel.setBackground(new Color(0,0,0,0));
 		}
 		
-		
-		// JPW tweak 2
-		/*
-		if (bShapedWindowSupportedI) {
-			guiPanel.setBackground(Color.RED);
-		} else {
-			guiPanel.setBackground(new Color(0,0,0,0));
-		}
-		*/
-//		guiPanel.setBackground(new Color(0,0,0,0));
-//		guiPanel.setOpaque(false);
-		
-		
-		
 		guiFrame.setFont(new Font("Dialog", Font.PLAIN, 12));
 		guiPanel.setFont(new Font("Dialog", Font.PLAIN, 12));
 		GridBagLayout controlsgbl = new GridBagLayout();
@@ -594,22 +581,22 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		if (!bShapedWindowSupportedI) {
 			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
 			capturePanel.setBackground(new Color(0,0,0,16));
+		} else {
+			capturePanel.setBackground(new Color(0,0,0,0));
 		}
-		
-		
-		// JPW tweak 3
-		/*
-		if (!bShapedWindowSupportedI) {
-			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
-			capturePanel.setBackground(new Color(0,0,0,16));
-		}
-		*/
-// 		capturePanel.setBackground(new Color(0,0,0,0));
-		
-		
-		
 		capturePanel.setPreferredSize(new Dimension(500,400));
-//        guiFrame.setAlwaysOnTop(true);
+		boolean bMacOS = false;
+		String OS = System.getProperty("os.name", "generic").toLowerCase();
+		if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
+			bMacOS = true;
+		}
+		if (!bMacOS) {
+			// On Mac, we haven't found a way to allow the user to "reach through"
+			// capturePanel to interact with windows beneath the GUI; on
+			// Windows and Linux this seems to work OK, so in those cases we
+			// will always keep guiFrame on top
+			guiFrame.setAlwaysOnTop(true);
+		}
         
 		int row = 0;
 		
@@ -713,6 +700,23 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 		
 		// Center on the screen
 		guiFrame.setLocationRelativeTo(null);
+		
+		// Set the icon
+		try {
+            InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+            BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
+            InputStream imageInputStreamMed = guiFrame.getClass().getResourceAsStream("/Icon_64x64.png");
+            BufferedImage bufferedImageMed = ImageIO.read(imageInputStreamMed);
+            InputStream imageInputStreamSmall = guiFrame.getClass().getResourceAsStream("/Icon_32x32.png");
+            BufferedImage bufferedImageSmall = ImageIO.read(imageInputStreamSmall);
+            List<BufferedImage> iconList = new ArrayList<BufferedImage>();
+            iconList.add(bufferedImageLarge);
+            iconList.add(bufferedImageMed);
+            iconList.add(bufferedImageSmall);
+            guiFrame.setIconImages(iconList);
+        } catch (IOException excepI) {
+            System.err.println("Exception thrown trying to set icon: " + excepI);
+        }
 		
 		guiFrame.setVisible(true);
 		
@@ -1077,39 +1081,6 @@ public class CTscreencap extends TimerTask implements ActionListener,MouseMotion
 			return RESIZE_FRAME_W;
 		}
 		return NO_COMMAND;
-	}
-
-	@Override
-	public void mouseEntered(MouseEvent mouseEventI) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void mouseExited(MouseEvent mouseEventI) {
-		// TODO Auto-generated method stub
-		
-	}
-	
-	/**
-	 * Required method for interface MouseListener;
-	 * no functionality needed for now.
-	 */
-	@Override
-	public void mouseClicked(MouseEvent mouseEventI) {
-		return;
-	}
-	
-	@Override
-	public void mousePressed(MouseEvent mouseEventI) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void mouseReleased(MouseEvent mouseEventI) {
-		// TODO Auto-generated method stub
-		
 	}
 	
 }
