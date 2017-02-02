@@ -75,7 +75,7 @@ public class CTwriter {
 	
 	private long sourceTime=0;				// top-level absolute time for entire source (msec)
 	private long segmentTime=0;				// segment time, block subfolders relative to this.  
-	private String baseTimeStr="";			// string representation of sourceTime/segementTime
+	private String baseTimeStr="";			// string representation of sourceTime/segmentTime
 //	private boolean rebaseFlag=false;		// auto-rebase segmentTime
 	private long blocksPerSegment=0;		// auto new segment every so many blocks (default=off)
 	private long blockCount=0;				// keep track of flushes
@@ -350,12 +350,18 @@ public class CTwriter {
 	}
 
 	// put and flush block of data over interval in single call (e.g. audio)
-	public void flush(String chan, byte[] data, long time, long duration) throws Exception { 
+	public void blockFlush(String chan, byte[] data, long time, long duration) throws Exception { 
 		if(!zipFlag) throw new IOException("cannot block-flush in non-zip mode");		// need to fix this by queuing all types of data
 		
-		blockTime = time - duration;					// force this blockTime to start of block-interval
-		if(blockTime < segmentTime) newSegment();		// no negative blocks!
-		CTinfo.debugPrint("block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime);
+		blockTime = time - duration;							// force this blockTime to start of block-interval
+		if(blockTime < segmentTime || segmentTime < sourceTime) {
+			initBaseTime = true;		// no negative blocks!
+			System.err.println("\n<block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
+			newSegment();
+			System.err.println("\n<block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
+		}
+		
+//		CTinfo.debugPrint
 		setTime(time);									// given time is *end* time of this block
 		putData(chan, data);							// add this data
 		flush();										// do a normal flush at this point
