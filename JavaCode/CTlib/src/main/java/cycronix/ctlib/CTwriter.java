@@ -349,24 +349,34 @@ public class CTwriter {
 		else	blockTime = 0;						// reset to new block folder	
 	}
 
+	public void preflush(long time) {
+		blockTime = time;
+		if(initBaseTime) newSegment();
+	}
+
+	// blockflush is bad idea:  adjusting blockTime after other putData in queue messes up time-sync: Zip entry names (with time) set at time of put.
+	// could maybe pre-queue everything by time and data then generate entry/file names at flush, but lot of work
+	// simpler for now to use "preflush()" method - very simple, works, but obscure.
+/*
 	// put and flush block of data over interval in single call (e.g. audio)
 	public void blockFlush(String chan, byte[] data, long time, long duration) throws Exception { 
 		if(!zipFlag) throw new IOException("cannot block-flush in non-zip mode");		// need to fix this by queuing all types of data
 		
 		blockTime = time - duration;							// force this blockTime to start of block-interval
-		if(blockTime < segmentTime || segmentTime < sourceTime) {
-			initBaseTime = true;		// no negative blocks!
-			System.err.println("\n<block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
-			newSegment();
-			System.err.println("\n<block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
+//		System.err.println("\n< block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
+
+		if(initBaseTime || blockTime < segmentTime || segmentTime < sourceTime || blockTime < sourceTime) {
+			if(segmentTime < sourceTime || blockTime < sourceTime) initBaseTime = true;		// no negative segments
+			newSegment();											// no negative blocks
+//			System.err.println("\n> block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
 		}
 		
-//		CTinfo.debugPrint
 		setTime(time);									// given time is *end* time of this block
 		putData(chan, data);							// add this data
 		flush();										// do a normal flush at this point
 	}
-		
+*/
+	
 	public synchronized void flush() throws IOException {
 		try {	
 			// if data has been queued in blocks, write it out once per channel before normal flush
@@ -434,12 +444,6 @@ public class CTwriter {
 	// separate writeToStream from flush():  allows CTftp to over-ride this method for non-file writes
 	protected void writeToStream(String fname, byte[] bdata) throws IOException {
 		try {
-//			if(firstTime==true) {
-//				firstTime=false;
-//				System.err.println("firstTime in writeToStream, baseTimeStr: "+baseTimeStr);
-//				new File(destPath+baseTimeStr).mkdirs();  // mkdir here, not in constructor MJM 1/11/16
-//			}
-//			System.err.println("debug writeToStream, fname: "+fname+", parentFile: "+new File(fname).getParentFile());
 			new File(fname).getParentFile().mkdirs();  // mkdir before every file write
 //			System.err.println("writeToStream: "+fname);
 			
@@ -586,12 +590,11 @@ public class CTwriter {
 			
 //			if(todoBaseTime) setBaseTime(time);				// ensure baseTime initialized
 			
+			// new mode:  queue time, data arrays.  all time calcs and writes to disk on flush...
+			
 			//  zip mode:  queue up data in ZipOutputStream
 			if(zipFlag) {
 				if(zos == null) {    			
-//					if(timeRelative) destName = destPath + baseTimeStr + File.separator + (blockTime-segmentTime)  + ".zip";
-//					else			 destName = destPath + baseTimeStr + File.separator + blockTime  + ".zip";
-//					CTinfo.debugPrint("create destName: "+destName);
 					baos = new ByteArrayOutputStream();
 					zos = new ZipOutputStream(baos);
 					zos.setLevel(compressLevel);			// 0,1-9: NO_COMPRESSION, BEST_SPEED to BEST_COMPRESSION
@@ -607,7 +610,6 @@ public class CTwriter {
 				} catch(IOException e) {
 					CTinfo.warnPrint("zip entry exception: "+e);
 					return;	
-//					throw e;		
 				}
 
 				zos.write(bdata); 
@@ -619,21 +621,14 @@ public class CTwriter {
 			else {
 				// put first putData to rootFolder 
 				String dpath;
-				// System.err.println("blockTime: "+blockTime+", time: "+time+", segmentTime: "+segmentTime);
 
-//				if(blockTime == time && !timeRelative) {		// top-level folder unless new time?
-//					dpath = destPath + File.separator + time;
-//					if(!packFlag) flush();	// absolute, non-zip, non-block data flush to individual top-level time-folders?
-//				} else	{
-					if(timeRelative) {			// relative timestamps
-						dpath = destPath + baseTimeStr + File.separator + (blockTime-segmentTime) +  File.separator + (time - blockTime);
-					}
-					else {
-						dpath = destPath + baseTimeStr + File.separator + blockTime +  File.separator + time;
-					}
-//				}
+				if(timeRelative) {			// relative timestamps
+					dpath = destPath + baseTimeStr + File.separator + (blockTime-segmentTime) +  File.separator + (time - blockTime);
+				}
+				else {
+					dpath = destPath + baseTimeStr + File.separator + blockTime +  File.separator + time;
+				}
 
-//				new File(dpath).mkdirs();		// move to writeToStream
 				destName = dpath + File.separator + outName;
 				writeToStream(destName, bdata);
 				CTinfo.debugPrint("writeData: "+outName+" to: "+destName);

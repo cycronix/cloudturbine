@@ -26,7 +26,6 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
 
-import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTwriter;
 
 /**
@@ -41,7 +40,6 @@ public class AudiocapTask {
 	int frequency = 8000; 				//8000, 22050, 44100
 	
 	// constructor
-//	public AudiocapTask(String dstFolder) {
 	public AudiocapTask(CTwriter ctw, long flushMillis) {
 
 		try {		
@@ -61,6 +59,7 @@ public class AudiocapTask {
 				public void run() {
 					running = true;
 					try {
+						ctw.preflush(System.currentTimeMillis());		// pre-flush to establish initial audio blockTime?
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length);
 //							if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
@@ -69,16 +68,12 @@ public class AudiocapTask {
 							if(oldTime != 0) {		// consistent timing if close
 								long dt = time - oldTime;
 								if(Math.abs(flushMillis - dt) < (flushMillis/10)) time = oldTime + flushMillis;
-//								System.err.println("time: "+time+", oldTime: "+oldTime+", dt: "+dt+", flushMillis: "+flushMillis);
 							}
-							if (count > 0) {
-								synchronized(this) {
-//									ctw.setTime(time);
-//									ctw.putData("audio.wav",addWaveHeader(buffer));
-//									ctw.flush(true);		// gapless?   							
-									ctw.blockFlush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
-								}
-//								ctw.flush();		
+							if (count > 0) {	
+								ctw.setTime(time);
+								ctw.putData("audio.wav", addWaveHeader(buffer));
+								ctw.flush(true);		// gapless
+//								ctw.blockFlush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
 							}
 							oldTime = time;
 						}
@@ -114,7 +109,6 @@ public class AudiocapTask {
 		boolean bigEndian = false;
 		return new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
 	}
-
 
 	private byte[] addWaveHeader(byte[] dataBuffer) throws IOException {
 		byte RECORDER_BPP = 16;
