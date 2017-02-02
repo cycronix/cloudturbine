@@ -39,7 +39,6 @@ public class AudiocapTask {
 
 	protected boolean running;
 	int frequency = 8000; 				//8000, 22050, 44100
-	CTwriter ctw_audio=null;
 	
 	// constructor
 //	public AudiocapTask(String dstFolder) {
@@ -77,7 +76,7 @@ public class AudiocapTask {
 //									ctw.setTime(time);
 //									ctw.putData("audio.wav",addWaveHeader(buffer));
 //									ctw.flush(true);		// gapless?   							
-									ctw.flush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
+									ctw.blockFlush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
 								}
 //								ctw.flush();		
 							}
@@ -105,7 +104,6 @@ public class AudiocapTask {
 
 	public void shutDown() {
 		running = false;
-		if(ctw_audio != null) ctw_audio.close();
 	}
 	
 	private AudioFormat getFormat() {
