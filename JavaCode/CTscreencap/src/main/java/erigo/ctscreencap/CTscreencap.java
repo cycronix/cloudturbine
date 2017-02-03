@@ -526,12 +526,18 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 				return;
 			}
 			// Update capture region (this is used by ScreencapTask)
+			// Trim off a couple pixels from the edges to avoid getting
+			// part of the red frame in the screen capture.
 			Point loc = capturePanel.getLocationOnScreen();
+			loc.x = loc.x + 2;
+			loc.y = loc.y + 2;
 			Dimension dim = capturePanel.getSize();
 			if ( (dim.width <= 0) || (dim.height <= 0) ) {
 				// Don't try to do a screen capture with a non-existent capture area
 				return;
 			}
+			dim.width = dim.width - 4;
+			dim.height = dim.height - 4;
 			Rectangle tempRegionToCapture = new Rectangle(loc,dim);
 			regionToCapture = tempRegionToCapture;
 		}
