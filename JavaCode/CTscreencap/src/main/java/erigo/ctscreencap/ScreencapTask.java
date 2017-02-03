@@ -53,6 +53,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 	public Rectangle captureRect = null;          // the rectangular region to capture
 	
 	static BufferedImage oldScreenCap=null;	// MJM
+	static long oldScreenCapTime=0;			// MJM
+	static long skipChangeDetectDelay = 1000;	// MJM don't drop images for longer than this delay
 	
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
@@ -88,10 +90,13 @@ public class ScreencapTask extends TimerTask implements Runnable {
 				graphics2D.drawImage(cts.cursor_img, cursor_x, cursor_y, null);
 			}
 			
-			if(cts.bChangeDetect) {		// detect identical images...  MJM
+			if(cts.bChangeDetect && !cts.bChangeDetected && startTime < (oldScreenCapTime+skipChangeDetectDelay)) {		// detect identical images...  MJM
 				if(imageSame(screenCap,oldScreenCap)) return;				// notta
-				oldScreenCap = screenCap;
 			}
+			if(cts.bChangeDetected) System.err.println("forcing image on change UI");
+			oldScreenCap = screenCap;
+			oldScreenCapTime = startTime;
+			cts.bChangeDetected = false;
 			
 			// Write the image to CloudTurbine file
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
