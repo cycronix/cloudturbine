@@ -165,6 +165,7 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bAudioCapture = false;		// record synchronous audio?
 	public boolean bFullScreen = false;			// automatically capture the full screen?
+	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	
 	private AudiocapTask audioTask = null;		// audio-capture task (optional)
 	
@@ -426,7 +427,7 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 			ctw = new CTwriter(outputFolder + sourceName);
 			if(!bAudioCapture) ctw.autoFlush(autoFlushMillis);		// if no audio, auto-flush on video
 			ctw.setZipMode(bZipMode);
-			ctw.autoSegment(100);
+			ctw.autoSegment(1000);
 		} catch (IOException ioe) {
 			System.err.println("Error trying to create CloudTurbine writer object:\n" + ioe);
 			return;
@@ -849,6 +850,7 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
         //if (!source.getValueIsAdjusting()) {
             float currentVal = (float)source.getValue();
             imageQuality = currentVal/1000.0f;
+            bChangeDetected = true;				// force image display even if unchanged (MJM)
             System.err.println("\nimageQuality = " + imageQuality);
         //}
 	}
