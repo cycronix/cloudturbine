@@ -62,20 +62,23 @@ public class AudiocapTask {
 						ctw.preflush(System.currentTimeMillis());		// pre-flush to establish initial audio blockTime?
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length);
-//							if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
-																			//  webscan not up to task of handling empty data in RT
-							long time = System.currentTimeMillis();
-							if(oldTime != 0) {		// consistent timing if close
-								long dt = time - oldTime;
-								if(Math.abs(flushMillis - dt) < (flushMillis/10)) time = oldTime + flushMillis;
+							//							if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
+							//  webscan not up to task of handling empty data in RT
+							synchronized(this) {
+								long time = System.currentTimeMillis();
+								if(oldTime != 0) {		// consistent timing if close
+									long dt = time - oldTime;
+									if(Math.abs(flushMillis - dt) < (flushMillis/10)) time = oldTime + flushMillis;
+								}
+								if (count > 0) {
+									ctw.setTime(time);
+									ctw.putData("audio.wav", addWaveHeader(buffer));
+									ctw.flush(true);		// gapless
+									// ctw.blockFlush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
+								}
+
+								oldTime = time;
 							}
-							if (count > 0) {	
-								ctw.setTime(time);
-								ctw.putData("audio.wav", addWaveHeader(buffer));
-								ctw.flush(true);		// gapless
-//								ctw.blockFlush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
-							}
-							oldTime = time;
 						}
 					} catch (Exception e) {
 						System.err.println("I/O problems: " + e);

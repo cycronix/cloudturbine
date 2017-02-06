@@ -492,7 +492,8 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
         	if (jpegByteArray != null) {
         		try {
         			synchronized(this) {
-        				ctw.setTime(currentTime);
+//        				ctw.setTime(currentTime);
+        				ctw.setTime(System.currentTimeMillis());	// enforce positive block-entry times? MJM
         				ctw.putData(channelName,jpegByteArray);
         			}
 				} catch (Exception e) {
@@ -871,10 +872,12 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		if (ctw == null) {
 			return;
 		}
-		ctw.close();
-		ctw = null;
+		
 		// shut down audio
 		if(audioTask != null) audioTask.shutDown();
+
+		ctw.close();
+		ctw = null;
 		// Sleep for a bit to allow any currently running tasks to finish
 		try {
     		Thread.sleep(1000);
