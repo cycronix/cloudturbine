@@ -121,7 +121,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			baos.close();
 			System.out.print(".");
 			// Add baos to the asynchronous event queue of to-be-processed objects
-//			cts.queue.put(jpegByteArray);
+			// cts.queue.put(jpegByteArray);
 			cts.queue.put(new TimeValue(System.currentTimeMillis(), jpegByteArray));
 
 		} catch (Exception e) {

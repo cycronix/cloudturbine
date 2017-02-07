@@ -38,6 +38,7 @@ public class AudiocapTask {
 
 	protected boolean running;
 	int frequency = 8000; 				//8000, 22050, 44100
+	public Thread captureThread = null; // JPW, so we know when the run() method is done
 	
 	// constructor
 	public AudiocapTask(CTwriter ctw, long flushMillis) {
@@ -80,6 +81,8 @@ public class AudiocapTask {
 								oldTime = time;
 							}
 						}
+						System.err.println("Closing AudiocaoTask");
+						line.close();
 					} catch (Exception e) {
 						System.err.println("I/O problems: " + e);
 						System.exit(-1);
@@ -87,7 +90,7 @@ public class AudiocapTask {
 				}
 			};
 
-			Thread captureThread = new Thread(runner);
+			captureThread = new Thread(runner);
 			captureThread.start();
 		} 
 		catch (LineUnavailableException e) {

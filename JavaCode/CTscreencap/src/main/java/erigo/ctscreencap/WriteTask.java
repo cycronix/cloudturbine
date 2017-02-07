@@ -18,7 +18,7 @@ package erigo.ctscreencap;
 
 /**
  * WriteTask is a Runnable object which takes screen capture byte arrays off the
- * blocking queue and send them to CT.
+ * blocking queue (CTscreencap.queue) and writes them to CT.
  *
  * @author John P. Wilson
  * @version 02/06/2017
