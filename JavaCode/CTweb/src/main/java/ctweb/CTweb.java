@@ -609,6 +609,8 @@ public class CTweb {
 
 		response.addHeader("oldest", formatTime(oldTime));
 		response.addHeader("newest", formatTime(newTime));
+		response.addHeader("lagtime",formatTime(lagTime));
+
 		response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
 		
 		CTinfo.debugPrint("+++CTserver: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
