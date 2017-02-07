@@ -481,7 +481,8 @@ public class CTweb {
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
     							}
-
+/*
+    							// add header info about time limits
     							String htime = formatTime(time[0]);		// [0] at start or [time.length-1] at end???
     							String hdur = "0";
     							if(time.length > 1) hdur = formatTime(time[time.length-1]-time[0]);
@@ -506,9 +507,13 @@ public class CTweb {
     							response.addHeader("oldest", holdest);
     							response.addHeader("newest", hnewest);
     							response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
-
-    							CTinfo.debugPrint("+++CTserver: time: "+htime+", duration: "+hdur+", oldest: "+holdest+", newest: "+hnewest+", hlag: "+hlag);
-
+*/
+	   							// add header info about time limits
+    							double oldTime = ctreader.oldTime(sourcePath,chan);
+    							double newTime = ctreader.newTime(sourcePath,chan);
+    							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
+    						
     							if(chan.endsWith(".jpg")) 		response.setContentType("image/jpeg");
     							else if(chan.endsWith(".wav")) 	response.setContentType("audio/wav");
     							else							response.setContentType("application/octet-stream");
@@ -562,6 +567,11 @@ public class CTweb {
     								else
     									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");		
 
+    	   							// add header info about time limits
+        							oldTime = ctreader.oldTime(sourcePath,chan);
+        							newTime = ctreader.newTime(sourcePath,chan);
+        							lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);        							
     								response.setContentType(mimeType(pathInfo, "text/html"));
     								formResponse(response, sbresp);
     								return;
@@ -586,6 +596,22 @@ public class CTweb {
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
     	}
+    }
+    
+    //---------------------------------------------------------------------------------	
+    private static void formHeader(HttpServletResponse response, double startTime, double endTime, double oldTime, double newTime, double lagTime) {
+    	response.addHeader("time", formatTime(startTime));								// sec
+		response.addHeader("Last-Modified", ""+new Date((long)(1000*endTime)).toGMTString());			// msec
+		
+		double duration = endTime - startTime;
+		response.addHeader("duration", formatTime(duration));
+		response.addHeader("X-Duration", formatTime(duration));		// compatible with WebTurbine
+
+		response.addHeader("oldest", formatTime(oldTime));
+		response.addHeader("newest", formatTime(newTime));
+		response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
+		
+		CTinfo.debugPrint("+++CTserver: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
     }
     
     //---------------------------------------------------------------------------------	
