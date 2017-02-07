@@ -91,21 +91,18 @@ import cycronix.ctlib.CTinfo;
  * 2. DefineCaptureRegion: NO LONGER USED; we previously used this class to allow the
  *       user to select the region of the screen they wish to capture; this is now
  *       done dynamically by the user moving and resizing the main application frame
- * 3. ScreencapTask: generates a screen capture
+ * 3. ScreencapTask: generates a single screen capture and puts it on the queue
  * 4. AudiocapTask: capture and save audio to CloudTurbine as ".wav" files
- * 5. Utility: contains utility methods
+ * 5. WriteTask: in a loop, continually grabs images off the queue and writes them to CT
+ * 6. Utility: contains utility methods
  * 
- * The CTscreencap constructor is the main work-horse and "manager" for the application.
- * It does the following:
+ * CTscreencap constructor does the following:
  * 1. Setup a shutdown hook to capture Ctrl+c to cleanly shut down the program
  * 2. Parse command line arguments
  * 3. (NO LONGER USED: Have user specify the region of the screen they wish to capture)
  * 4. Setup a periodic timer to call CTscreencap.run(); each time this
  *    timer expires, it creates an instance of ScreencapTask to generate
  *    a screen capture and put it on the blocking queue.
- * 5. At the bottom of this constructor is a while() loop which
- *    grabs screen capture byte arrays off the blocking queue and send
- *    them to CT.
  * 
  * If the user isn't capturing the entire screen, then (depending on the
  * support offered by the GraphicsDevice) the JFrame that pops up will
@@ -132,8 +129,8 @@ import cycronix.ctlib.CTinfo;
  * inherent way to move and resize the window)?  We do this by creating our own simple window manager:
  * CTscreencap implements MouseMotionListener by defining mouseDragged() and mouseMoved().
  * 
- * @author John P. Wilson
- * @version 01/31/2017
+ * @author John P. Wilson, Matt J. Miller
+ * @version 02/06/2017
  *
  */
 public class CTscreencap extends TimerTask implements ActionListener,ChangeListener,MouseMotionListener {
@@ -145,6 +142,7 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 	public final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	public final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 	
+	// Settings
 	public double framesPerSec;					// how many frames to capture per second
 	public long capturePeriodMillis;			// capture period in milliseconds
 	public String outputFolder = ".";			// location of output files
@@ -153,25 +151,33 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 	public boolean bZipMode = true;				// output ZIP files?
 	public long autoFlushMillis;				// flush interval (msec)
 	public boolean bDebugMode = false;			// run CT in debug mode?
-	public boolean bShutdown = false;			// is it time to shut down?
 	public boolean bIncludeMouseCursor = true;	// include the mouse cursor in the screencap image?
 	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
-	public CTwriter ctw = null;					// CloudTurbine writer object
-	public Timer timerObj = null;				// Timer object
 	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
 	public Rectangle regionToCapture = null;	// The region to capture
-//	public BlockingQueue<byte[]> queue = null; 	// Queue of byte arrays containing screen captures to be sent to CT
-	public BlockingQueue<TimeValue> queue = null; 	// Queue of byte arrays containing screen captures to be sent to CT
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bAudioCapture = false;		// record synchronous audio?
 	public boolean bFullScreen = false;			// automatically capture the full screen?
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	
-	private AudiocapTask audioTask = null;		// audio-capture task (optional)
+	// To control CT shutdown
+	public boolean bShutdown = false;
 	
+	// Queue of screen capture objects waiting to be written to CT
+	// public BlockingQueue<byte[]> queue = null;
+	public BlockingQueue<TimeValue> queue = null;
+	
+	// Objects which do "work"
+	public CTwriter ctw = null;					// CloudTurbine writer object
+	public Timer timerObj = null;				// Timer object
+	private AudiocapTask audioTask = null;		// audio-capture task (optional)
+	private WriteTask writeTask = null;			// This task takes screen captures off the queue and writes them to CT
+	private Thread writeTaskThreadObj = null;	// The thread running in WriteTask
+	
+	// GUI objects
 	private JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JPanel controlsPanel = null;		// Panel which contains UI controls
-	private JPanel capturePanel = null;			// Translucent panel which defines the region to capture
+	private JPanel capturePanel = null;			// Translucent panel which defines the region to capture 
 	
 	// Since translucent panels can only be contained within undecorated Frames (see comments in header above)
 	// and since undecorated Frames don't support moving/resizing, we implement our own basic "window manager"
@@ -191,17 +197,22 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 	private Point mouseStartingPoint = null;
 	private Rectangle frameStartingBounds = null;
 	
-	//
-	// main() function; create an instance of CTscreencap
-	//
+	/**
+	 *
+	 * Main function; creates and instance of CTscreencap
+	 * 
+	 * @param argsI  Command line arguments
+	 */
 	public static void main(String[] argsI) {
 		new CTscreencap(argsI);
 	}
 	
-	//
-	// Constructor and main work-horse for the program.
-	// See documentation in the header above for all the things that are done in this method.
-	//
+	/**
+	 * 
+	 * CTscreencap constructor
+	 * 
+	 * @param argsI  Command line arguments
+	 */
 	public CTscreencap(String[] argsI) {
 		
 		//
@@ -350,6 +361,16 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 	    	return;
 	    }
 	    
+	    // Decode the String corresponding to binary cursor data; produce a BufferedImage with it
+	 	Base64.Decoder byte_decoder = Base64.getDecoder();
+	 	byte[] decoded_cursor_bytes = byte_decoder.decode(encoded_cursor_noshadow);
+	 	try {
+	 		cursor_img = ImageIO.read(new ByteArrayInputStream(decoded_cursor_bytes));
+	 	} catch (IOException ioe) {
+	 		System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
+	 		return;
+	 	}
+	    
 	    //
 	    // THIS IS OLDER CODE WHERE THE USER SPECIFIED THE REGION TO CAPTURE AHEAD OF TIME;
 	    // WE NOW DO THIS DYNAMICALLY: THE USER PUTS A FRAME AROUND THE REGION TO CAPTURE
@@ -420,12 +441,35 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 	        	});
 	        }
 	    }
-        
+	    
+	    // If we are in full screen mode, start capture right away
+	    if (bFullScreen) {
+	    	startCapture();
+	    }
+		
+	}
+	
+	/**
+	 * Method to Start screen capture
+	 */
+	private void startCapture() {
+		
+		// Firewalls
+		// By the time we get to this function, ctw should be null (ie, no currently active CT connection)
+		if (ctw != null)		{ System.err.println("ERROR in startCapture(): CTwriter object is not null; returning"); return; }
+		if (timerObj != null)	{ System.err.println("ERROR in startCapture(): Timer object is not null; returning"); return; }
+		if (audioTask != null)	{ System.err.println("ERROR in startCapture(): AudiocapTask object is not null; returning"); return; }
+		if (writeTask != null)	{ System.err.println("ERROR in startCapture(): WriteTask object is not null; returning"); return; }
+		if (queue != null)		{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
+		
 		// Setup CTwriter
 		try {
 			CTinfo.setDebug(bDebugMode);
 			ctw = new CTwriter(outputFolder + sourceName);
-			if(!bAudioCapture) ctw.autoFlush(autoFlushMillis);		// if no audio, auto-flush on video
+			if (!bAudioCapture) {
+				// if no audio, auto-flush on video
+				ctw.autoFlush(autoFlushMillis);
+			}
 			ctw.setZipMode(bZipMode);
 			ctw.autoSegment(1000);
 		} catch (IOException ioe) {
@@ -437,85 +481,84 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		// queue = new LinkedBlockingQueue<byte[]>();
 		queue = new LinkedBlockingQueue<TimeValue>();
 		
-		// Decode the String corresponding to binary cursor data; produce a BufferedImage with it
-		Base64.Decoder byte_decoder = Base64.getDecoder();
-		byte[] decoded_cursor_bytes = byte_decoder.decode(encoded_cursor_noshadow);
-		try {
-			cursor_img = ImageIO.read(new ByteArrayInputStream(decoded_cursor_bytes));
-		} catch (IOException ioe) {
-			System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
-			return;
-		}
-		
 		//
 		// Setup periodic screen captures
 		//
 		// A periodic timer repeatedly calls the run() method in this instance of CTscreencap;
 		// this run() method creates a new instance of ScreencapTask and spawns a new Thread
 		// to run it.  ScreencapTask.run() generates a screencapture and stores it in the
-		// LinkedBlockingQueue managed by CTscreencap.  CTscreencap is executing a continual
-		// while() loop to grab the next screencap and send it to CT (see while loop below).
+		// LinkedBlockingQueue managed by CTscreencap.  WriteTask, which is also executing in
+		// its own Thread, has a continual while() loop to grab the next screencap and send it
+		// to CT.
 		//
 		capturePeriodMillis = (long)(1000.0 / framesPerSec);
 		timerObj = new Timer();
-        timerObj.schedule(this, 0, capturePeriodMillis);
-        
-        //
-        // Start audio capture (if requested by the user)
-        //
-        if (bAudioCapture) {
-        	// start audio capture (MJM)
-        	audioTask = new AudiocapTask(ctw, autoFlushMillis);
-        }
-        
-        //
-        // While loop to grab screen capture byte arrays off the blocking queue and send them to CT
-        //
-        int numScreenCaps = 0;
-        while (true) {
-        	if (bShutdown) {
-    			return;
-    		}
-        	byte[] jpegByteArray = null;
-        	long currentTime=0;
-        	try {
-        		// We used to queue just the byte array of the JPG,
-        		// but now queue TimeValue objects which is a combo
-        		// of the JPG and time
-        		// jpegByteArray = queue.take();
-        		TimeValue tv = queue.take();
-        		currentTime = tv.time;
-        		jpegByteArray = tv.value;
-			} catch (InterruptedException e) {
-				System.err.println("Caught exception working with the LinkedBlockingQueue:\n" + e);
-			}
-        	if (jpegByteArray != null) {
-        		try {
-        			synchronized(this) {
-//        				ctw.setTime(currentTime);
-        				ctw.setTime(System.currentTimeMillis());	// enforce positive block-entry times? MJM
-        				ctw.putData(channelName,jpegByteArray);
-        			}
-				} catch (Exception e) {
-					if (!bShutdown) {
-					    System.err.println("Caught CTwriter exception:\n" + e);
-					}
-				}
-        		System.out.print("x");
-        		numScreenCaps += 1;
-        		if ((numScreenCaps % 40) == 0) {
-        			System.err.print("\n");
-        		}
-        	}
-        }
+		timerObj.schedule(this, 0, capturePeriodMillis);
+		
+		//
+		// Start audio capture (if requested by the user)
+		//
+		if (bAudioCapture) {
+			// start audio capture (MJM)
+			audioTask = new AudiocapTask(ctw, autoFlushMillis);
+		}
+		
+		//
+		// Create a new WriteTask which continually grabs images off the queue and writes them to CT
+		// Run this in a new thread
+		//
+		writeTask = new WriteTask(this);
+		writeTaskThreadObj = new Thread(writeTask);
+		writeTaskThreadObj.start();
 		
 	}
 	
-	//
-	// Method called by the periodic timer; spawn a new thread to perform the screen capture.
-	//
-	// Possibly using a thread pool would save some thread management overhead?
-	//
+	/**
+	 * Method to Stop screen capture
+	 */
+	private void stopCapture() {
+		
+		// Flag that it is time to shut down
+    	bShutdown = true;
+    	
+		// Shut down CTwriter
+		if (ctw == null) {
+			// Everything must already be shut down
+			return;
+		}
+		// shut down audio
+		if (audioTask != null) {
+			audioTask.shutDown();
+			audioTask = null;
+		}
+		
+		timerObj.cancel();
+		timerObj = null;
+		
+		// close down WriteTask
+		writeTaskThreadObj.join ???
+		writeTaskThreadObj = null;
+		writeTask = null;
+		
+		queue.clear();
+		queue = null;
+		
+		ctw.close();
+		ctw = null;
+		
+		// Sleep for a bit to allow any currently running tasks to finish
+		try {
+    		Thread.sleep(1000);
+    	} catch (Exception e) {
+    		// Nothing to do
+    	}
+	}
+	
+	/**
+	 * Method called by the periodic timer (timerObj); spawn a new thread to perform the screen capture.
+	 *
+	 * Possibly using a thread pool would save some thread management overhead?
+	 */
 	public void run() {
 		if (bShutdown) {
 			return;
@@ -854,36 +897,24 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 			return;
 		}
 		JSlider source = (JSlider)sourceObj;
-        //if (!source.getValueIsAdjusting()) {
-            float currentVal = (float)source.getValue();
-            imageQuality = currentVal/1000.0f;
-            bChangeDetected = true;				// force image display even if unchanged (MJM)
-            System.err.println("\nimageQuality = " + imageQuality);
-        //}
+		// The following code will update imageQuality as the user is
+		// moving the slider; to have imageQuality update only when
+		// the user lets go of the slider, surround this code in an
+		// "if" block as follows:
+        //    if (!source.getValueIsAdjusting()) {
+		//        ... code ...
+		//    }
+        float currentVal = (float)source.getValue();
+        imageQuality = currentVal/1000.0f;
+        bChangeDetected = true; // force image display even if unchanged (MJM)
+        System.err.println("\nimageQuality = " + imageQuality);
 	}
 	
 	//
 	// Exit the application
 	//
 	private void exit(boolean bCalledFromShutdownHookI) {
-		// Flag that it is time to shut down
-    	bShutdown = true;
-		// Shut down CTwriter
-		if (ctw == null) {
-			return;
-		}
-		
-		// shut down audio
-		if(audioTask != null) audioTask.shutDown();
-
-		ctw.close();
-		ctw = null;
-		// Sleep for a bit to allow any currently running tasks to finish
-		try {
-    		Thread.sleep(1000);
-    	} catch (Exception e) {
-    		// Nothing to do
-    	}
+		stopCapture();
 		System.err.println("\nExit CTscreencap\n");
 		// If we *are* called from the shutdown hook, don't exit
 		// (Java support for the shutdown hook must include its own
