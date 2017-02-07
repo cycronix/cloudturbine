@@ -532,11 +532,20 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 			audioTask = null;
 		}
 		
+		// shut down the periodic timer
 		timerObj.cancel();
 		timerObj = null;
 		
-		// close down WriteTask
-		writeTaskThreadObj.join ???
+		// shut down WriteTask
+		try {
+			writeTaskThreadObj.join(2000);
+			if (writeTaskThreadObj.isAlive()) {
+				writeTaskThreadObj.interrupt();
+				writeTaskThreadObj.join(2000);
+			}
+		} catch (InterruptedException ie) {
+			System.err.println("Caught exception trying to stop WriteTask:\n" + ie);
+		}
 		writeTaskThreadObj = null;
 		writeTask = null;
 		
@@ -548,7 +557,7 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		
 		// Sleep for a bit to allow any currently running tasks to finish
 		try {
-    		Thread.sleep(1000);
+    		Thread.sleep(500);
     	} catch (Exception e) {
     		// Nothing to do
     	}
@@ -661,6 +670,9 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		labelTable.put( new Integer( 1000 ), new JLabel("High") );
 		imgQualSlider.setLabelTable( labelTable );
 		imgQualSlider.setPaintLabels(true);
+		JButton startStopButton = new JButton("Start");
+		startStopButton.addActionListener(this);
+		startStopButton.setForeground(Color.GREEN);
 		// *** capturePanel 
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
@@ -711,8 +723,6 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		// Add controls to the controls panel
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
 		JLabel imgQualLabel = new JLabel("image quality",SwingConstants.LEFT);
-		JButton exitButton = new JButton("Exit");
-		exitButton.addActionListener(this);
 		gbc.insets = new Insets(10, 10, 0, 10);
 		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
 		gbc.insets = new Insets(10, 10, 10, 10);
@@ -730,7 +740,7 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		Utility.add(controlsPanel, exitButton, controlsgbl, gbc, 2, 0, 1, 2);
+		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 2, 0, 1, 2);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
 		
@@ -882,6 +892,14 @@ public class CTscreencap extends TimerTask implements ActionListener,ChangeListe
 		Object source = eventI.getSource();
 		if (source == null) {
 			return;
+		} else if (eventI.getActionCommand().equals("Start")) {
+			startCapture();
+			((JButton)source).setText("Stop");
+			((JButton)source).setForeground(Color.RED);
+		} else if (eventI.getActionCommand().equals("Stop")) {
+			stopCapture();
+			((JButton)source).setText("Start");
+			((JButton)source).setForeground(Color.GREEN);
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
 		}
