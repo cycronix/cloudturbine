@@ -146,7 +146,7 @@ public class CTweb {
 
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
-     	CTinfo.setDebug(debug);
+//     	CTinfo.setDebug(debug);
        
      	// setup and start Jetty HTTP server
      	Server server = setupHTTP();
@@ -276,7 +276,6 @@ public class CTweb {
     		
     		queryCount++;
     		StringBuilder sbresp = new StringBuilder(64);			// estimate initial size
-    		CTinfo.debugPrint(logOut,new Date().toString()+", request: "+request);
 
     		// system clock utility
     		if(pathInfo.equals("/sysclock")) {
@@ -326,7 +325,7 @@ public class CTweb {
     			if(pathInfo.equals(servletRoot+"/") || pathInfo.equals(rbnbRoot+"/")) pathInfo = servletRoot;		//  strip trailing slash
 
     			if(pathInfo.equals(servletRoot) || pathInfo.equals(rbnbRoot)) {			// Root level request for Sources
-    				CTinfo.debugPrint("source request: "+pathInfo);
+    				if(debug) System.err.println("source request: "+pathInfo);
     				
     				printHeader(sbresp,pathInfo,"/");
     				ArrayList<String> slist = new ArrayList<String>();
@@ -338,8 +337,8 @@ public class CTweb {
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
     				else {
     					for(String sname : slist) {
-    						CTinfo.debugPrint("src: "+sname);
-//        					CTinfo.debugPrint("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
+    						if(debug) System.err.println("src: "+sname);
+//        					if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
     						sbresp.append("<li><a href=\""+(pathInfo+"/"+sname)+"/\">"+sname+"/</a><br>");          
     					}
     				}
@@ -349,16 +348,17 @@ public class CTweb {
     			}
     			else if(pathInfo.endsWith("/")) {										// Source level request for Channels
 
-    				CTinfo.debugPrint("channel request: "+pathInfo);
+    				if(debug) System.err.println("channel request: "+pathInfo);
     				if(pathParts.length < 3) {
 						formResponse(response, null);		// add CORS header even for error response
+						if(debug) System.err.println("warning, pathparts.length<3: "+pathParts.length);
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
         				return;
     				}
     				String sname = pathParts[2];
     				for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
-    				CTinfo.debugPrint("CTserver listChans for source: "+(rootFolder+File.separator+sname));
+    				if(debug) System.err.println("CTserver listChans for source: "+(rootFolder+File.separator+sname));
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname);
 
     				if(clist == null) sbresp.append("<NULL>");
@@ -392,7 +392,7 @@ public class CTweb {
     					else {
     						printHeader(sbresp,pathInfo,"/"+pathParts[1]);
     						for(String cname : clist) {
-    							CTinfo.debugPrint(sname+"/chan: "+cname);
+    							if(debug) System.err.println(sname+"/chan: "+cname);
     							sbresp.append("<li><a href=\""+cname+"\">"+cname+"</a><br>");
     						}
     					}
@@ -402,7 +402,7 @@ public class CTweb {
     				return;
     			}
     			else {									// Channel level request for data
-    				CTinfo.debugPrint("data request: "+pathInfo);
+    				if(debug) System.err.println("data request: "+pathInfo);
     				
     				String source = pathParts[2];
     				for(int i=3; i<pathParts.length-1; i++) source += ("/"+pathParts[i]);		// multi-level source name
@@ -417,7 +417,7 @@ public class CTweb {
 
     				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     				if(tdata == null) {		// empty response for WebTurbine compatibility
-//    					System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);
+    					if(debug) System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);					
     					formResponse(response, null);		// add CORS header even for error response
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     					return;
@@ -426,14 +426,14 @@ public class CTweb {
     					tdata.setSwap(swapFlag);
     					double time[] = tdata.getTime();
     					if(time == null) {
-//    						System.err.println("Oops, No data on fetch: "+pathInfo);
+    						if(debug) System.err.println("Oops, got data but no time data?: "+pathInfo);
     						formResponse(response, null);		// add CORS header even for error response
     	    				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     	    				return;
     					}
     					
     					int numData = time.length;
-    					CTinfo.debugPrint("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
+    					if(debug) System.err.println("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
 
         				// check for If-None-Match and skip duplicates.
         				if(duration==0 && fetch=='b' && reference.equals("absolute")) {		// only works for single-object requests
@@ -444,12 +444,17 @@ public class CTweb {
         							String matchchan = matchparts[0];
         							long matchtime = Long.parseLong(matchparts[1]);		// int-msec
         							long gottime = (long)(1000.* time[0]);				// int-msec for compare
-        							String reqchan = source + "/" + chan;		// reconstruct full path
-//        							System.err.println("If-None-Match: "+ifnonematch+", matchchan: "+matchchan+", matchtime: "+matchtime+", gottime: "+gottime+", chan: "+reqchan);
+        							String reqchan = source + "/" + chan;				// reconstruct full path
+        							
         							if((matchtime == gottime) && matchchan.equals(reqchan)) {
-        								CTinfo.debugPrint("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference);
-//        								response.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
-//        								response.addHeader("Access-Control-Allow-Methods", "GET, POST");   // CORS enable
+        								if(debug) System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference);
+
+        	   							// add header info about time limits
+            							double oldTime = ctreader.oldTime(sourcePath,chan);
+            							double newTime = ctreader.newTime(sourcePath,chan);
+            							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+        								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
+        								
         								formResponse(response,null);
         								response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
         								return;
@@ -466,7 +471,7 @@ public class CTweb {
     					// if(time.length == 0) System.err.println("CTserver warning: no data!");
     					if(numData > 0) {
     						if(ftype == 's' && fetch=='b') ftype = CTinfo.fileType(chan,'s');	// over-ride for certain binary types
-    						CTinfo.debugPrint("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
+    						if(debug) System.err.println("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
 
     						switch(ftype) {
 
@@ -474,13 +479,6 @@ public class CTweb {
     						case 'b':	
     						case 'B':           
     							byte[][]bdata = tdata.getData();
-
-    							if(bdata == null || bdata[0] == null) {
-//    								System.err.println("No data for request: "+pathInfo);
-    								formResponse(response, null);		// add CORS header even for error response
-    								response.sendError(HttpServletResponse.SC_NOT_FOUND);
-    								return;
-    							}
 /*
     							// add header info about time limits
     							String htime = formatTime(time[0]);		// [0] at start or [time.length-1] at end???
@@ -494,11 +492,11 @@ public class CTweb {
     							String hnewest = formatTime(newTime);         			
     							String hlag = formatTime(lagTime);
 
-    							CTinfo.debugPrint("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
+    							if(debug) System.err.println("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
     							response.addHeader("time", htime);								// sec
     							long lastmod = (long)(1000*time[time.length-1]);
     							String smod = new Date(lastmod).toGMTString();
-    							CTinfo.debugPrint("lastmod: "+smod);
+    							if(debug) System.err.println("lastmod: "+smod);
     							response.addHeader("Last-Modified", ""+smod);			// msec
 
     							response.addHeader("duration", hdur);
@@ -518,7 +516,13 @@ public class CTweb {
     							else if(chan.endsWith(".wav")) 	response.setContentType("audio/wav");
     							else							response.setContentType("application/octet-stream");
 
-    							formResponse(response,null);
+    							if(bdata == null || bdata[0] == null) {
+    								if(debug) System.err.println("No data for request: "+pathInfo);
+    								formResponse(response, null);		// add CORS header even for error response
+    								response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    								return;
+    							}
+    							else	formResponse(response,null);
 
     							for(byte[] b : bdata) {
     								InputStream input = new ByteArrayInputStream(b);		// only return 1st image?
@@ -585,13 +589,23 @@ public class CTweb {
     						}
 
     					}
+    					else {
+    						// add header info about time limits even if no data
+    						if(debug) System.err.println("No data for: "+pathInfo);
+    						double oldTime = ctreader.oldTime(sourcePath,chan);
+    						double newTime = ctreader.newTime(sourcePath,chan);
+    						double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    						formHeader(response, start, duration, oldTime, newTime, lagTime);
+        					formResponse(response, null);		// add CORS header even for error response
+            				response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    					}
     				}
     			}
     		} catch(Exception e) { 
     			System.err.println("doGet Exception: "+e); e.printStackTrace(); 
     		}
 
-//    		System.err.println("Unable to respond to: "+pathInfo);
+    		if(debug) System.err.println("Unable to respond to: "+pathInfo);
 			formResponse(response, null);		// add CORS header even for error response
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
@@ -613,7 +627,7 @@ public class CTweb {
 
 		response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
 		
-		CTinfo.debugPrint("+++CTserver: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
+		if(debug) System.err.println("+++CTserver: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
     }
     
     //---------------------------------------------------------------------------------	
