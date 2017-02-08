@@ -56,6 +56,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -203,6 +204,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
+	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JPanel controlsPanel = null;		// Panel which contains UI controls
 	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture 
 	
@@ -697,6 +699,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// The popup doesn't display over the transparent region;
 		// therefore, just display a couple rows to keep it within controlsPanel
 		fpsCB.setMaximumRowCount(3);
+		changeDetectCheck = new JCheckBox("Change detect",bChangeDetect);
+		changeDetectCheck.setBackground(controlsPanel.getBackground());
+		changeDetectCheck.addActionListener(this);
 		// The slider will use range 0 - 1000
 		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
 		imgQualSlider.setBackground(controlsPanel.getBackground());
@@ -760,24 +765,21 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Add controls to the controls panel
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
 		JLabel imgQualLabel = new JLabel("image quality",SwingConstants.LEFT);
-		gbc.insets = new Insets(10, 10, 0, 10);
+		gbc.insets = new Insets(5, 10, 0, 10);
 		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
-		gbc.insets = new Insets(10, 10, 10, 10);
+		gbc.insets = new Insets(0, 10, 10, 10);
 		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
-		//gbc.anchor = GridBagConstraints.WEST;
-		//gbc.fill = GridBagConstraints.HORIZONTAL;
-		//gbc.weightx = 100;
-		//gbc.weighty = 0;
-		gbc.insets = new Insets(10, 0, 0, 10);
+		gbc.insets = new Insets(10, 0, 0, 0);
 		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
+		gbc.insets = new Insets(10, 15, 0, 0);
+		Utility.add(controlsPanel, changeDetectCheck, controlsgbl, gbc, 2, 0, 1, 1);
 		gbc.insets = new Insets(10, 0, 10, 10);
-		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 1, 1);
-		
+		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 2, 1);
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 2, 0, 1, 2);
+		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 2);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
 		
@@ -905,9 +907,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		
 	}
 	
-	//
-	// Create menu for the GUI
-	//
+	/**
+	 * Create menu for the GUI
+	 * 
+	 * @return  The new menu bar
+	 */
 	private JMenuBar createMenu() {
 		JMenuBar menuBar = new JMenuBar();
 		JMenu menu = new JMenu("File");
@@ -921,16 +925,19 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		return menuBar;
 	}
 	
-	//
-	// Callback for UI controls and menu items
-	//
+	/**
+	 * Callback for some UI controls (the frames/sec combo box, change detect checkbox
+	 * and the Start/Stop button) as well as the menu items.
+	 * 
+	 * @param eventI The ActionEvent which has occurred.
+	 */
 	@Override
 	public void actionPerformed(ActionEvent eventI) {
 		Object source = eventI.getSource();
 		if (source == null) {
 			return;
 		} else if (source instanceof JComboBox) {
-			JComboBox<Double> fpsCB = (JComboBox<Double>)source;
+			JComboBox<?> fpsCB = (JComboBox<?>)source;
 			double framesPerSecNew = ((Double)fpsCB.getSelectedItem()).doubleValue();
 			if (ctw == null) {
 				// No screen capture currently taking place;
@@ -942,6 +949,27 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				System.err.println("\nRestarting screen captures at new rate: " + framesPerSec + " frames/sec");
 				startScreencapTimer();
 			}
+			// Even when "change detect" is turned on, we always save an image at a rate which is
+			// the slower of 1.0fps or the current frame rate; this is kind of a "key frame" of
+			// sorts.  Because of this, the "change detect" checkbox is meaningless when frames/sec
+			// is 1.0 and lower.
+			if (framesPerSec <= 1.0) {
+				changeDetectCheck.setEnabled(false);
+				// A nice side benefit of processing JCheckBox events using an Action listener
+				// is that calling "changeDetectCheck.setSelected(false)" will NOT fire an
+				// event; thus, we maintain our original value of bChangeDetect.
+				changeDetectCheck.setSelected(false);
+			} else {
+				changeDetectCheck.setEnabled(true);
+				changeDetectCheck.setSelected(bChangeDetect);
+			}
+		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == changeDetectCheck)) {
+		    	if (changeDetectCheck.isSelected()) {
+		    		bChangeDetect = true;
+		    	} else {
+		    		bChangeDetect = false;
+		    	}
+		    	System.err.println("\nbChangeDetect = " + bChangeDetect);
 		} else if (eventI.getActionCommand().equals("Start")) {
 			((JButton)source).setText("Starting...");
 			startCapture();
@@ -957,9 +985,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		}
 	}
 	
-	//
-	// Callback for the UI JSlider which adjusts the image quality
-	//
+	/**
+	 * Callback for the UI JSlider which adjusts the image quality
+	 * 
+	 * @param eventI The ChangeEvent that has occurred.
+	 */
 	@Override
 	public void stateChanged(ChangeEvent eventI) {
 		Object sourceObj = eventI.getSource();
@@ -980,9 +1010,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         // System.err.println("\nimageQuality = " + imageQuality);
 	}
 	
-	//
-	// Exit the application
-	//
+	/**
+	 * Exit the application
+	 * 
+	 * @param bCalledFromShutdownHookI  Was this method called from the shutdown hook?
+	 */
 	private void exit(boolean bCalledFromShutdownHookI) {
 		stopCapture();
 		System.err.println("\nExit CTscreencap\n");
@@ -999,33 +1031,40 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		}
 	}
 	
-	//
-	// Utility function which reads the specified image file and returns
-	// a String corresponding to the encoded bytes of this image.
-	//
-	// Sample code for calling this method to generate an encoded string representation of a cursor image:
-	// String cursorStr = null;
-	// try {
-	//     cursorStr = getEncodedImageString("cursor.png","png");
-	//     System.err.println("Cursor string:\n" + cursorStr + "\n");
-	// } catch (IOException ioe) {
-	//     System.err.println("Caught exception generating encoded string for cursor data:\n" + ioe);
-	// }
-	//
-	// A buffered image can be created from this encoded String as follows; this is done in the
-	// CTscreencap constructor:
-	// Base64.Decoder byte_decoder = Base64.getDecoder();
-	// byte[] decoded_cursor_bytes = byte_decoder.decode(cursorStr);
-	// try {
-	//     BufferedImage cursor_img = ImageIO.read(new ByteArrayInputStream(decoded_cursor_bytes));
-	// } catch (IOException ioe) {
-	//     System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
-	// }
-	//
-	// ScreencapTask includes code to draw this BufferedImage into the screencapture image
-	// using Graphics2D (the reason we do this is because the screencapture doesn't include
-	// the cursor).
-	//
+	/**
+	 * Utility function which reads the specified image file and returns
+	 * a String corresponding to the encoded bytes of this image.
+	 *
+	 * Sample code for calling this method to generate an encoded string representation of a cursor image:
+	 * String cursorStr = null;
+	 * try {
+	 *     cursorStr = getEncodedImageString("cursor.png","png");
+	 *     System.err.println("Cursor string:\n" + cursorStr + "\n");
+	 * } catch (IOException ioe) {
+	 *     System.err.println("Caught exception generating encoded string for cursor data:\n" + ioe);
+	 * }
+	 *
+	 * A buffered image can be created from this encoded String as follows; this is done in the
+	 * CTscreencap constructor:
+	 * Base64.Decoder byte_decoder = Base64.getDecoder();
+	 * byte[] decoded_cursor_bytes = byte_decoder.decode(cursorStr);
+	 * try {
+	 *     BufferedImage cursor_img = ImageIO.read(new ByteArrayInputStream(decoded_cursor_bytes));
+	 * } catch (IOException ioe) {
+	 *     System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
+	 * }
+	 *
+	 * ScreencapTask includes code to draw this BufferedImage into the screencapture image
+	 * using Graphics2D (the reason we do this is because the screencapture doesn't include
+	 * the cursor).
+	 * 
+	 * @return A String corresponding to the encoded bytes of the specified image.
+	 * 
+	 * @param fileNameI		Name of the image file
+	 * @param formatNameI	Format of the image file ("png", for instance)
+	 * 
+	 * @throws IOException if there are problems reading or writing the image or if there is an error flushing the ByteArrayOutputStream
+	 */
 	public static String getEncodedImageString(String fileNameI, String formatNameI) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);
 		BufferedImage img = ImageIO.read(new File(fileNameI));
