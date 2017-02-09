@@ -479,33 +479,7 @@ public class CTweb {
     						case 'b':	
     						case 'B':           
     							byte[][]bdata = tdata.getData();
-/*
-    							// add header info about time limits
-    							String htime = formatTime(time[0]);		// [0] at start or [time.length-1] at end???
-    							String hdur = "0";
-    							if(time.length > 1) hdur = formatTime(time[time.length-1]-time[0]);
-    							double oldTime = ctreader.oldTime(sourcePath,chan);
-    							double newTime = ctreader.newTime(sourcePath,chan);
 
-    							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    							String holdest = formatTime(oldTime);		// cache these?
-    							String hnewest = formatTime(newTime);         			
-    							String hlag = formatTime(lagTime);
-
-    							if(debug) System.err.println("time[0]: "+time[0]+", time.length: "+time.length+", hdur: "+hdur);
-    							response.addHeader("time", htime);								// sec
-    							long lastmod = (long)(1000*time[time.length-1]);
-    							String smod = new Date(lastmod).toGMTString();
-    							if(debug) System.err.println("lastmod: "+smod);
-    							response.addHeader("Last-Modified", ""+smod);			// msec
-
-    							response.addHeader("duration", hdur);
-    							response.addHeader("X-Duration", hdur);		// compatible with WebTurbine
-
-    							response.addHeader("oldest", holdest);
-    							response.addHeader("newest", hnewest);
-    							response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
-*/
 	   							// add header info about time limits
     							double oldTime = ctreader.oldTime(sourcePath,chan);
     							double newTime = ctreader.newTime(sourcePath,chan);
@@ -516,7 +490,7 @@ public class CTweb {
     							else if(chan.endsWith(".wav")) 	response.setContentType("audio/wav");
     							else							response.setContentType("application/octet-stream");
 
-    							if(bdata == null || bdata[0] == null) {
+    							if(bdata == null || bdata[0] == null || bdata.length==0) {
     								if(debug) System.err.println("No data for request: "+pathInfo);
     								formResponse(response, null);		// add CORS header even for error response
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
