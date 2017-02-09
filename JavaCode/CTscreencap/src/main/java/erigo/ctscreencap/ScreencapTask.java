@@ -93,7 +93,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			if(cts.bChangeDetect && !cts.bChangeDetected && startTime < (oldScreenCapTime+skipChangeDetectDelay)) {		// detect identical images...  MJM
 				if(imageSame(screenCap,oldScreenCap)) return;				// notta
 			}
-			if(cts.bChangeDetected) System.err.println("forcing image on change UI");
+			if(cts.bChangeDetected) System.err.println("\nforcing image on change UI");
 			oldScreenCap = screenCap;
 			oldScreenCapTime = startTime;
 			cts.bChangeDetected = false;

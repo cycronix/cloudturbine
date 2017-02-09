@@ -171,7 +171,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	// Settings
 	public double framesPerSec;					// how many frames to capture per second
 	public long capturePeriodMillis;			// capture period in milliseconds
-	public String outputFolder = ".";			// location of output files
+	public String outputFolder = "CTdata";		// location of output files
 	public String sourceName = "CTscreencap";	// output source name
 	public String channelName = "image.jpg";	// output channel name
 	public boolean bZipMode = true;				// output ZIP files?
@@ -280,8 +280,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 
 		// Command line options that include a flag
 		// For example, the following will be for "-outputfolder <folder>   (Location of output files...)"
-		Option outputFolderOption = Option.builder("outputfolder")
-                .argName("folder")
+		Option outputFolderOption = Option.builder("o")
+                .longOpt("outputfolder")
+				.argName("folder")
                 .hasArg()
                 .desc("Location of output files (source is created under this folder); default = \"" + outputFolder + "\"")
                 .build();
@@ -1105,7 +1106,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (capturePanel.getHeight() < 20) {
 			bDontMakeShorter = true;
 		}
-		if (capturePanel.getWidth() < 20) {
+		if (capturePanel.getWidth() < 380) {
 			bDontMakeThinner = true;
 		}
 		Point currentPoint = mouseEventI.getLocationOnScreen();
