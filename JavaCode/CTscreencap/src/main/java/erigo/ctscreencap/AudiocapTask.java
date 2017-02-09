@@ -81,7 +81,7 @@ public class AudiocapTask {
 								oldTime = time;
 							}
 						}
-						System.err.println("Closing AudiocaoTask");
+						System.err.println("Closing AudiocapTask");
 						line.close();
 					} catch (Exception e) {
 						System.err.println("I/O problems: " + e);

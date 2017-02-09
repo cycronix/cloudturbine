@@ -576,7 +576,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			try {
 				// Wait for the audioTask thread to finish
 				Thread audioTaskThread = audioTask.captureThread;
-				audioTaskThread.join(1000);
+				audioTaskThread.join(autoFlushMillis);		// was 1000, but an audio buffer might take longer - MJM
 				if (audioTaskThread.isAlive()) {
     				// AudiocapTask must be held up; interrupt it
 					audioTaskThread.interrupt();
