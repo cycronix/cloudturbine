@@ -704,6 +704,12 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		changeDetectCheck.addActionListener(this);
 		// The slider will use range 0 - 1000
 		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
+		// NOTE: The JSlider's initial width was too large, so I'd like to set its preferred size
+		//       to try and constrain it some; also need to set its minimum size at the same time,
+		//       or else when the user makes the GUI frame smaller, the JSlider would pop down to
+		//       a really small minimum size.
+		imgQualSlider.setPreferredSize(new Dimension(170,40));
+		imgQualSlider.setMinimumSize(new Dimension(170,40));
 		imgQualSlider.setBackground(controlsPanel.getBackground());
 		imgQualSlider.addChangeListener(this);
 		//Create the label table
