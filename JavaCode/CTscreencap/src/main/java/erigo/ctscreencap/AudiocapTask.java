@@ -41,7 +41,7 @@ public class AudiocapTask {
 	public Thread captureThread = null; // JPW, so we know when the run() method is done
 	
 	// constructor
-	public AudiocapTask(CTwriter ctw, long flushMillis) {
+	public AudiocapTask(CTscreencap cts, CTwriter ctw, long flushMillis) {
 
 		try {		
 			final AudioFormat format = getFormat();
@@ -65,7 +65,8 @@ public class AudiocapTask {
 							int count = line.read(buffer, 0, buffer.length);
 							//							if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
 							//  webscan not up to task of handling empty data in RT
-							synchronized(this) {
+							// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
+							synchronized(cts.ctwLockObj) {
 								long time = System.currentTimeMillis();
 								if(oldTime != 0) {		// consistent timing if close
 									long dt = time - oldTime;

@@ -202,6 +202,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	private WriteTask writeTask = null;			// This task takes screen captures off the queue and writes them to CT
 	private Thread writeTaskThread = null;		// The thread running in WriteTask
 	
+	public Object ctwLockObj = new Object();	// Lock object used by the synchronized blocks in AudiocapTask and WriteTask
+	
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
@@ -525,7 +527,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		//
 		if (bAudioCapture) {
 			// start audio capture (MJM)
-			audioTask = new AudiocapTask(ctw, autoFlushMillis);
+			audioTask = new AudiocapTask(this, ctw, autoFlushMillis);
 		}
 		
 		//

@@ -74,7 +74,8 @@ public class WriteTask implements Runnable {
 			}
 			if (jpegByteArray != null) {
 				try {
-					synchronized(this) {
+					// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
+					synchronized(cts.ctwLockObj) {
 						// ctw.setTime(currentTime);
 						cts.ctw.setTime(System.currentTimeMillis());	// enforce positive block-entry times? MJM
 						cts.ctw.putData(cts.channelName,jpegByteArray);
