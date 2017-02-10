@@ -35,7 +35,7 @@ public class DocumentChangeListener implements DocumentListener {
 	 * 
 	 * Save CTtext object handle. 
 	 * 
-	 * @param CTtext CTtext instance
+	 * @param cttextI CTtext instance
 	 */
 	public DocumentChangeListener(CTtext cttextI) {
 		hCTtext = cttextI;
@@ -45,6 +45,8 @@ public class DocumentChangeListener implements DocumentListener {
 	 * changedUpdate
 	 * 
 	 * @see javax.swing.event.DocumentListener#changedUpdate(javax.swing.event.DocumentEvent)
+	 * 
+	 * @param e The DocumentEvent that has occurred.
 	 */
 	@Override
 	public void changedUpdate(DocumentEvent e) {
@@ -57,6 +59,8 @@ public class DocumentChangeListener implements DocumentListener {
 	 * insertUpdate
 	 * 
 	 * @see javax.swing.event.DocumentListener#insertUpdate(javax.swing.event.DocumentEvent)
+	 * 
+	 * @param e The DocumentEvent that has occurred.
 	 */
 	@Override
 	public void insertUpdate(DocumentEvent e) {
@@ -69,6 +73,8 @@ public class DocumentChangeListener implements DocumentListener {
 	 * removeUpdate
 	 * 
 	 * @see javax.swing.event.DocumentListener#removeUpdate(javax.swing.event.DocumentEvent)
+	 * 
+	 * @param e The DocumentEvent that has occurred.
 	 */
 	@Override
 	public void removeUpdate(DocumentEvent e) {
@@ -88,6 +94,7 @@ public class DocumentChangeListener implements DocumentListener {
 	 *       a null argument.  For instance, when the user manually "Saves"
 	 *       the document, we call this method directly from CTtext.actionPerformed()
 	 * 
+	 * @param e_use_carefully  The DocumentEvent that has occurred; when this method is called manually, this parameter will be null.
 	 */
     public void processText(DocumentEvent e_use_carefully) {
     	
