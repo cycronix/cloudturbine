@@ -90,6 +90,7 @@ public class CTweb {
 	private static String rootFolder=null;				// for compat with CT2DB
 	private static CTreader ctreader=null;
 	public static boolean debug=false;
+	public static boolean Debug=false;					// debug local plus CT
 	private static boolean logOut=false;
 	private static boolean swapFlag = false;
     private static String resourceBase = "CTweb";
@@ -112,6 +113,7 @@ public class CTweb {
      	while((dirArg<args.length) && args[dirArg].startsWith("-")) {		// arg parsing
      		if(args[dirArg].equals("-r")) 	swapFlag = true;
      		if(args[dirArg].equals("-x")) 	debug = true;
+     		if(args[dirArg].equals("-X")) 	Debug=true; 
      		if(args[dirArg].equals("-l")) 	logOut = true;
      		if(args[dirArg].equals("-p")) 	port = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-P")) 	sslport = Integer.parseInt(args[++dirArg]);
@@ -146,7 +148,7 @@ public class CTweb {
 
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
-//     	CTinfo.setDebug(debug);
+     	CTinfo.setDebug(Debug);
        
      	// setup and start Jetty HTTP server
      	Server server = setupHTTP();
