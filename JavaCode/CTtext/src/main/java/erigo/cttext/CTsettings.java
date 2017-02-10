@@ -1,21 +1,18 @@
-/*******************************************************************************
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+/*
+Copyright 2017 Erigo Technologies LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package erigo.cttext;
 
@@ -81,8 +78,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 														// this is a special case for "max responsiveness": no ZIP data, set auto flush = maxResponsivenessFlushLevel
 	private static final double maxResponsivenessFlushInterval = 10.0;
 														// If flushInterval == -1 (i.e., "max responsiveness") then auto flush interval =  maxResponsivenessFlushLevel
-														// data is not ZIP'ed in this case, so it actually shows up on disk immediately; the flush interval just
-														// determines when Blocks are closed and the next Block folder starts.
+														// (which is a time in milliseconds); data is not ZIP'ed in this case, so it actually shows up on disk immediately;
+														// note that flush interval determines when Blocks are closed and the next Block folder starts.
 	private static final int blocksPerSegment = 10;		// Fixed setting; Number of Block folders per Segment; 0 = no segments
 	private boolean bUseRelativeTime = true;			// Fixed to true (we no longer use absolute timestamps)
 	private boolean bZipData = true;					// Block folders will be zipped?  This will be true for all cases except:

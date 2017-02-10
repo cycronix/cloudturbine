@@ -1,21 +1,18 @@
-/*******************************************************************************
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+/*
+Copyright 2017 Erigo Technologies LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package erigo.cttext;
 
@@ -24,9 +21,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 
 import javax.swing.JButton;
@@ -34,11 +35,35 @@ import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
+import cycronix.ctlib.*;
+
+/**
+ * 
+ * Save user-entered text from a JText UI control to CloudTurbine.
+ * 
+ * Classes involved in this application:
+ * -------------------------------------
+ * 1. CTtext: main class; manages the GUI and program flow; manages the CTwriter object
+ * 2. DocumentChangeListener: responds to text edit events; save a "snapshot" of
+ *       the text as a String to the blocking queue.
+ * 3. WriteTask: grab Strings off the queue and write them to CT; this is executed
+ *       in a separate Thread
+ * 4. CTsettings: saves settings the user has specified about how to save data to CT;
+ *       also supports a dialog to allow the user to edit these settings
+ * 5. Utility: contains a utility method to add a control to the UI
+ * 
+ * Two flushing modes are supported: user can manually 
+ *
+ * @author John P. Wilson
+ * @version 02/10/2017
+ *
+ */
 public class CTtext implements ActionListener {
 
 	// GUI components
@@ -47,13 +72,31 @@ public class CTtext implements ActionListener {
 	private JScrollPane scrollPane = null;
 	private JButton manualFlushButton = null;
 	
+	// Queue of Strings waiting to be written to CT
+	public BlockingQueue<String> queue = null;
+	
+	// Objects which do "work"
+	public CTwriter ctw = null;						// CTwriter instance, used by WriteTask
+	private DocumentChangeListener ctDoc = null;	// Responds to user edits by saving entire document as a String and putting it in the queue
+	private WriteTask writeTask = null;				// This task takes Strings off the queue and writes them to CT
+	private Thread writeTaskThread = null;			// The thread running in WriteTask
+	
+	// Lock object used by the synchronized blocks in CTtext and WriteTask
+	public Object ctwLockObj = new Object();
+	
 	// CloudTurbine settings
 	public CTsettings ctSettings = null;
-	public boolean bCTrunning = false;
+	public boolean bDebugMode = false;	// run CT in debug mode?
+	public boolean bCTrunning = false;	// is CTwriter open?
+	public boolean bForceFlush = false;	// used with manual flush; force flush on CTwriter
 	
-	// Class to handle interaction between the document and CloudTurbine
-	private DocumentChangeListener ctDoc = null;
-    
+    /**
+     * main
+     * 
+     * Create an instance of CTtext and pop up its GUI.
+     * 
+     * @param argsI Input arguments (none currently supported).
+     */
 	public static void main(String[] argsI) {
         
 		final CTtext cttext = new CTtext();
@@ -68,15 +111,23 @@ public class CTtext implements ActionListener {
         
 	}
     
+	/**
+	 * CTtext constructor
+	 */
 	public CTtext() {
 		ctDoc = new DocumentChangeListener(this);
 	}
     
+	/**
+	 * createAndShowGUI
+	 * 
+	 * Create the CTtext GUI; this method should be run on the event dispatch thread.
+	 */
 	private void createAndShowGUI() {
-
+		
 		// Make sure we have nice window decorations.
 		JFrame.setDefaultLookAndFeelDecorated(true);
-
+		
 		// Create the GUI components
 		GridBagLayout framegbl = new GridBagLayout();
 		cttextGuiFrame = new JFrame("CTtext");
@@ -90,12 +141,19 @@ public class CTtext implements ActionListener {
 		textArea.setEditable(false);
 		textArea.setBackground(Color.LIGHT_GRAY);
 		
-		// DISABLE THE KEY BINDING FOR NOW
-		// DON'T NEED TO RESPOND TO LINE FEEDS AS CTwriter WILL EITHER FLUSH CONTENT WITH EVERY EDIT OR ELSE USE ASYNC AUTO FLUSH
+		//
+		// DISABLE THE KEY BINDING SINCE WE DON'T NEED TO RESPOND TO LINE FEEDS;
+		// CTwriter WILL EITHER FLUSH CONTENT WITH EVERY EDIT OR ELSE USE ASYNC AUTO FLUSH
+		//
 		// Add a KeyBinding to the JTextArea so we know when the user hits the ENTER key
+		// Information about Key Bindings and Key Listeners:
+		// o Key Binding (good tutorial): http://www.dreamincode.net/forums/topic/245148-java-key-binding-tutorial-and-demo-program/
+		// o Key Binding versus Key Listener: http://stackoverflow.com/questions/15290035/key-bindings-vs-key-listeners-in-java
+		// o DocumentListener and Key Binding: http://docs.oracle.com/javase/tutorial/uiswing/components/generaltext.html
 		// textArea.getInputMap().put(KeyStroke.getKeyStroke( "ENTER" ),"doEnterAction" );
-		// Specify that the action "doEnterAction" will be implemented by ctDoc
-		// textArea.getActionMap().put("doEnterAction",ctDoc);
+		// Specify that the action "doEnterAction" will be implemented by this object
+		// (the actionPerformed() method will get a callback when the user hits ENTER)
+		// textArea.getActionMap().put("doEnterAction",this);
 		
 		scrollPane = new JScrollPane(textArea);
 		
@@ -168,6 +226,11 @@ public class CTtext implements ActionListener {
 		
 	}
 	
+	/**
+	 * Create the menu to be added to the GUI
+	 * 
+	 * @return the menu to be added to the GUI
+	 */
 	private JMenuBar createMenu() {
 		JMenuBar menuBar = new JMenuBar();
 		JMenu menu = new JMenu("File");
@@ -181,14 +244,27 @@ public class CTtext implements ActionListener {
 		return menuBar;
 	}
 	
+	/**
+	 * 
+	 * @return the parent GUI frame
+	 */
 	public JFrame getParentFrame() {
 		return cttextGuiFrame;
 	}
 	
+	/**
+	 * 
+	 * @return the text area UI control
+	 */
 	public JTextArea getTextArea() {
 		return textArea;
 	}
-
+	
+	/**
+	 * Action callback method.
+	 * 
+	 * @param eventI The event that has occurred.
+	 */
 	public void actionPerformed(ActionEvent eventI) {
 
 		Object source = eventI.getSource();
@@ -197,8 +273,7 @@ public class CTtext implements ActionListener {
 			return;
 		} else if (eventI.getActionCommand().equals("Settings...")) {
 			// Turn off streaming
-			bCTrunning = false;
-			ctDoc.closeStreaming();
+			stopTextToCT();
 			// Disable editing
 			enableEditingUI(false,false);
 			// Let user edit settings
@@ -212,7 +287,9 @@ public class CTtext implements ActionListener {
 				enableEditingUI(true,ctSettings.getBManualFlush());
 			}
 		} else if (eventI.getActionCommand().equals("Flush")) {
-			// Manually save and flush the document (ie, this ends up calling putData() and flush())
+			// This will only occur if manual flush is turned on
+			// Manually save the document;
+			// in WriteTask, ctw.flush() will be called since manual flush is turned on
 			ctDoc.processText(null);
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit();
@@ -220,8 +297,11 @@ public class CTtext implements ActionListener {
 		
 	}
 	
-	/*
+	/**
 	 * Setup the user interface to either enable or disable editing
+	 * 
+	 * @param bEnableTextArea Should the text area be enabled?
+	 * @param bEnableManualFlush Should the manual flush button be enabled?
 	 */
 	public void enableEditingUI(boolean bEnableTextArea,boolean bEnableManualFlush) {
 		textArea.setEditable(bEnableTextArea);
@@ -233,10 +313,146 @@ public class CTtext implements ActionListener {
 		}
 	}
 	
+	/**
+	 * startTextToCT
+	 * 
+	 * Open CTwriter and supporting resources to allow text to stream to CloudTurbine.
+	 */
+	public void startTextToCT() {
+		
+		// Firewalls
+		// By the time we get to this function, ctw should be null (ie, no currently active CT connection)
+		if (ctw != null) 		{ System.err.println("ERROR in startTextToCT(): CTwriter object is not null; returning"); return; }
+		if (writeTask != null)	{ System.err.println("ERROR in startTextToCT(): WriteTask object is not null; returning"); return; }
+		if (queue != null)		{ System.err.println("ERROR in startTextToCT(): LinkedBlockingQueue object is not null; returning"); return; }
+		
+		System.err.println("\nStart new periodic screen capture");
+		
+		bCTrunning = true;
+		
+		//
+		// Setup CTwriter
+		//
+		String destFolder = ctSettings.getOutputFolder();
+		System.err.println("Create CTwriter, output to \"" + destFolder + "\"");
+		String errMsg = null;
+		CTinfo.setDebug(bDebugMode);
+		if (!ctSettings.getBUseFTP()) {
+			try {
+				ctw = new CTwriter(destFolder);
+			} catch (IOException ioe) {
+				errMsg = "Error trying to create CloudTurbine writer object:\n" + ioe.getMessage();
+			}
+		} else {
+			CTftp ctftp = null;
+			try {
+				ctftp = new CTftp(destFolder);
+			} catch (IOException ioe) {
+				errMsg = "Error trying to create CloudTurbine FTP writer object:\n" + ioe.getMessage();
+			}
+			try {
+				ctftp.login(ctSettings.getFTPHost(),ctSettings.getFTPUser(),ctSettings.getFTPPassword());
+				// upcast to CTWriter
+				ctw = ctftp;
+			} catch (Exception e) {
+				errMsg = "Error logging into FTP server \"" + ctSettings.getFTPHost() + "\":\n" + e.getMessage();
+			}
+		}
+		if (errMsg != null) {
+			stopTextToCT();
+			enableEditingUI(false,false);
+			System.err.println(errMsg);
+			try {
+				JOptionPane.showMessageDialog(getParentFrame(), errMsg, "CloudTurbine error", JOptionPane.ERROR_MESSAGE);
+			} catch (HeadlessException he) {
+				// Nothing to do
+			}
+			return;
+		}
+		ctw.autoSegment(ctSettings.getBlocksPerSegment());
+		// "Block" mode is for packed data (multiple points per output file);
+		// we don't want this; in our case, each output file will be one "data point"
+		ctw.setBlockMode(false);
+		ctw.setTimeRelative(ctSettings.getBUseRelativeTime());
+		ctw.setZipMode(ctSettings.getBZipData(),1);
+		if (!ctSettings.getBManualFlush()) {
+			if ((int)ctSettings.getFlushInterval() == -1) {
+				// This is "max responsive" mode; there's no ZIP, so data is written out right away;
+				// the length of a Block (ie, flush interval) is specified by the constant maxResponsivenessFlushInterval
+				ctw.autoFlush(ctSettings.getMaxResponsivenessFlushInterval(),true);
+			} else {
+				ctw.autoFlush(ctSettings.getFlushInterval(),true);
+			}
+		}
+		
+		//
+		// Setup the asynchronous event queue to store Strings
+		//
+		queue = new LinkedBlockingQueue<String>();
+		
+		//
+		// Create a new WriteTask which continually grabs Strings off the queue and writes them to CT
+		// Run this in a new thread
+		//
+		writeTask = new WriteTask(this);
+		writeTaskThread = new Thread(writeTask);
+		writeTaskThread.start();
+		
+	}
+	
+	/**
+     * stopTextToCT
+     * 
+     * Cleanly shut down text streaming to CloudTurbine.
+     */
+    public void stopTextToCT() {
+    	
+    	System.err.println("\n\nStop sending Strings to CloudTurbine");
+    	
+    	bCTrunning = false;
+    	
+    	// shut down WriteTask
+    	if (writeTaskThread != null) {
+    		try {
+    			System.err.println("Wait for WriteTask to stop");
+    			writeTaskThread.join(500);
+    			if (writeTaskThread.isAlive()) {
+    				// WriteTask must be waiting to take another screencap off the queue;
+    				// interrupt it
+    				writeTaskThread.interrupt();
+    				writeTaskThread.join(500);
+    			}
+    			if (!writeTaskThread.isAlive()) {
+    				System.err.println("WriteTask has stopped");
+    			}
+    		} catch (InterruptedException ie) {
+    			System.err.println("Caught exception trying to stop WriteTask:\n" + ie);
+    		}
+    		writeTaskThread = null;
+    		writeTask = null;
+    	}
+    	
+    	// shut down CTwriter
+    	if (ctw != null) {
+    		System.err.println("Close CTwriter");
+    		ctw.close();
+    		ctw = null;
+    	}
+    	
+    	if (queue != null) {
+    		queue.clear();
+    		queue = null;
+    	}
+    	
+    }
+	
+    /**
+     * Exit the application.
+     */
 	private void exit() {
         
 		// Turn off streaming
-		ctDoc.closeStreaming();
+		stopTextToCT();
 		
 		cttextGuiFrame.setVisible(false);
         
