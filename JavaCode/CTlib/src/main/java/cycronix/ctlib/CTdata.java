@@ -243,9 +243,13 @@ public class CTdata {
 
 			if(wordSize <= 1 || count<=1) {							// full intact frames 
 				
-				if(duration==0 && nframe==1) {		// special single-frame intact-frame case (e.g. images) MJM 8/16
-					ctd.add(timelist.get(i), datalist.get(i));
-					break;
+//				if(duration==0 && nframe==1) {		// special single-frame intact-frame case (e.g. images) MJM 8/16
+				if(duration==0) {					// ensure d=0 gets at-or-BEFORE given time MJM 2/17
+					CTinfo.debugPrint("Zero duration check, i: "+i+", nframe: "+nframe+", time: "+time);
+					if(i==(nframe-1) || timelist.get(i+1)>start) {
+						ctd.add(timelist.get(i), datalist.get(i));
+						break;
+					}
 				}
 				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
