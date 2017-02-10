@@ -205,7 +205,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
-	private JPanel controlsPanel = null;		// Panel which contains UI controls
 	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture 
 	
 	// Since translucent panels can only be contained within undecorated Frames (see comments in header above)
@@ -691,7 +690,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		guiPanel.setFont(new Font("Dialog", Font.PLAIN, 12));
 		GridBagLayout controlsgbl = new GridBagLayout();
 		// *** controlsPanel contains the UI controls at the top of guiFrame
-		controlsPanel = new JPanel(controlsgbl);
+		JPanel controlsPanel = new JPanel(controlsgbl);
 		controlsPanel.setBackground(new Color(211,211,211,255));
 		JComboBox<Double> fpsCB = new JComboBox<Double>(FPS_VALUES);
 		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
@@ -705,12 +704,18 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		changeDetectCheck.addActionListener(this);
 		// The slider will use range 0 - 1000
 		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
+		// NOTE: The JSlider's initial width was too large, so I'd like to set its preferred size
+		//       to try and constrain it some; also need to set its minimum size at the same time,
+		//       or else when the user makes the GUI frame smaller, the JSlider would pop down to
+		//       a really small minimum size.
+		imgQualSlider.setPreferredSize(new Dimension(170,40));
+		imgQualSlider.setMinimumSize(new Dimension(170,40));
 		imgQualSlider.setBackground(controlsPanel.getBackground());
 		imgQualSlider.addChangeListener(this);
 		//Create the label table
 		Hashtable<Integer, JLabel> labelTable = new Hashtable<Integer, JLabel>();
-		labelTable.put( new Integer( 0 ), new JLabel("Low") );
-		labelTable.put( new Integer( 1000 ), new JLabel("High") );
+		labelTable.put( new Integer(100), new JLabel("Low") );
+		labelTable.put( new Integer(900), new JLabel("High") );
 		imgQualSlider.setLabelTable( labelTable );
 		imgQualSlider.setPaintLabels(true);
 		JButton startStopButton = new JButton("Start");
@@ -765,21 +770,22 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		
 		// Add controls to the controls panel
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
-		JLabel imgQualLabel = new JLabel("image quality",SwingConstants.LEFT);
-		gbc.insets = new Insets(5, 10, 0, 10);
+		JLabel imgQualLabel = new JLabel("image qual",SwingConstants.LEFT);
+		gbc.insets = new Insets(5, 0, 0, 5);
 		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
-		gbc.insets = new Insets(0, 10, 10, 10);
-		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
-		gbc.insets = new Insets(10, 0, 0, 0);
+		gbc.insets = new Insets(5, 0, 0, 10);
 		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
-		gbc.insets = new Insets(10, 15, 0, 0);
+		gbc.insets = new Insets(5, 0, 0, 0);
 		Utility.add(controlsPanel, changeDetectCheck, controlsgbl, gbc, 2, 0, 1, 1);
-		gbc.insets = new Insets(10, 0, 10, 10);
+		gbc.insets = new Insets(0, 0, 0, 5);
+		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
+		gbc.insets = new Insets(5, 0, 5, 0);
 		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 2, 1);
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
+		gbc.insets = new Insets(5, 0, 5, 0);
 		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 2);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
@@ -1106,7 +1112,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (capturePanel.getHeight() < 20) {
 			bDontMakeShorter = true;
 		}
-		if (capturePanel.getWidth() < 380) {
+		if (capturePanel.getWidth() < 20) {
 			bDontMakeThinner = true;
 		}
 		Point currentPoint = mouseEventI.getLocationOnScreen();
