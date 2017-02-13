@@ -128,7 +128,6 @@ public class CTtext implements ActionListener {
 	public CTsettings ctSettings = null;
 	public boolean bDebugMode = false;	// run CT in debug mode?
 	public boolean bCTrunning = false;	// is CTwriter open?
-	public boolean bForceFlush = false;	// used with manual flush; force flush on CTwriter
 	
     /**
      * main
