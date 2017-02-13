@@ -45,23 +45,63 @@ import cycronix.ctlib.*;
 
 /**
  * 
- * Save user-entered text from a JText UI control to CloudTurbine.
+ * CTtext writes user-entered text to CloudTurbine.  It will either save
+ * text-as-you-type or alternatively only save text to CT when the user
+ * clicks a "Flush" button ("manual flush" mode).
+ * 
+ * The framework of this application is similar to CTscreencap.
  * 
  * Classes involved in this application:
  * -------------------------------------
- * 1. CTtext: main class; manages the GUI and program flow; manages the CTwriter object
- * 2. DocumentChangeListener: responds to text edit events; save a "snapshot" of
- *       the text as a String to the blocking queue.
- * 3. WriteTask: grab Strings off the queue and write them to CT; this is executed
- *       in a separate Thread
- * 4. CTsettings: saves settings the user has specified about how to save data to CT;
- *       also supports a dialog to allow the user to edit these settings
+ * 1. CTtext: main class; manages the GUI and program flow; manages the creaion
+ *       or shutdown of all other objects.
+ * 2. DocumentChangeListener: responds to text edit events; if we aren't in
+ *       "manual flush" mode, then in response to all document events this
+ *       class saves a "snapshot" of the complete text as a String to the
+ *       blocking queue
+ * 3. WriteTask: grab Strings off the queue and write them to CT; this is
+ *       executed in a separate Thread
+ * 4. CTsettings: stores settings the user has specified about how to save
+ *       data to CT; creates and manages a dialog to allow the user to edit
+ *       these settings
  * 5. Utility: contains a utility method to add a control to the UI
  * 
- * Two flushing modes are supported: user can manually 
- *
+ * Program flow for automatic (not manual) flush mode:
+ * ---------------------------------------------------
+ * The variable CTsettings.bManualFlush will be false in this case.  Every time
+ * the user changes (adds, deletes, or edits) the text, one of the
+ * DocumentListener methods (changedUpdate, insertUpdate, or removeUpdate)
+ * are called.  If CTsettings.bManualFlush is true (which it will be
+ * in automatic flush mode) these methods in turn call processText, which
+ * grabs a snapshot of the current text and saves it to the blocking queue.
+ * WriteTask.run() takes String objects off the queue and calls CTwriter's
+ * setTime and putData methods.  Since manual flush is off, no call is made
+ * to CTwriter.flush().
+ * 
+ * The user specifies the desired flush interval via the Settings dialog.  If
+ * the user specifies "Max responsiveness", the flush interval is set to the
+ * value of CTsettings.maxResponsivenessFlushInterval, which is 10msec.  Also
+ * in this case, data is not ZIP'ed.  Thus, in this "Max responsiveness" mode
+ * the data shows up on disk very quickly.
+ * 
+ * Program flow for manual flush mode:
+ * -----------------------------------
+ * Much of the same program flow exists in manual mode, but there are some
+ * differences.  In this case, CTsettings.bManualFlush is true.  When the user
+ * makes a change to the text, one of the DocumentListener methods (changedUpdate,
+ * insertUpdate, or removeUpdate) are called, but with bManualFlush=true, the
+ * method just returns (no call to processText).  When the user clicks the "Flush"
+ * button, CTtext.actionPerformed is called and in turn DocumentChangeListener.processText
+ * is called; same procedure as is described above is followed: a String containing
+ * the current text is put on the blocking queue.  In WriteTask, when bManualFlush
+ * is true, not only will CTwriter's setTime and putData methods be called but
+ * CTwriter.flush() is called as well.
+ * 
+ * As a side note, data is not ZIP'ed when program is in manual flush mode.  This
+ * makes sense because in manual flush mode the block only contains 1 data point.
+ * 
  * @author John P. Wilson
- * @version 02/10/2017
+ * @version 02/13/2017
  *
  */
 public class CTtext implements ActionListener {
@@ -238,6 +278,12 @@ public class CTtext implements ActionListener {
 		JMenuItem menuItem = new JMenuItem("Settings...");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
+		menuItem = new JMenuItem("Start CT data");
+		menu.add(menuItem);
+		menuItem.addActionListener(this);
+		menuItem = new JMenuItem("Close CT");
+		menu.add(menuItem);
+		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("Exit");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
@@ -274,18 +320,31 @@ public class CTtext implements ActionListener {
 		} else if (eventI.getActionCommand().equals("Settings...")) {
 			// Turn off streaming
 			stopTextToCT();
-			// Disable editing
-			enableEditingUI(false,false);
-			// Let user edit settings
+			// Let user edit settings; the following function will not
+			// return until the user clicks the OK or Cancel button.
 			ctSettings.popupSettingsDialog();
-			// Turn streaming on if:
-			// 1. user clicked the OK button on the settings dialog
-			// 2. the user-entered settings are acceptable
-			if ( (ctSettings.getBClickedOK()) && (ctSettings.canCTrun().isEmpty()) ) {
-				bCTrunning = true;
-				// Enable editing
-				enableEditingUI(true,ctSettings.getBManualFlush());
+		} else if (eventI.getActionCommand().equals("Start CT data")) {
+			if (bCTrunning) {
+				try {
+					JOptionPane.showMessageDialog(getParentFrame(), "Data is already streaming to CloudTurbine.", "CloudTurbine on", JOptionPane.INFORMATION_MESSAGE);
+				} catch (HeadlessException he) {
+					// Nothing to do
+				}
+			} else {
+				// See if the user has made all needed settings
+				String settingsError = ctSettings.canCTrun();
+				if (settingsError.isEmpty()) {
+					startTextToCT();
+				} else {
+					try {
+						JOptionPane.showMessageDialog(getParentFrame(), "Cannot turn on data streaming since settings are not complete:\n" + settingsError, "Settings error", JOptionPane.ERROR_MESSAGE);
+					} catch (HeadlessException he) {
+						// Nothing to do
+					}
+				}
 			}
+		} else if (eventI.getActionCommand().equals("Close CT")) {
+			stopTextToCT();
 		} else if (eventI.getActionCommand().equals("Flush")) {
 			// This will only occur if manual flush is turned on
 			// Manually save the document;
@@ -298,27 +357,11 @@ public class CTtext implements ActionListener {
 	}
 	
 	/**
-	 * Setup the user interface to either enable or disable editing
-	 * 
-	 * @param bEnableTextArea Should the text area be enabled?
-	 * @param bEnableManualFlush Should the manual flush button be enabled?
-	 */
-	public void enableEditingUI(boolean bEnableTextArea,boolean bEnableManualFlush) {
-		textArea.setEditable(bEnableTextArea);
-		manualFlushButton.setEnabled(bEnableManualFlush);
-		if (bEnableTextArea) {
-			textArea.setBackground(Color.WHITE);
-		} else {
-		    textArea.setBackground(Color.LIGHT_GRAY);
-		}
-	}
-	
-	/**
 	 * startTextToCT
 	 * 
 	 * Open CTwriter and supporting resources to allow text to stream to CloudTurbine.
 	 */
-	public void startTextToCT() {
+	private void startTextToCT() {
 		
 		// Firewalls
 		// By the time we get to this function, ctw should be null (ie, no currently active CT connection)
@@ -329,6 +372,7 @@ public class CTtext implements ActionListener {
 		System.err.println("\nStart new periodic screen capture");
 		
 		bCTrunning = true;
+		enableEditingUI(true,ctSettings.getBManualFlush());
 		
 		//
 		// Setup CTwriter
@@ -405,11 +449,12 @@ public class CTtext implements ActionListener {
      * 
      * Cleanly shut down text streaming to CloudTurbine.
      */
-    public void stopTextToCT() {
+    private void stopTextToCT() {
     	
     	System.err.println("\n\nStop sending Strings to CloudTurbine");
     	
     	bCTrunning = false;
+		enableEditingUI(false,false);
     	
     	// shut down WriteTask
     	if (writeTaskThread != null) {
@@ -445,6 +490,22 @@ public class CTtext implements ActionListener {
     	}
     	
     }
+    
+    /**
+	 * Setup the user interface to either enable or disable editing
+	 * 
+	 * @param bEnableTextArea Should the text area be enabled?
+	 * @param bEnableManualFlush Should the manual flush button be enabled?
+	 */
+	private void enableEditingUI(boolean bEnableTextArea,boolean bEnableManualFlush) {
+		textArea.setEditable(bEnableTextArea);
+		manualFlushButton.setEnabled(bEnableManualFlush);
+		if (bEnableTextArea) {
+			textArea.setBackground(Color.WHITE);
+		} else {
+		    textArea.setBackground(Color.LIGHT_GRAY);
+		}
+	}
 	
     /**
      * Exit the application.
