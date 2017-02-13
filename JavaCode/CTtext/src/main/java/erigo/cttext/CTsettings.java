@@ -1,21 +1,18 @@
-/*******************************************************************************
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+/*
+Copyright 2017 Erigo Technologies LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package erigo.cttext;
 
@@ -69,26 +66,24 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	// Settings
 	private String outputFolder = "CTdata" + File.separator + "CTtext";
 	private String chanName = "cttext.txt";
-	private boolean bUseFTP = false;					// Use FTP to write data out?
-	private String ftpHost = "";						// FTP hostname
-	private String ftpUser = "";						// FTP username
-	private String ftpPassword = "";					// FTP password
-	private boolean bManualFlush = false;				// If this is true, user will manually click a "Flush" button at which time the code will putData and flush
-														// If this is false, putData is called for every Document edit and the flush interval is specified by:
-														//     (1) if flushInterval == -1 (i.e., "max responsiveness") then auto flush interval =  maxResponsivenessFlushLevel
-														//     (2) if flushInterval > 0, use this value as the auto flush interval
-	private double flushInterval = 10.0;				// Interval (sec) at which to automatically flush data; if value is -1,
-														// this is a special case for "max responsiveness": no ZIP data, set auto flush = maxResponsivenessFlushLevel
+	private boolean bUseFTP = false;				// Use FTP to write data out?
+	private String ftpHost = "";					// FTP hostname
+	private String ftpUser = "";					// FTP username
+	private String ftpPassword = "";				// FTP password
+	private boolean bManualFlush = false;			// If true, CTwriter setTime, putData and flush calls are made every time WriteTask processes a text update
+													// If false, setTime and putData (but not flush) are called every time WriteTask processes a text update;
+													//     CTwriter auto flush is used in this case, the interval of which is specified by flushInterval
+	private double flushInterval = 10.0;			// Interval (sec) at which to automatically flush data
+													//     -1 is a special case for "max responsiveness": no ZIP data, auto flush = maxResponsivenessFlushLevel
+													//     note that flush interval determines when Blocks are closed and the next Block folder starts
 	private static final double maxResponsivenessFlushInterval = 10.0;
-														// If flushInterval == -1 (i.e., "max responsiveness") then auto flush interval =  maxResponsivenessFlushLevel
-														// data is not ZIP'ed in this case, so it actually shows up on disk immediately; the flush interval just
-														// determines when Blocks are closed and the next Block folder starts.
-	private static final int blocksPerSegment = 10;		// Fixed setting; Number of Block folders per Segment; 0 = no segments
-	private boolean bUseRelativeTime = true;			// Fixed to true (we no longer use absolute timestamps)
-	private boolean bZipData = true;					// Block folders will be zipped?  This will be true for all cases except:
-														//     (1) If flush interval is -1 ("Max responsiveness")
-														//     (2) When bManualFlush is true (put and flush are done right away, so no need to ZIP since Block only contains 1 data point)
-	private boolean bChatMode = false;					// Not currently used
+													// If flushInterval == -1 ("max responsiveness") auto flush interval is set to maxResponsivenessFlushLevel (msec)
+													//     data is not ZIP'ed in this case, so it essentially shows up on disk immediately
+	private static final int blocksPerSegment = 10;	// Number of Block folders per Segment; 0 = no segments; this value is not user-editable
+	private boolean bUseRelativeTime = true;		// Fixed to true (we no longer use absolute timestamps)
+	private boolean bZipData = true;				// Are Block folders ZIP'ed?  Will be true except for:
+													//     (1) If flush interval is -1 ("Max responsiveness")
+													//     (2) When bManualFlush is true (no need to ZIP since each Block only contains 1 data point)
 	
 	// Backup copy of the settings used when user is editing the settings
 	private String orig_outputFolder;
@@ -101,7 +96,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private double orig_flushInterval;
 	private boolean orig_bUseRelativeTime;
 	private boolean orig_bZipData;
-	private boolean orig_bChatMode;
 	
 	// Dialog components
 	private JTextField outputDirTF = null;
@@ -466,20 +460,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	}
 	
 	/*
-	 * Accessor method for bChatMode
-	 */
-	public boolean getBChatMode() {
-		return bChatMode;
-	}
-	
-	/*
-	 * Mutator method for bChatMode
-	 */
-	public void setBChatMode(boolean bChatModeI) {
-		bChatMode = bChatModeI;
-	}
-	
-	/*
 	 * Accessor method for bClickedOK
 	 */
 	public boolean getBClickedOK() {
@@ -554,7 +534,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_flushInterval = flushInterval;
 		orig_bUseRelativeTime = bUseRelativeTime;
 		orig_bZipData = bZipData;
-		orig_bChatMode = bChatMode;
 		
 		// Initialize data in the dialog
 		outputDirTF.setText(outputFolder);
@@ -706,7 +685,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		flushInterval = orig_flushInterval;
 		bUseRelativeTime = orig_bUseRelativeTime;
 		bZipData = orig_bZipData;
-		bChatMode = orig_bChatMode;
 		
 		setBClickedOK(false);
 		
@@ -739,11 +717,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 				sb.append("\tputData is called with every document change; ZIP is on; automatically flush every " + flushInterval + " seconds\n");
 			}
 		}
-		if (blocksPerSegment == 0) {
-			sb.append("\tBlocks per Segment = " + blocksPerSegment + ", i.e. no segment folders\n");
-		} else {
-			sb.append("\tBlocks per Segment = " + blocksPerSegment + "\n");
-		}
+		sb.append("\tBlocks per Segment = " + blocksPerSegment + "; if this value is zero then we will not have any segment folders\n");
 		sb.append("\tUse relative time = " + bUseRelativeTime + "\n");
 		
 		return sb.toString();
