@@ -16,47 +16,58 @@ limitations under the License.
 
 package erigo.ctserial;
 
-//
-// CTserial
-//
-// Capture comma-separated strings of serial datat, parse the data
-// and send to CloudTurbine.
-//
-// CTserial includes much of the code and structure from Matt Miller's (Cycronix) CTudp.
-//
-// Using jSerialComm cross-platform serial communications library.
-//     http://fazecast.github.io/jSerialComm/
-//     https://github.com/Fazecast/jSerialComm
-//     https://www.youtube.com/watch?v=cw31L_OwX3A
-//
-// Copyright 2016 Erigo
-// All Rights Reserved
-//
-//   Date      By	Description
-// MM/DD/YYYY
-// ----------  --	-----------
-// 12/07/2016  JPW	Created.
-// 12/16/2016  JPW  Added "simulate" mode
-//
+/**
+ * 
+ * CTserial
+ *
+ * Capture comma-separated strings of serial datat, parse the data
+ * and send to CloudTurbine.
+ *
+ * CTserial includes much of the code and structure from Matt Miller's (Cycronix) CTudp.
+ *
+ * Using jSerialComm cross-platform serial communications library.
+ *     http://fazecast.github.io/jSerialComm/
+ *     https://github.com/Fazecast/jSerialComm
+ *     https://www.youtube.com/watch?v=cw31L_OwX3A
+ *
+ * Copyright 2016-2017 Erigo
+ * All Rights Reserved
+ *
+ *   Date      By	Description
+ * MM/DD/YYYY
+ * ----------  --	-----------
+ * 12/07/2016  JPW	Created.
+ * 12/16/2016  JPW  Added "simulate" mode
+ * 02/15/2017  JPW  Tweak command line documentation; add baudrate; change shutdown procedure to be more Thread-savvy
+ * 
+ */
 
 import java.io.InputStream;
 import java.io.IOException;
 import java.util.Scanner;
+
 import org.apache.commons.cli.*;
+
 import cycronix.ctlib.*;
+
 import com.fazecast.jSerialComm.SerialPort;
 
 public class CTserial {
 	
-	boolean zipMode = true;
-	boolean debug = false;
-	double autoFlushDefault = 1.;	  // default flush interval (sec)
-	long autoFlushMillis;			  // flush interval (msec)
-	double trimTime = 0.;			  // trimtime (sec)
-	String srcName = new String("CTserial");
-	CTwriter ctw;
-	boolean bShutdown = false;
-	boolean bShutdownDone = false;
+	private boolean zipMode = true;
+	private boolean debug = false;
+	private double autoFlushDefault = 1.;	  // default flush interval (sec)
+	private long autoFlushMillis;			  // flush interval (msec)
+	private double trimTime = 0.;			  // trimtime (sec)
+	private String srcName = new String("CTserial");
+	private CTwriter ctw;
+	private boolean bShutdown = false;
+	private static final int baudRateDefault = 9600;
+	private static final String defaultPortStr = "COM1";
+	
+	// The main workers in this program
+	private SerialRead serialRead = null;	// the main object which defined what to do
+	private Thread serialReadThread = null; // thread operating in serialRead object
 	
 	//
 	// Main class
@@ -74,19 +85,29 @@ public class CTserial {
         Runtime.getRuntime().addShutdownHook(new Thread() {
         	@Override
             public void run() {
-        		// Flag that it is time to shut down
+        		// Signal that it is time to shut down
             	bShutdown = true;
-            	for (int i=0; i<10; ++i) {
-            		if (bShutdownDone) {
-            			// Main loop has shut down
-            			break;
-            		}
-            		try {
-            			Thread.sleep(1000);
-            		} catch (Exception e) {
-            			// Nothing to do
-            		}
-            	}
+            	try {
+        			System.err.println("Wait for SerialRead to stop");
+        			serialReadThread.join(1000);
+        			if (serialReadThread.isAlive()) {
+        				// SerialRead must be waiting for more serial input;
+        				// interrupt it
+        				serialReadThread.interrupt();
+        				serialReadThread.join(2000);
+        			}
+        			if (!serialReadThread.isAlive()) {
+        				System.err.println("SerialRead has stopped");
+        			} else {
+        				try {
+        					serialReadThread.notifyAll();
+        				} catch (IllegalMonitorStateException excep) {
+        					// nothing to do
+        				}
+        			}
+        		} catch (InterruptedException ie) {
+        			System.err.println("Caught exception trying to stop SerialRead:\n" + ie);
+        		}
             }
         });
 		
@@ -97,13 +118,14 @@ public class CTserial {
 		// 1. Setup command line options
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message");
-		options.addOption(Option.builder("s").argName("source name").hasArg().desc("name of source to write serial packets to").build());
+		options.addOption(Option.builder("s").argName("source name").hasArg().desc("name of source to write serial packets to; default = " + srcName).build());
 		options.addOption(Option.builder("c").argName("channel name(s)").hasArg().desc("name of channel(s) to write data to (comma-separated list)").build());
-		options.addOption(Option.builder("p").argName("serial port").hasArg().desc("port number to listen for serial packets on").build());
-		options.addOption(Option.builder("d").argName("delta-time").hasArg().desc("fixed delta-time (msec) between frames (dt=0 for arrival-times)").build());
-		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile)").build());
-		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite)").build());
-		options.addOption("b", "time_in_str", false, "the first entry in the received CSV string is the data time");
+		options.addOption(Option.builder("p").argName("serial port").hasArg().desc("port number to listen for serial packets on; default = " + defaultPortStr).build());
+		options.addOption(Option.builder("d").argName("delta-time").hasArg().desc("fixed delta-time (msec) between frames; dt=0 (which is the default) to use arrival-times").build());
+		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile); default = " + Double.toString(autoFlushDefault)).build());
+		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec); trimTime=0 (which is the default) for indefinite").build());
+		options.addOption(Option.builder("b").argName("baudrate").hasArg().desc(new String("baud rate; default = " + baudRateDefault)).build());
+		options.addOption("time_in_str", false, "the first entry in the received CSV string is the data time; in this case, do not include the time channel as the first entry in the specified channels list");
 		options.addOption("x", "debug", false, "debug mode");
 		options.addOption("z", "sim_mode", false, "turn on simulate mode (don't read serial port)");
         
@@ -114,8 +136,6 @@ public class CTserial {
 			line = parser.parse( options, arg );
 		} catch( ParseException exp ) {
 			System.err.println("Command line argument parsing failed: " + exp.getMessage());
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
 			return;
 		}
 		
@@ -127,8 +147,6 @@ public class CTserial {
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.setWidth(120);
 			formatter.printHelp( "CTserial", options );
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
 			return;
 		}
 		
@@ -137,7 +155,7 @@ public class CTserial {
 		String chanNameL = line.getOptionValue("c","serialchan");
 		chanNames = chanNameL.split(","); 
 		
-		String portStr = line.getOptionValue("p", "COM1");
+		String portStr = line.getOptionValue("p", defaultPortStr);
 		
 		String dtStr = line.getOptionValue("d","0");				
 		dt = Double.parseDouble(dtStr);
@@ -152,20 +170,18 @@ public class CTserial {
 		// Can't have both bFirstValIsTime==true and dt!=0
 		if ( bFirstValIsTime && (dt != 0) ) {
 			System.err.println("Not able to use both \"time_in_str\" and \"delta-time\" options at the same time.");
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
 			return;
 		}
 		
 		boolean bSimulateMode = line.hasOption("sim_mode");
 		if ( bSimulateMode && (dt == 0) ) {
 			System.err.println("Must specify \"delta-time\" when in simulate mode.");
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
 			return;
 		}
 		
 		debug = line.hasOption("debug");
+		
+		int baudrate = Integer.parseInt(line.getOptionValue("br",Integer.toString(baudRateDefault)));
 		
 		// setup CTwriter
 		try {
@@ -175,12 +191,10 @@ public class CTserial {
 		} catch(Exception e) {
 			System.err.println("Caught exception trying to setup CTwriter:");
 			e.printStackTrace();
-			// Signal the shutdown hook to just shut down
-			bShutdownDone = true;
 			return;
 		}
 
-		System.err.print("Source name: " + srcName + "\nSerial port: " + portStr + "\nChannels: ");
+		System.err.print("Source name: " + srcName + "\nSerial port: " + portStr + "\nBaud rate: " + baudrate + "\nChannels: ");
 		for(int i=0; i<(chanNames.length-1); ++i) {
 			System.err.print(chanNames[i] + ",");
 		}
@@ -190,7 +204,9 @@ public class CTserial {
 		}
 		
 		try {
-			new SerialRead(portStr, chanNames, dt, bFirstValIsTime,bSimulateMode).start();
+			serialRead = new SerialRead(portStr, chanNames, dt, bFirstValIsTime, baudrate, bSimulateMode);
+			serialReadThread = new Thread(serialRead);
+			serialReadThread.start();
 		} catch (Exception e) {
 			System.err.println("Caught exception:\n" + e);
 			return;
@@ -204,25 +220,29 @@ public class CTserial {
 	
 	double flushTime = 0; // time of last flush
 	long firstFlush = 0; // sync multi-channels to first at start
-	private class SerialRead extends Thread {
+	private class SerialRead implements Runnable {
 		
 		private String portStr;
 		private String[] chanNames;
 		private double dt = 0;
 		private boolean bFirstValIsTime = false;
-		private SerialPort serPort = null;
+		private int baudrate = 0;
 		private boolean bSimulateMode = false;
+		private SerialPort serPort = null;		// the serial port we are reading from
+		private Scanner scanner = null;			// to read lines from the serial port
 		
-		SerialRead(String portStrI, String[] chanNamesI, double dtI, boolean bFirstValIsTimeI, boolean bSimulateModeI) throws Exception {
+		SerialRead(String portStrI, String[] chanNamesI, double dtI, boolean bFirstValIsTimeI, int baudrateI, boolean bSimulateModeI) throws Exception {
 			portStr = portStrI;
 			chanNames = chanNamesI;
 			dt = dtI;
 			bFirstValIsTime = bFirstValIsTimeI;
+			baudrate = baudrateI;
 			bSimulateMode = bSimulateModeI;
 			
 			// Open serial port (if not in simulate mode)
 			if (!bSimulateMode) {
 				serPort = SerialPort.getCommPort(portStr);
+				serPort.setBaudRate(baudrate);
 				serPort.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
 				if(!serPort.openPort()) {
 					throw new Exception("Serial port \"" + portStr + "\" could not be opened.");
@@ -232,7 +252,6 @@ public class CTserial {
 		
 		public void run() {
 			InputStream inputStream = null;
-			Scanner scanner = null;
 			if (!bSimulateMode) {
 				inputStream = serPort.getInputStream();
 				scanner = new Scanner(inputStream);
@@ -370,11 +389,13 @@ public class CTserial {
 					System.err.println("Caught exception closing InputStream");
 					e.printStackTrace();
 				}
+				System.err.println("Close serial port...");
+				serPort.closePort();
 				System.err.println("Close Scanner...");
 				scanner.close();
 			}
 			
-			bShutdownDone = true;
+			System.err.println("SerialRead is exiting");
 		}
 	}
 	
