@@ -155,8 +155,20 @@ import cycronix.ctlib.CTinfo;
  * inherent way to move and resize the window)?  We do this by creating our own simple window manager:
  * CTscreencap implements MouseMotionListener by defining mouseDragged() and mouseMoved().
  * 
+ * "Continue" mode
+ * ---------------
+ * To produce a video with several different "takes", CTscreencap supports "Continue" mode.  After
+ * CTscreencap has started, when the user is finished with the scene they can "Stop", make any
+ * necessary adjustments and then "Continue".  CTscreencap sets the next timestamp equal to
+ * (1 + the previously used timestamp) after starting up in continue mode.
+ * 
+ * All timestamps (for both WriteTask and AudiocapTask) are created in getNextTime().  If the user
+ * is in standard (not continue) mode, getNextTime() returns System.currentTimeMillis();
+ * in continue mode, this function will calculate the appropriate timestamp to use to
+ * maintain seamless video/audio capture.
+ * 
  * @author John P. Wilson, Matt J. Miller
- * @version 02/07/2017
+ * @version 02/16/2017
  *
  */
 public class CTscreencap implements ActionListener,ChangeListener,MouseMotionListener {
@@ -1051,9 +1063,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			continueButton.setEnabled(false);
 		} else if (eventI.getActionCommand().equals("Stop")) {
 			((JButton)source).setText("Stopping...");
-			bContinueMode = false;
-			firstCTtime = 0;
-			continueWallclockInitTime = 0;
 			stopCapture();
 			((JButton)source).setText("Start");
 			((JButton)source).setBackground(Color.GREEN);

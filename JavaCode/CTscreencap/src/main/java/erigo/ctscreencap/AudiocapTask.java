@@ -75,7 +75,7 @@ public class AudiocapTask {
 									long dt = time - oldTime;
 									if (Math.abs(flushMillis - dt) < (flushMillis/10)) {
 										time = oldTime + flushMillis;
-										// We've adjusted the time, should we reset for everyone?
+										// We've adjusted the time, save this time for everyone to reference; is this correct?
 										cts.setNextTime(time);
 									}
 								}
