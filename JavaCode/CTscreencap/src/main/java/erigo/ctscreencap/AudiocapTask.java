@@ -60,17 +60,24 @@ public class AudiocapTask {
 				public void run() {
 					running = true;
 					try {
-						ctw.preflush(System.currentTimeMillis());		// pre-flush to establish initial audio blockTime?
+						// long nextTime = System.currentTimeMillis();
+						long nextTime = cts.getNextTime();
+						ctw.preflush(nextTime);		// pre-flush to establish initial audio blockTime?
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length);
-							//							if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
-							//  webscan not up to task of handling empty data in RT
+							// if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
+							// webscan not up to task of handling empty data in RT
 							// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
 							synchronized(cts.ctwLockObj) {
-								long time = System.currentTimeMillis();
+								// long time = System.currentTimeMillis();
+								long time = cts.getNextTime();
 								if(oldTime != 0) {		// consistent timing if close
 									long dt = time - oldTime;
-									if(Math.abs(flushMillis - dt) < (flushMillis/10)) time = oldTime + flushMillis;
+									if (Math.abs(flushMillis - dt) < (flushMillis/10)) {
+										time = oldTime + flushMillis;
+										// We've adjusted the time, should we reset for everyone?
+										cts.setNextTime(time);
+									}
 								}
 								if (count > 0) {
 									ctw.setTime(time);
