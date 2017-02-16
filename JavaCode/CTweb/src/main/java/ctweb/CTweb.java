@@ -472,7 +472,7 @@ public class CTweb {
     					
     					// if(time.length == 0) System.err.println("CTserver warning: no data!");
     					if(numData > 0) {
-    						if(ftype == 's' && fetch=='b') ftype = CTinfo.fileType(chan,'s');	// over-ride for certain binary types
+    						if(ftype == 's' /* && fetch=='b' */) ftype = CTinfo.fileType(chan,'s');	// over-ride for certain binary types
     						if(debug) System.err.println("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
 
     						switch(ftype) {
@@ -542,11 +542,11 @@ public class CTweb {
     							if(strdata != null) {
     								if(fetch=='t') 
     									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i])+"\n");		// most recent
-    								else if(fetch=='d')
-    									for(int i=time.length-numData; i<numData; i++) sbresp.append(strdata[i]+"\n");		
+    								else if(fetch=='d') 
+    									for(int i=time.length-numData; i<numData; i++) sbresp.append(strdata[i]+"\n");	
     								else
-    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");		
-
+    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");	
+    							
     	   							// add header info about time limits
         							oldTime = ctreader.oldTime(sourcePath,chan);
         							newTime = ctreader.newTime(sourcePath,chan);
