@@ -69,7 +69,8 @@ public class CTchallenge {
 
 			// loop and write some output
 			for(int i=1; i<=ncount; i++) {
-				ctw.setTime(time+=dt);	
+//				ctw.setTime(time+=dt);	
+				ctw.setTime(System.currentTimeMillis());
 				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".i32", byteBuffer.array());
 				ctw.flush(true);
 				System.out.println("put block: "+i);
