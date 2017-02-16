@@ -204,10 +204,20 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	
 	public Object ctwLockObj = new Object();	// Lock object used by the synchronized blocks in AudiocapTask and WriteTask
 	
+	// Variables dealing with "continue" mode, where screen captures resume, picking up in time just where we left off;
+	// kind of like a seamless "pause"
+	public boolean bContinueMode = false;		// Are we in continue mode?
+	public long firstCTtime = 0;				// First timestamp sent to CTwriter.setTime(<time>)
+	public long lastCTtime = 0;					// Last timestamp sent to CTwriter.setTime(<time>)
+	public long continueWallclockInitTime = 0;	// Wallclock time when continue starts up.
+	
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
-	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture 
+	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture
+	public JButton startStopButton = null;		// One button to Start and then Stop screen captures
+	public JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
+												// just where we left off; kind of like a seamless "pause"
 	
 	// Since translucent panels can only be contained within undecorated Frames (see comments in header above)
 	// and since undecorated Frames don't support moving/resizing, we implement our own basic "window manager"
@@ -483,6 +493,48 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	}
 	
 	/**
+	 * getNextTime
+	 * 
+	 * Calculate the next time to assign to a data point to be sent to CT.
+	 * The time to use depends on whether or not we are in continue mode.
+	 * 
+	 * @return The next time to assign to CT data.
+	 */
+	public synchronized long getNextTime() {
+		long nextTime = System.currentTimeMillis();
+		if (bContinueMode) {
+			if (firstCTtime == 0) {
+				// We are just starting continue mode
+				// Pick up 1msec after the last timestamp sent to CTwriter
+				firstCTtime = lastCTtime + 1;
+				// Note the current wall clock time
+				continueWallclockInitTime = System.currentTimeMillis();
+			}
+			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
+		}
+		// Squirrel away this time
+		lastCTtime = nextTime;
+		return nextTime;
+	}
+	
+	/**
+	 * 
+	 * setNextTime
+	 * 
+	 * Set lastCTtime to the given time.
+	 * 
+	 * @param nextTimeI Set lastCTtime to this given time
+	 */
+	public synchronized void setNextTime(long nextTimeI) {
+		// Only save the time if it is moving forward
+		if (nextTimeI > lastCTtime) {
+			lastCTtime = nextTimeI;
+		} else {
+			System.err.println("\nsetNextTime: time was moving backward, don't save it");
+		}
+	}
+	
+	/**
 	 * Method to Start screen capture
 	 */
 	private void startCapture() {
@@ -496,7 +548,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (writeTask != null)			{ System.err.println("ERROR in startCapture(): WriteTask object is not null; returning"); return; }
 		if (queue != null)				{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
 		
-		System.err.println("\nStart new periodic screen capture");
+		if (bContinueMode) {
+			System.err.println("\nContinue periodic screen capture from where we last left off");
+		} else {
+			System.err.println("\nStart new periodic screen capture");
+		}
 		
 		bShutdown = false;
 		
@@ -720,9 +776,12 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		labelTable.put( new Integer(900), new JLabel("High") );
 		imgQualSlider.setLabelTable( labelTable );
 		imgQualSlider.setPaintLabels(true);
-		JButton startStopButton = new JButton("Start");
+		startStopButton = new JButton("Start");
 		startStopButton.addActionListener(this);
 		startStopButton.setBackground(Color.GREEN);
+		continueButton = new JButton("Continue");
+		continueButton.addActionListener(this);
+		continueButton.setEnabled(false);
 		// *** capturePanel 
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
@@ -783,12 +842,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
 		gbc.insets = new Insets(5, 0, 5, 0);
 		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 2, 1);
-		gbc.anchor = GridBagConstraints.EAST;
+		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		gbc.insets = new Insets(5, 0, 5, 0);
-		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 2);
+		gbc.insets = new Insets(5, 0, 0, 0);
+		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 1);
+		gbc.insets = new Insets(0, 0, 5, 0);
+		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 3, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
 		
@@ -981,14 +1042,31 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		    	System.err.println("\nbChangeDetect = " + bChangeDetect);
 		} else if (eventI.getActionCommand().equals("Start")) {
 			((JButton)source).setText("Starting...");
+			bContinueMode = false;
+			firstCTtime = 0;
+			continueWallclockInitTime = 0;
 			startCapture();
 			((JButton)source).setText("Stop");
 			((JButton)source).setBackground(Color.RED);
+			continueButton.setEnabled(false);
 		} else if (eventI.getActionCommand().equals("Stop")) {
 			((JButton)source).setText("Stopping...");
+			bContinueMode = false;
+			firstCTtime = 0;
+			continueWallclockInitTime = 0;
 			stopCapture();
 			((JButton)source).setText("Start");
 			((JButton)source).setBackground(Color.GREEN);
+			continueButton.setEnabled(true);
+		} else if (eventI.getActionCommand().equals("Continue")) {
+			// This is just like "Start" except we pick up in time just where we left off
+			bContinueMode = true;
+			firstCTtime = 0;
+			continueWallclockInitTime = 0;
+			startCapture();
+			startStopButton.setText("Stop");
+			startStopButton.setBackground(Color.RED);
+			continueButton.setEnabled(false);
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
 		}
