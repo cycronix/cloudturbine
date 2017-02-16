@@ -77,6 +77,7 @@ public class WriteTask implements Runnable {
 					// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
 					synchronized(cts.ctwLockObj) {
 						long nextTime = cts.getNextTime();
+						//System.err.println("WriteTask: nextTime = " + nextTime);
 						cts.ctw.setTime(nextTime);
 						cts.ctw.putData(cts.channelName,jpegByteArray);
 					}

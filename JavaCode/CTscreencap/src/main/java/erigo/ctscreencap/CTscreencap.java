@@ -523,6 +523,10 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				continueWallclockInitTime = System.currentTimeMillis();
 			}
 			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
+			if (nextTime < lastCTtime) {
+				System.err.println("\ngetNextTime: just return lastCTtime");
+				nextTime = lastCTtime;
+			}
 		}
 		// Squirrel away this time
 		lastCTtime = nextTime;
@@ -542,7 +546,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (nextTimeI > lastCTtime) {
 			lastCTtime = nextTimeI;
 		} else {
-			System.err.println("\nsetNextTime: time was moving backward, don't save it");
+			// System.err.println("\nsetNextTime: time was moving backward, don't save it");
 		}
 	}
 	

@@ -71,11 +71,13 @@ public class AudiocapTask {
 							synchronized(cts.ctwLockObj) {
 								// long time = System.currentTimeMillis();
 								long time = cts.getNextTime();
+								// System.err.println("\naudio: next time = " + time);
 								if(oldTime != 0) {		// consistent timing if close
 									long dt = time - oldTime;
 									if (Math.abs(flushMillis - dt) < (flushMillis/10)) {
 										time = oldTime + flushMillis;
 										// We've adjusted the time, save this time for everyone to reference; is this correct?
+										// System.err.println("\naudio: adjusted time = " + time);
 										cts.setNextTime(time);
 									}
 								}
