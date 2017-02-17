@@ -196,6 +196,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bAudioCapture = false;		// record synchronous audio?
 	public boolean bFullScreen = false;			// automatically capture the full screen?
+	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	
 	// To control CT shutdown
@@ -300,6 +301,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")"); // MJM
 		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")"); // MJM
 		options.addOption("fs", "full_screen", false, "automatically capture full screen (default="+bFullScreen+")");
+		options.addOption("t", "UI_on_top", false, "CTscreencap UI will stay on top of all other windows (default=" + bStayOnTop + ")");
 
 		// Command line options that include a flag
 		// For example, the following will be for "-outputfolder <folder>   (Location of output files...)"
@@ -404,6 +406,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    bAudioCapture = line.hasOption("audio_cap");
 	    // Capture the full screen?
 	    bFullScreen = line.hasOption("full_screen");
+	    // Keep CTscreencap UI on top of all other windows?
+	    bStayOnTop = line.hasOption("UI_on_top");
 	    // Image quality
 	    String imageQualityStr = line.getOptionValue("q",""+imageQuality);
 	    try {
@@ -812,11 +816,20 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
 			bMacOS = true;
 		}
-		if (!bMacOS) {
-			// On Mac, we haven't found a way to allow the user to "reach through"
-			// capturePanel to interact with windows beneath the GUI; on
-			// Windows and Linux this seems to work OK, so in those cases we
-			// will always keep guiFrame on top
+		/**
+		 * 
+		 * Only have the CTscreencap UI stay on top of all other windows
+		 * if bStayOnTop is true (set by command line flag).
+		 * 
+		 *	if (!bMacOS) {
+		 *		// On Mac, we haven't found a way to allow the user to "reach through"
+		 *		// capturePanel to interact with windows beneath the GUI; on
+		 *		// Windows and Linux this seems to work OK, so in those cases we
+		 *		// will always keep guiFrame on top
+		 *		guiFrame.setAlwaysOnTop(true);
+		 *	}
+		 */
+		if (bStayOnTop) {
 			guiFrame.setAlwaysOnTop(true);
 		}
         
