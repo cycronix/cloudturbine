@@ -117,6 +117,9 @@ public class CTpack {
      	On re-writing, the timestamps will be re-interpolated to new blocks, possibly straddling gaps:
      		Small gaps (e.g. due to sampling jitter) can cause small time-shifts, 
      		Large gaps (e.g. discontinuous data) can cause large time-errors
+     	
+     	Audio.wav files lose their headers.  Need special logic to reconstruct master header, or convert to audio.pcm?
+     	
      	Options:
      	- Don't merge across segments, presuming discontinuous data in unique segments (how to detect?)
      	- Detect time-gaps when getData timestamps jump, auto-split into new blocks (heuristic?)
