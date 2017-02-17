@@ -388,14 +388,11 @@ public class CTreader {
 		return getDataMap(ctmap, rootfolder, getftime, duration, rmode, false);
 	}
 	
-	// NoTrim for recursive calls
 	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) {
 		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 		try {
 			// get updated list of folders
 			CTFile[] listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only
-//			System.err.println("getDataMap, listOfFolders.length: "+listOfFolders.length);
-//			System.err.println("getDataMap, old: "+oldTime(listOfFolders, ctmap)+", new: "+newTime(listOfFolders,ctmap));
 
 			if(listOfFolders == null || listOfFolders.length < 1) return ctmap;
 
@@ -423,32 +420,27 @@ public class CTreader {
 			}
 			
 			// pre-gather all file sub-folders (i.e. folders in zip files) as linear list.
-			// sort/search on that, with references back to zip/folder/files
-
 			double endtime = getftime + duration;
 			int gotdata = 0;
 
 			// one-pass, gather list of candidate folders
 			for(int i=0; i<listOfFolders.length; i++) {						// find range of eligible folders 
 				CTFile folder = listOfFolders[i];
-				CTinfo.debugPrint("CTreader checking folder: "+folder.getMyPath()+", start: "+getftime+", end: "+endtime);
-//				if(!recurse) {		// push thru all lower-level recursive checks
-					if(i>1) {													// after end check
-						double priorftime;	
-//						if(duration == 0. && !rmode.equals("next")) 	
-//									priorftime = listOfFolders[i].fileTime();	// can't be any following if duration is zero
-//						else 		priorftime = listOfFolders[i-1].fileTime();	// go 2 past to be sure get "next" points in candidate list?				
-						priorftime = listOfFolders[i-1].fileTime();	// go 2 past to bracket "next/prev" points in candidate list
-						if(priorftime > endtime) break;							// done	
-					}
+				CTinfo.debugPrint("CTreader checking folder["+i+"]: "+folder.getMyPath()+", start: "+getftime+", end: "+endtime);
+				if(i>1) {													// after end check
+					double priorftime;				
+					priorftime = listOfFolders[i-1].fileTime();	// go 2 past to bracket "next/prev" points in candidate list
+					if(priorftime > endtime) break;							// done	
+				}
 
-					int ichk = i+1;		
-					if(rmode.equals("prev")) ichk = i+2;	// include prior frame for "prev" request
-					if(ichk<listOfFolders.length) {								// before start check
-						if(listOfFolders[ichk].fileTime() < getftime) continue;	// keep looking
+				int ichk = i+2;		// was i+1, but may need data from prior frame for both "prev" and duration=0:at-or-before MJM 2/16/17	
+				//					if(rmode.equals("prev")) ichk = i+2;	// include prior frame for "prev" request
+				if(ichk<listOfFolders.length) {								// before start check
+					if(listOfFolders[ichk].fileTime() < getftime) {
+						continue;	// keep looking
 					}
-//				}
-				
+				}
+
 				CTinfo.debugPrint("CTreader got candidate folder: "+folder.getMyPath());
 				if(!folder.isFileFolder()) {						// folder-of-folders
 					if(folder.fileType == CTFile.FileType.FILE) {
@@ -466,8 +458,6 @@ public class CTreader {
 					CTinfo.debugPrint("gathered file folder: "+folder+", gotdata: "+gotdata);
 				}
 			}
-
-//			CTinfo.debugPrint("ctmap: "+ctmap.getName(0)+", total data: "+ctmap.datasize());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
