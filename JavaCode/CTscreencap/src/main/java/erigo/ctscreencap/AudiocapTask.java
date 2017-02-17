@@ -64,23 +64,57 @@ public class AudiocapTask {
 						long nextTime = cts.getNextTime();
 						ctw.preflush(nextTime);		// pre-flush to establish initial audio blockTime?
 						while (running) {
-							int count = line.read(buffer, 0, buffer.length);
+							int count = line.read(buffer, 0, buffer.length); // blocking call to read a buffer's worth of audio samples
 							// if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
 							// webscan not up to task of handling empty data in RT
 							// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
 							synchronized(cts.ctwLockObj) {
 								// long time = System.currentTimeMillis();
 								long time = cts.getNextTime();
-								// System.err.println("\naudio: next time = " + time);
-								if(oldTime != 0) {		// consistent timing if close
-									long dt = time - oldTime;
-									if (Math.abs(flushMillis - dt) < (flushMillis/10)) {
-										time = oldTime + flushMillis;
-										// We've adjusted the time, save this time for everyone to reference; is this correct?
-										// System.err.println("\naudio: adjusted time = " + time);
-										cts.setNextTime(time);
-									}
-								}
+								/**
+								 * 
+								 * The following code adjusts the time to keep audio data
+								 * output at regular/periodic intervals.  However, we've
+								 * noticed 2 problems doing this:
+								 * 
+								 * 1. It makes sense to do this when the sound card is very
+								 *    steady/regular in its acquisition (and thus this type
+								 *    of adjustment should seldom occur).  We've noticed this
+								 *    isn't always the case, however, so there's no need to
+								 *    bother with this type of adjustment.
+								 * 
+								 * 2. With CTscreencap, we are coordinating CT writes between
+								 *    this audio channel and the image channel.  Making time
+								 *    adjustments here can screw up what block the image
+								 *    is written to.  Consider the following example; for
+								 *    simplicity we use relative times here; also, assume
+								 *    flushMillis for the audio channel is 1000 msec.
+								 *    a) WriteTask has an image to write to CT; it calls
+								 *       cts.getNextTime() and gets the time 1010; it sets
+								 *       this time and writes the image to CT.
+								 *    b) AudiocapTask has a new audio buffer to write to
+								 *       CT.  It calls cts.getNextTime(), which returns
+								 *       1030.  AudiocapTask adjusts this time back to
+								 *       1000.  It sets this time, puts the audio buffer
+								 *       data and flushes.
+								 *    The problem in this example is that the Block time
+								 *    should be from 0 - 1000 (corresponding to what
+								 *    AudiocapTask has specified) but WriteTask has already
+								 *    written an image at time 1010; this image will show up
+								 *    in this Block even though the Block time should only
+								 *    be 0 - 1000.  AudiocapTask has skootched back time
+								 *    and flushed the Block which now contains an image
+								 *    which is now technically in the future.
+								 *
+								 *	if(oldTime != 0) {		// consistent timing if close
+								 *		long dt = time - oldTime;
+								 *		if (Math.abs(flushMillis - dt) < (flushMillis/10)) {
+								 *			time = oldTime + flushMillis;
+								 *			// We've adjusted the time, save this time for everyone to reference
+								 *			cts.setLastCTtime(time);
+								 *		}
+								 *	}
+								 */
 								if (count > 0) {
 									ctw.setTime(time);
 									ctw.putData("audio.wav", addWaveHeader(buffer));
