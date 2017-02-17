@@ -37,10 +37,10 @@ public class CTchallenge {
 	static String sourceFolder = "CTchallenge";
 	// read-performance:
 	static int nchan = 120;						// ~1/sqrt(nchan)
-	static int ncount = 100;
+	static int ncount = 10;
 	static boolean debug = false;
-	static int dt = 1000;						// msec
-	static int samprate = 40000;				// 40KHz
+	static long dt = 1000;						// msec
+	static long samprate = 40000;				// 40KHz
 	
 	public static void main(String[] args) {
 		if(args.length > 0) sourceFolder = args[0];
@@ -56,7 +56,7 @@ public class CTchallenge {
 			//			ctw.setDebug(debug);
 			ctw.setBlockMode(true, true);			// block data per flush
 			
-			int blocksize = (dt/1000) * samprate;
+			int blocksize = (int)((dt/1000) * samprate);
 			int[] data = new int[blocksize];
 			for(int i=0; i<data.length; i++) data[i] = i;		// put something in (sawtooth)
  			ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * 4).order(ByteOrder.LITTLE_ENDIAN);        
@@ -65,15 +65,15 @@ public class CTchallenge {
 	        
 			long time = System.currentTimeMillis();
 			long startTime = time;
-			ctw.preflush(time);		// pre-flush to establish initial audio blockTime?
-
+//			ctw.preflush(time);		// pre-flush to establish initial blockTime?
+//			CTinfo.setDebug(true);
+			
 			// loop and write some output
 			for(int i=1; i<=ncount; i++) {
-//				ctw.setTime(time+=dt);	
-				ctw.setTime(System.currentTimeMillis());
+				ctw.setTime(time+=dt, dt);
 				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".i32", byteBuffer.array());
-				ctw.flush(true);
-				System.out.println("put block: "+i);
+				ctw.flush();
+				System.out.println("Put block: "+i);
 			}
 			long stopTime = System.currentTimeMillis();
 			long PPS = (long)(1000.*(nchan*blocksize*ncount)/(stopTime-startTime));
