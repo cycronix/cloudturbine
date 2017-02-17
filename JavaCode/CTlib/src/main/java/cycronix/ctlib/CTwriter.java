@@ -320,6 +320,20 @@ public class CTwriter {
 		setTime((long)(ftime * 1000.));				// convert to msec (eventually carry thru sec)
 	}
 	
+	/**
+	 * Set time and duration for subsequent putData(). 
+	 * Used for data arrays with linearly interpolated times.
+	 * @param ftime, end-time of this data array (sec)
+	 * @param duration, sets start time of this block-array to ftime-duration
+	 * @throws IOException if called more than once per block/flush
+	 */
+	public void setTime(long ftime, long duration) throws IOException {
+		if(blockTime != 0) throw new IOException("setTime duration after prior setTime/putData");
+		blockTime = ftime - duration;	
+		if(initBaseTime) segmentTime(blockTime);				// ensure baseTime initialized
+		setTime(ftime);
+	}
+	
 	//------------------------------------------------------------------------------------------------	
    /*
     *
@@ -334,19 +348,21 @@ public class CTwriter {
 	 */
 	
 	public void flush(boolean gapless) throws IOException {
-		flush();
+		flush();									// regular flush
 		
-		if(thisFtime>blockTime) {
-			long bcount = blockData.size();								// zero-based block counter:
+		if(gapless) {								// set next block time to match this frame time
+			if(thisFtime>blockTime) {
+				long bcount = blockData.size();		// zero-based block counter:
 
-			// set blockTime for next block to match end time of current block
-			if(bcount > 1) {
-				long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
-				blockTime = thisFtime+dt;
+				// set blockTime for next block to match end time of current block
+				if(bcount > 1) {
+					long dt = Math.round((double)(thisFtime-blockTime)/(bcount-1));
+					blockTime = thisFtime+dt;
+				}
+				else	blockTime = thisFtime;
 			}
-			else	blockTime = thisFtime;
+			else	blockTime = 0;					// reset to new block folder	
 		}
-		else	blockTime = 0;						// reset to new block folder	
 	}
 
 	public void preflush(long time) {
@@ -603,6 +619,10 @@ public class CTwriter {
 				String name = "";
 				if(timeRelative) 	name = (time-blockTime) + "/" + outName;	// always use subfolders in zip files
 				else				name = time + "/" + outName;
+				
+				if((time-blockTime) < 0) {
+					new Exception("OOPS negative CT time: "+time+", blockTime: "+blockTime).printStackTrace();
+				}
 				
 				ZipEntry entry = new ZipEntry(name);
 				try {
