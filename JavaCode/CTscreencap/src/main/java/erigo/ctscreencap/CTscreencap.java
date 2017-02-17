@@ -160,7 +160,7 @@ import cycronix.ctlib.CTinfo;
  * To produce a video with several different "takes", CTscreencap supports "Continue" mode.  After
  * CTscreencap has started, when the user is finished with the scene they can "Stop", make any
  * necessary adjustments and then "Continue".  CTscreencap sets the next timestamp equal to
- * (1 + the previously used timestamp) after starting up in continue mode.
+ * (the last timestamp + 1) after starting up in continue mode.
  * 
  * All timestamps (for both WriteTask and AudiocapTask) are created in getNextTime().  If the user
  * is in standard (not continue) mode, getNextTime() returns System.currentTimeMillis();
@@ -168,7 +168,7 @@ import cycronix.ctlib.CTinfo;
  * maintain seamless video/audio capture.
  * 
  * @author John P. Wilson, Matt J. Miller
- * @version 02/16/2017
+ * @version 02/17/2017
  *
  */
 public class CTscreencap implements ActionListener,ChangeListener,MouseMotionListener {
@@ -523,6 +523,10 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				continueWallclockInitTime = System.currentTimeMillis();
 			}
 			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
+			if (nextTime < lastCTtime) {
+				System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
+				nextTime = lastCTtime;
+			}
 		}
 		// Squirrel away this time
 		lastCTtime = nextTime;
@@ -531,18 +535,18 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	
 	/**
 	 * 
-	 * setNextTime
+	 * setLastCTtime
 	 * 
 	 * Set lastCTtime to the given time.
 	 * 
-	 * @param nextTimeI Set lastCTtime to this given time
+	 * @param timeI Set lastCTtime to this time
 	 */
-	public synchronized void setNextTime(long nextTimeI) {
+	public synchronized void setLastCTtime(long timeI) {
 		// Only save the time if it is moving forward
-		if (nextTimeI > lastCTtime) {
-			lastCTtime = nextTimeI;
+		if (timeI > lastCTtime) {
+			lastCTtime = timeI;
 		} else {
-			System.err.println("\nsetNextTime: time was moving backward, don't save it");
+			// System.err.println("\nsetLastCTtime: time was moving backward, don't save it");
 		}
 	}
 	
