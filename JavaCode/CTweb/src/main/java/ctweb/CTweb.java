@@ -528,6 +528,7 @@ public class CTweb {
     								}
     								sbresp.append("</table>");
     								formResponse(response, sbresp);
+    								return;
     							}
     							else {
     								System.err.println("Unrecognized ftype: "+ftype);
@@ -574,6 +575,7 @@ public class CTweb {
     						formHeader(response, start, duration, oldTime, newTime, lagTime);
         					formResponse(response, null);		// add CORS header even for error response
             				response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            				return;
     					}
     				}
     			}
@@ -611,7 +613,7 @@ public class CTweb {
     private static void formResponse(HttpServletResponse resp, StringBuilder sbresp) {
 		resp.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
 		resp.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
-		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time");
+		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime");
 		if(sbresp == null) return;
 		try {
 			resp.getWriter().println(sbresp.toString());
