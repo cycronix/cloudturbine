@@ -1,21 +1,19 @@
-/*******************************************************************************
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+/*
+Copyright 2014-2017 Cycronix
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ctlogger;
 
 //---------------------------------------------------------------------------------	
@@ -23,6 +21,7 @@ package ctlogger;
 // Matt Miller, Cycronix
 // 02/25/2014  	Initial version
 // 08/06/2014	Add -H specify header line via argument
+// 02/18/2017	JPW, add command line parsing using Apache Commons CLI
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -34,6 +33,15 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+// Because java.text.ParseException is imported above, we can't import the CLI ParseException here
+// import org.apache.commons.cli.ParseException;
 
 import cycronix.ctlib.CTreader;
 import cycronix.ctlib.CTwriter;
@@ -61,7 +69,11 @@ public class CTlogger {
 	static boolean blockMode=false;			// block-mode CTwrite
 	
 	public static void main(String args[]) {
-
+		
+		/**
+		 * 
+		 * Original code for command line parsing
+		 * 
      	int dirArg = 0;
      	while((dirArg<args.length) && args[dirArg].startsWith("-")) {		// arg parsing
      		if(args[dirArg].equals("-h")) 	{ 
@@ -93,7 +105,117 @@ public class CTlogger {
 		}
 		loggerFileName = args[dirArg++];		// args[0]:  logger.dat file
 		CTrootfolder = args[dirArg++];			// args[1]:  CT destination folder     	
+		*/
+		
+		//
+		// Parse command line arguments
+		//
+		// 1. Setup command line options
+		//
+		Options options = new Options();
+		// Boolean options (only the flag, no argument)
+		options.addOption("h", "help", false, "Print this message");
+		options.addOption("x", "debug", false, "turn on debug output");
+		options.addOption("b", "nobackwards", false, "no backwards-going time allowed");
+		options.addOption("g", "gzipmode", false, "turn on gzip for extra compression");
+		options.addOption("a", "noappend", false, "turn off append mode (i.e., do not append to end of existing CT data)");
+		options.addOption("z", "nozip", false, "turn off zip mode (it is on by default)");
+		options.addOption("N", "newfilemode", false, "re-parse file every time");
+		options.addOption("r", "repeatFetch", false, "turn on repeat fetch (auto-fetch data loop)");
+		options.addOption("B", "blockMode", false, "turn on CloudTurbine writer block mode");
+		options.addOption("t", "storeTime", false, "store time string as a channel");
+		// Options with an argument
+		Option outputFolderOption = Option.builder("f")
+				.argName("autoflush")
+                .hasArg()
+                .desc("flush interval (sec); default = \"" + autoflush + "\"")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("p")
+				.argName("pollInterval")
+                .hasArg()
+                .desc("polling interval (sec); default = \"" + pollInterval + "\"")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("k")
+				.argName("skipLines")
+                .hasArg()
+                .desc("in logger file, the num lines to skip after the header line to get to the first line of data; default = \"" + skipLines + "\"")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("T")
+				.argName("trimTime")
+                .hasArg()
+                .desc("trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite); default = \"" + trimTime + "\"")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("n")
+				.argName("nanVal")
+                .hasArg()
+                .desc("replace NAN with this; default = \"" + nanVal + "\"")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("i")
+				.argName("leadingID")
+                .hasArg()
+                .desc("leading ID string (IWG1 compliant)")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("s")
+				.argName("sourceName")
+                .hasArg()
+                .desc("CloudTurbine source name; default = \"" + SourceName + "\"")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("H")
+				.argName("HeaderLine")
+                .hasArg()
+                .desc("optional header line of channel names; if not supplied, this is read from the first line in the logger file")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("l")
+				.argName("loggerfilename")
+                .hasArg()
+                .desc("name of the logger data file")
+                .build();
+		options.addOption(outputFolderOption);
+		outputFolderOption = Option.builder("o")
+                .longOpt("outputfolder")
+				.argName("folder")
+                .hasArg()
+                .desc("Location of output files (source is created under this folder)")
+                .build();
+		options.addOption(outputFolderOption);
 
+		//
+		// 2. Parse command line options
+		//
+	    CommandLineParser parser = new DefaultParser();
+	    CommandLine line = null;
+	    try {
+	        line = parser.parse( options, args );
+	    }
+	    catch( org.apache.commons.cli.ParseException exp ) {
+	        // oops, something went wrong
+	        System.err.println( "Command line argument parsing failed: " + exp.getMessage() );
+	     	return;
+	    }
+	    
+	    //
+	    // 3. Retrieve the command line values
+	    //
+	    if (line.hasOption("help")) {
+	    	// Display help message and quit
+	    	HelpFormatter formatter = new HelpFormatter();
+	    	formatter.printHelp( "CTscreencap", options );
+	    	return;
+	    }
+	    
+	    //
+	    // MAKE SURE logger filename and output folder have been specified!!!!!
+		//
+	    
+		
 		System.err.println("CTlogger: "+loggerFileName+", CTrootfolder: "+CTrootfolder+", pollInterval: "+pollInterval);
 		
 		if(!repeatFetch) getData(true);		// run once
