@@ -62,7 +62,9 @@ public class AudiocapTask {
 					try {
 						// long nextTime = System.currentTimeMillis();
 						long nextTime = cts.getNextTime();
-						ctw.preflush(nextTime);		// pre-flush to establish initial audio blockTime?
+//						ctw.preflush(nextTime);		// pre-flush to establish initial audio blockTime?
+						ctw.setTime(nextTime);		// establish start time of first audio block
+						
 						while (running) {
 							int count = line.read(buffer, 0, buffer.length); // blocking call to read a buffer's worth of audio samples
 							// if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
@@ -119,7 +121,6 @@ public class AudiocapTask {
 									ctw.setTime(time);
 									ctw.putData("audio.wav", addWaveHeader(buffer));
 									ctw.flush(true);		// gapless
-									// ctw.blockFlush("audio.wav", addWaveHeader(buffer), time, flushMillis);		// new block-flush
 								}
 
 								oldTime = time;
