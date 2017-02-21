@@ -310,6 +310,8 @@ public class CTwriter {
 	public void setTime(long ftime) {
 		fTime = ftime;	
 		if(initBaseTime) segmentTime(ftime);				// ensure baseTime initialized
+
+		if(blockTime == 0) blockTime = ftime;				// initialize block time in setTime? (vs putData)
 	}
 
 	/**
@@ -319,21 +321,7 @@ public class CTwriter {
 	public void setTime(double ftime) {
 		setTime((long)(ftime * 1000.));				// convert to msec (eventually carry thru sec)
 	}
-	
-	/**
-	 * Set time and duration for subsequent putData(). 
-	 * Used for data arrays with linearly interpolated times.
-	 * @param ftime, end-time of this data array (sec)
-	 * @param duration, sets start time of this block-array to ftime-duration
-	 * @throws IOException if called more than once per block/flush
-	 */
-	public void setTime(long ftime, long duration) throws IOException {
-		if(blockTime != 0) throw new IOException("setTime duration after prior setTime/putData");
-		blockTime = ftime - duration;	
-		if(initBaseTime) segmentTime(blockTime);				// ensure baseTime initialized
-		setTime(ftime);
-	}
-	
+
 	//------------------------------------------------------------------------------------------------	
    /*
     *
@@ -365,11 +353,13 @@ public class CTwriter {
 		}
 	}
 
+	// preflush is not needed, simply do an initial setTime() to establish blockTime
+	/*
 	public void preflush(long time) {
 		blockTime = time;
 		if(initBaseTime) newSegment();
 	}
-
+*/
 	// blockflush is bad idea:  adjusting blockTime after other putData in queue messes up time-sync: Zip entry names (with time) set at time of put.
 	// could maybe pre-queue everything by time and data then generate entry/file names at flush, but lot of work
 	// simpler for now to use "preflush()" method - very simple, works, but obscure.

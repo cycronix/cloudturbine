@@ -65,14 +65,14 @@ public class CTchallenge {
 	        
 			long time = System.currentTimeMillis();
 			long startTime = time;
-//			ctw.preflush(time);		// pre-flush to establish initial blockTime?
 //			CTinfo.setDebug(true);
 			
 			// loop and write some output
+			ctw.setTime(time);		// establish initial blockTime
 			for(int i=1; i<=ncount; i++) {
-				ctw.setTime(time+=dt, dt);
+				ctw.setTime(time+=dt);			// block-interval times
 				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".i32", byteBuffer.array());
-				ctw.flush();
+				ctw.flush(true);				// gapless back-to-back block times
 				System.out.println("Put block: "+i);
 			}
 			long stopTime = System.currentTimeMillis();
