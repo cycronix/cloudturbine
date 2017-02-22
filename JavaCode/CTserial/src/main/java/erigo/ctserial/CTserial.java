@@ -88,21 +88,23 @@ public class CTserial {
         		// Signal that it is time to shut down
             	bShutdown = true;
             	try {
-        			System.err.println("Wait for SerialRead to stop");
-        			serialReadThread.join(1000);
-        			if (serialReadThread.isAlive()) {
-        				// SerialRead must be waiting for more serial input;
-        				// interrupt it
-        				serialReadThread.interrupt();
-        				serialReadThread.join(2000);
-        			}
-        			if (!serialReadThread.isAlive()) {
-        				System.err.println("SerialRead has stopped");
-        			} else {
-        				try {
-        					serialReadThread.notifyAll();
-        				} catch (IllegalMonitorStateException excep) {
-        					// nothing to do
+        			if (serialReadThread != null) {
+        				System.err.println("Wait for SerialRead to stop");
+        				serialReadThread.join(1000);
+        				if (serialReadThread.isAlive()) {
+        					// SerialRead must be waiting for more serial input;
+        					// interrupt it
+        					serialReadThread.interrupt();
+        					serialReadThread.join(2000);
+        				}
+        				if (!serialReadThread.isAlive()) {
+        					System.err.println("SerialRead has stopped");
+        				} else {
+        					try {
+        						serialReadThread.notifyAll();
+        					} catch (IllegalMonitorStateException excep) {
+        						// nothing to do
+        					}
         				}
         			}
         		} catch (InterruptedException ie) {

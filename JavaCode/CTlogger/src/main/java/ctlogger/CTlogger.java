@@ -59,11 +59,10 @@ public class CTlogger {
 	static boolean storeTime = false;		// store time string as channel
 	static String nanVal = "0";				// replace NAN with this
 	static String loggerFileName=null;		// name of input data file to parse
-	static String CTrootfolder=null;		// top level folder to write CT data
+	static String CTrootfolder="CTdata";	// top level folder to write CT data
 	static String leadingID=null;			// leading ID string (IWG1 compliant)
 	static String SourceName="CTlogger";	// CT source name
 	static String HeaderLine=null;			// optional header line of channel names argument
-	static String helpMsg = "CTlogger -x -r -z -g -k <skiplines> -f <flush_sec> -p <poll_sec> -n <nanVal> -i <leadingID> -s <SourceName> -H <HeaderLine> <logger.dat> <CTfolder>";
 	static double trimTime=0.;				// amount of data to keep (ring buffer).  
 	static boolean noBackwards=false;		// no backwards-going time allowed
 	static boolean blockMode=false;			// block-mode CTwrite
@@ -73,7 +72,9 @@ public class CTlogger {
 		/**
 		 * 
 		 * Original code for command line parsing
-		 * 
+		 * (This has been replaced by code using Apache Commons CLI, see below)
+		 *
+		String helpMsg = "CTlogger -x -r -z -g -k <skiplines> -f <flush_sec> -p <poll_sec> -n <nanVal> -i <leadingID> -s <SourceName> -H <HeaderLine> <logger.dat> <CTfolder>";
      	int dirArg = 0;
      	while((dirArg<args.length) && args[dirArg].startsWith("-")) {		// arg parsing
      		if(args[dirArg].equals("-h")) 	{ 
@@ -86,13 +87,13 @@ public class CTlogger {
      		if(args[dirArg].equals("-a")) 	{ appendMode = false;   }		// default true
      		if(args[dirArg].equals("-z"))  	{ zipmode = false; } 			// default true
      		if(args[dirArg].equals("-N")) 	{ newFileMode = true;   }		// default false
-     		if(args[dirArg].equals("-f"))   { autoflush = Long.parseLong(args[++dirArg]); }	
-     		if(args[dirArg].equals("-p"))   { pollInterval = Long.parseLong(args[++dirArg]); }	
-     		if(args[dirArg].equals("-k"))   { skipLines = Long.parseLong(args[++dirArg]); }	
+     		if(args[dirArg].equals("-f"))   { autoflush = Long.parseLong(args[++dirArg]); }
+     		if(args[dirArg].equals("-p"))   { pollInterval = Long.parseLong(args[++dirArg]); }
+     		if(args[dirArg].equals("-k"))   { skipLines = Long.parseLong(args[++dirArg]); }
      		if(args[dirArg].equals("-r"))   { repeatFetch = true; }	
      		if(args[dirArg].equals("-B"))   { blockMode = true; }	
      		if(args[dirArg].equals("-t"))   { storeTime = true; }	
-     		if(args[dirArg].equals("-T"))   { trimTime = Double.parseDouble(args[++dirArg]); }	
+     		if(args[dirArg].equals("-T"))   { trimTime = Double.parseDouble(args[++dirArg]); }
      		if(args[dirArg].equals("-n"))	{ nanVal = args[++dirArg]; }
      		if(args[dirArg].equals("-i"))	{ leadingID = args[++dirArg]; }
      		if(args[dirArg].equals("-s"))	{ SourceName = args[++dirArg]; }
@@ -120,10 +121,10 @@ public class CTlogger {
 		options.addOption("g", "gzipmode", false, "turn on gzip for extra compression");
 		options.addOption("a", "noappend", false, "turn off append mode (i.e., do not append to end of existing CT data)");
 		options.addOption("z", "nozip", false, "turn off zip mode (it is on by default)");
-		options.addOption("N", "newfilemode", false, "re-parse file every time");
+		options.addOption("N", "newfilemode", false, "re-parse entire logger file every time it is checked");
 		options.addOption("r", "repeatFetch", false, "turn on repeat fetch (auto-fetch data loop)");
-		options.addOption("B", "blockMode", false, "turn on CloudTurbine writer block mode");
-		options.addOption("t", "storeTime", false, "store time string as a channel");
+		options.addOption("B", "blockMode", false, "turn on CloudTurbine writer block mode (multiple points per output data file, packed data)");
+		options.addOption("t", "storeTime", false, "store time string as a channel; time is the first data entry in each line; if this option is not specified, then the time channel is skipped/not saved to CloudTurbine");
 		// Options with an argument
 		Option outputFolderOption = Option.builder("f")
 				.argName("autoflush")
@@ -134,7 +135,7 @@ public class CTlogger {
 		outputFolderOption = Option.builder("p")
 				.argName("pollInterval")
                 .hasArg()
-                .desc("polling interval (sec); default = \"" + pollInterval + "\"")
+                .desc("if repeatFetch option has been specified, recheck the logger data file at this polling interval (sec); default = \"" + pollInterval + "\"")
                 .build();
 		options.addOption(outputFolderOption);
 		outputFolderOption = Option.builder("k")
@@ -170,20 +171,20 @@ public class CTlogger {
 		outputFolderOption = Option.builder("H")
 				.argName("HeaderLine")
                 .hasArg()
-                .desc("optional header line of channel names; if not supplied, this is read from the first line in the logger file")
+                .desc("optional CSV list of channel names; if not supplied, this is read from the first line in the logger file")
                 .build();
 		options.addOption(outputFolderOption);
 		outputFolderOption = Option.builder("l")
 				.argName("loggerfilename")
                 .hasArg()
-                .desc("name of the logger data file")
+                .desc("name of the logger data file; required argument")
                 .build();
 		options.addOption(outputFolderOption);
 		outputFolderOption = Option.builder("o")
                 .longOpt("outputfolder")
 				.argName("folder")
                 .hasArg()
-                .desc("Location of output files (source is created under this folder)")
+                .desc("Location of output files (source is created under this folder); default = " + CTrootfolder)
                 .build();
 		options.addOption(outputFolderOption);
 
@@ -207,17 +208,65 @@ public class CTlogger {
 	    if (line.hasOption("help")) {
 	    	// Display help message and quit
 	    	HelpFormatter formatter = new HelpFormatter();
-	    	formatter.printHelp( "CTscreencap", options );
+	    	formatter.printHelp( "CTlogger", options );
 	    	return;
 	    }
-	    
-	    //
-	    // MAKE SURE logger filename and output folder have been specified!!!!!
+	    debug = line.hasOption("x");
+		noBackwards = line.hasOption("b");
+		gzipmode = line.hasOption("g");
+		appendMode = !line.hasOption("a");
+		zipmode = !line.hasOption("z");
+		newFileMode = line.hasOption("N");
+		repeatFetch = line.hasOption("r");
+		blockMode = line.hasOption("B");
+		storeTime = line.hasOption("t");
+		autoflush = Long.parseLong(line.getOptionValue("f",Long.toString(autoflush)));
+		pollInterval = Long.parseLong(line.getOptionValue("p",Long.toString(pollInterval)));
+		skipLines = Long.parseLong(line.getOptionValue("k",Long.toString(skipLines)));
+		trimTime = Double.parseDouble(line.getOptionValue("T",Double.toString(trimTime)));
+		nanVal = line.getOptionValue("n",nanVal);
+		if (line.hasOption("i")) {
+			leadingID = line.getOptionValue("i");
+		}
+		SourceName = line.getOptionValue("s",SourceName);
+		if (line.hasOption("H")) {
+			HeaderLine = line.getOptionValue("H");
+		}
+		if (line.hasOption("l")) {
+			loggerFileName = line.getOptionValue("l");
+		} else {
+			System.err.println("ERROR: you must supply the logger file name.");
+			return;
+		}
+		CTrootfolder = line.getOptionValue("o",CTrootfolder);
+		
+		if (!debug) {
+			System.err.println("CTlogger: "+loggerFileName+", CTrootfolder: "+CTrootfolder+", pollInterval: "+pollInterval);
+		} else {
+			System.err.println("debug = " + debug);
+			System.err.println("noBackwards = " + noBackwards);
+			System.err.println("gzipmode = " + gzipmode);
+			System.err.println("appendMode = " + appendMode);
+			System.err.println("zipmode = " + zipmode);
+			System.err.println("newFileMode = " + newFileMode);
+			System.err.println("repeatFetch = " + repeatFetch);
+			System.err.println("blockMode = " + blockMode);
+			System.err.println("storeTime = " + storeTime);
+			System.err.println("autoflush = " + autoflush);
+			System.err.println("pollInterval = " + pollInterval);
+			System.err.println("skipLines = " + skipLines);
+			System.err.println("trimTime = " + trimTime);
+			System.err.println("nanVal = " + nanVal);
+			System.err.println("leadingID = " + leadingID);
+			System.err.println("SourceName = " + SourceName);
+			System.err.println("HeaderLine = " + HeaderLine);
+			System.err.println("loggerFileName = " + loggerFileName);
+			System.err.println("CTrootfolder = " + CTrootfolder);
+		}
+		
 		//
-	    
-		
-		System.err.println("CTlogger: "+loggerFileName+", CTrootfolder: "+CTrootfolder+", pollInterval: "+pollInterval);
-		
+		// Run CTlogger
+		//
 		if(!repeatFetch) getData(true);		// run once
 		else {
 			Timer timer = new Timer();
