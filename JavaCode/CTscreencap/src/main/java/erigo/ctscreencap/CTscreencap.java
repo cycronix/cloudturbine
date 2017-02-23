@@ -57,6 +57,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -232,6 +233,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
+	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
+	private JCheckBox audioCheck = null;		// checkbox to turn on/off audio capture
 	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture
 	public JButton startStopButton = null;		// One button to Start and then Stop screen captures
 	public JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
@@ -813,6 +816,12 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		changeDetectCheck = new JCheckBox("Change detect",bChangeDetect);
 		changeDetectCheck.setBackground(controlsPanel.getBackground());
 		changeDetectCheck.addActionListener(this);
+		fullScreenCheck = new JCheckBox("Full Screen");
+		fullScreenCheck.setBackground(controlsPanel.getBackground());
+		fullScreenCheck.addActionListener(this);
+		audioCheck = new JCheckBox("Audio",bAudioCapture);
+		audioCheck.setBackground(controlsPanel.getBackground());
+		audioCheck.addActionListener(this);
 		// The slider will use range 0 - 1000
 		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
 		// NOTE: The JSlider's initial width was too large, so I'd like to set its preferred size
@@ -898,11 +907,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
 		gbc.insets = new Insets(5, 0, 0, 10);
 		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
-		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, changeDetectCheck, controlsgbl, gbc, 2, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 0, 5);
+		//gbc.insets = new Insets(5, 0, 0, 0);
+		//Utility.add(controlsPanel, changeDetectCheck, controlsgbl, gbc, 2, 0, 1, 1);
+		gbc.insets = new Insets(0, 0, 5, 5);
 		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
-		gbc.insets = new Insets(5, 0, 5, 0);
+		gbc.insets = new Insets(5, 0, 0, 0);
 		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 2, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
@@ -910,10 +919,30 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		gbc.weighty = 0;
 		gbc.insets = new Insets(5, 0, 0, 0);
 		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 5, 0);
+		gbc.insets = new Insets(0, 0, 0, 0);
 		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 3, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
+		GridBagLayout panelgbl = new GridBagLayout();
+		JPanel cbPanel = new JPanel(panelgbl);
+		GridBagConstraints panelgbc = new GridBagConstraints();
+		panelgbc.anchor = GridBagConstraints.WEST;
+		panelgbc.fill = GridBagConstraints.NONE;
+		panelgbc.weightx = 0;
+		panelgbc.weighty = 0;
+		cbPanel.setBorder(BorderFactory.createLineBorder(Color.BLUE,0));
+		cbPanel.setBackground(controlsPanel.getBackground());
+		panelgbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(cbPanel, changeDetectCheck, panelgbl, gbc, 0, 0, 1, 1);
+		Utility.add(cbPanel, fullScreenCheck, panelgbl, gbc, 1, 0, 1, 1);
+		Utility.add(cbPanel, audioCheck, panelgbl, gbc, 2, 0, 1, 1);
+		//cbPanel.add(changeDetectCheck);
+		//cbPanel.add(fullScreenCheck);
+		//cbPanel.add(audioCheck);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(controlsPanel, cbPanel, controlsgbl, gbc, 0, 2, 4, 1);
 		
 		//
 		// Second row: the translucent/transparent capture panel
