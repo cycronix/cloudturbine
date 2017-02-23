@@ -112,6 +112,7 @@ public class CTreader {
 //---------------------------------------------------------------------------------	
 // oldTime:  find oldest time for this source (neglects block-duration)
 	
+	// NOTE:  this takes full-path (ignores CTreader rootFolder)
 	public double oldTime(String sourceFolder) {
 		return oldTime(sourceFolder, (CTmap)null);
 	}
@@ -156,6 +157,8 @@ public class CTreader {
 //---------------------------------------------------------------------------------	
 // newTime:  find newest time for this source	(neglects block-duration)
 //	CTFile newFile = null;
+	
+	// NOTE:  this takes full-path (ignores CTreader rootFolder)
 	public double newTime(String sourceFolder) {
 		return newTime(sourceFolder, (CTmap)null);
 	}
