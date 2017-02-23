@@ -45,9 +45,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Date;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Timer;
@@ -199,6 +201,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public boolean bFullScreen = false;			// automatically capture the full screen?
 	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
+	public boolean bFTP = false;				// Are we in FTP mode?
+	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
 	
 	// To control CT shutdown
 	public boolean bShutdown = false;
@@ -276,7 +280,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         Runtime.getRuntime().addShutdownHook(new Thread() {
         	@Override
             public void run() {
-        		if (bCallExitFromShutdownHook) {
+        		if (!bJustDisplayUsage && bCallExitFromShutdownHook) {
         			temporaryCTS.exit(true);
         		}
             }
@@ -363,6 +367,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    //
 	    if (line.hasOption("help")) {
 	    	// Display help message and quit
+	    	bJustDisplayUsage = true;
 	    	HelpFormatter formatter = new HelpFormatter();
 	    	formatter.printHelp( "CTscreencap", options );
 	    	return;
@@ -521,21 +526,35 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		long nextTime = System.currentTimeMillis();
 		if (bContinueMode) {
 			if (firstCTtime == 0) {
-				// We are just starting continue mode
-				// Pick up 1msec after the last timestamp sent to CTwriter
-//				firstCTtime = lastCTtime + 1;
-				// MJM continue based on file vs memory time (may have deleted/changed disk folder)
-				firstCTtime = 1 + (long) ((new CTreader().newTime(outputFolder + File.separator + sourceName)) * 1000.);		
+				// Starting a new video segment ("continue" mode)
+				if (bFTP) {
+					// Since we can't interrogate the remote source to determine
+					// the last timestamp, pickup at 1msec after the last timestamp
+					// we sent to CTwriter.
+					firstCTtime = lastCTtime + 1;
+				} else {
+					// MJM 2017-02-23
+					// Pickup at 1msec after the last timestamp observed in the output source folders;
+					// this avoids a problem if user has manually deleted/changed CT disk folders
+					firstCTtime = 1 + (long)((new CTreader().newTime(outputFolder + sourceName)) * 1000.);
+				}
 				// Note the current wall clock time
 				continueWallclockInitTime = System.currentTimeMillis();
 			}
 			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
-			/*			// MJM:  this may be OK if manually trimmed folders
-			if (nextTime < lastCTtime) {
+			// Should we reject a backward going time?
+			// o When writing to local files (ie, *not* FTP mode) note that the user
+			//   may have manually deleted/adjusted folders and so it may appear that
+			//   the source time is going backward from the standpoint of the last
+			//   timestamp we actually wrote out (lastCTtime); it is OK to write out
+			//   a "backward going timestamp" in this case.
+			// o When we are in FTP mode, there's no way to know the latest time
+			//   in the output source folders, thus it seems best to simply reject
+			//   what looks to be a backward going time.
+			if ( (bFTP) && (nextTime < lastCTtime) ) {
 				System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
 				nextTime = lastCTtime;
 			}
-			*/
 		}
 		// Squirrel away this time
 		lastCTtime = nextTime;
@@ -546,18 +565,20 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	 * 
 	 * setLastCTtime
 	 * 
+	 * FUNCTION NO LONGER USED
+	 * 
 	 * Set lastCTtime to the given time.
 	 * 
 	 * @param timeI Set lastCTtime to this time
 	 */
-	public synchronized void setLastCTtime(long timeI) {
-		// Only save the time if it is moving forward
-		if (timeI > lastCTtime) {
-			lastCTtime = timeI;
-		} else {
-			// System.err.println("\nsetLastCTtime: time was moving backward, don't save it");
-		}
-	}
+	/**
+	 * public synchronized void setLastCTtime(long timeI) {
+	 * 	// Only save the time if it is moving forward
+	 * 	if (timeI > lastCTtime) {
+	 * 		lastCTtime = timeI;
+	 * 	}
+	 * }
+	 */
 	
 	/**
 	 * Method to Start screen capture
@@ -573,10 +594,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (writeTask != null)			{ System.err.println("ERROR in startCapture(): WriteTask object is not null; returning"); return; }
 		if (queue != null)				{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
 		
+		// Display current time
+		String currTimeStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+		long currTime = System.currentTimeMillis();
+		String datetimeStr = new String(currTimeStr + " (" + currTime + ")");
 		if (bContinueMode) {
-			System.err.println("\nContinue periodic screen capture from where we last left off");
+			System.err.println("\n" + datetimeStr + ": Continue periodic screen capture from where we last left off");
 		} else {
-			System.err.println("\nStart new periodic screen capture");
+			System.err.println("\n" + datetimeStr + ": Start new periodic screen capture");
 		}
 		
 		bShutdown = false;
@@ -626,7 +651,10 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	 */
 	private void stopCapture() {
 		
-		System.err.println("\n\nStop screen capture");
+		String currTimeStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+		long currTime = System.currentTimeMillis();
+		String datetimeStr = new String(currTimeStr + " (" + currTime + ")");
+		System.err.println("\n\n" + datetimeStr + ": Stop screen capture");
 		
 		// Flag that it is time to shut down
     	bShutdown = true;
