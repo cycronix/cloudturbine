@@ -80,6 +80,7 @@ import org.apache.commons.cli.ParseException;
 
 import cycronix.ctlib.CTwriter;
 import cycronix.ctlib.CTinfo;
+import cycronix.ctlib.CTreader;
 
 /**
  * 
@@ -522,15 +523,19 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			if (firstCTtime == 0) {
 				// We are just starting continue mode
 				// Pick up 1msec after the last timestamp sent to CTwriter
-				firstCTtime = lastCTtime + 1;
+//				firstCTtime = lastCTtime + 1;
+				// MJM continue based on file vs memory time (may have deleted/changed disk folder)
+				firstCTtime = 1 + (long) ((new CTreader().newTime(outputFolder + File.separator + sourceName)) * 1000.);		
 				// Note the current wall clock time
 				continueWallclockInitTime = System.currentTimeMillis();
 			}
 			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
+			/*			// MJM:  this may be OK if manually trimmed folders
 			if (nextTime < lastCTtime) {
 				System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
 				nextTime = lastCTtime;
 			}
+			*/
 		}
 		// Squirrel away this time
 		lastCTtime = nextTime;
