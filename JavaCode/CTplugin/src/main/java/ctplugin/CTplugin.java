@@ -35,7 +35,7 @@ import cycronix.ctlib.*;
 public class CTplugin {
 	
 //	private static String 	sourceFolder = null;
-	private static String 	rbnbServer = "localhost";  // 127.0.0.1 is more DTN than "localhost"?
+	private static String 	rbnbServer = "localhost:3333";  // 127.0.0.1 is more DTN than "localhost"?
 	private static boolean 	swapFlag=false;			// swap bytes?
 	private static char		typeDefault = 'n';		
 	private static boolean 	debug = false;
@@ -91,13 +91,13 @@ public class CTplugin {
  	if(printHelp) {
  		System.out.println(
 	    		"CTplugin"+
-	    		"\n -a<host>        \tdefault="+rbnbServer+
-	    		"\n -t<typeDefault> \tdefault="+typeDefault+
-	    		"\n -r(rvsbytes)	\tdefault=false"+
-	    		"\n -x(debug)       \tdefault=false"+
-	    		"\n -p(preRegister) \tdefault=false"+
- 				"\n -h(help)        \tdefault=false"+
-	    		"\n <folder>      	\tdefault="+rootFolder
+	    		"\n -a <host>          DataTurbine server address; default="+rbnbServer+
+	    		"\n -t <typeDefault>   default data type if file extension is not recognized; default="+typeDefault+
+	    		"\n -r                 reverse byte order?; default=false"+
+	    		"\n -x                 turn on debug?; default=false"+
+	    		"\n -p                 pre-register channels for discovered sources?; default=false"+
+ 				"\n -h                 display this message"+
+	    		"\n <folder>           CloudTurbine data folder; default="+rootFolder
  				);
  		System.exit(0);
  	}
