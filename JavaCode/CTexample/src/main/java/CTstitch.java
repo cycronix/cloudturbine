@@ -4,7 +4,9 @@ import java.io.IOException;
 import cycronix.ctlib.*;
 
 /**
- * CloudTurbine stitch segments together under a source
+ * CloudTurbine stitch sessions together under a source
+ * Note hierarchy:  CTdata/Source/Session/[Segment/]Block/Point
+ * Warning: Renames given source/session folders!  (Manually pre-copy for no-clobber).
  * <p>
  * @author Matt Miller (MJM), Cycronix
  * @version 02/22/2017
@@ -34,47 +36,52 @@ public class CTstitch {
 
 	public static void main(String[] args) {
 
-		String rootFolder = "CTdata";
-		if(args.length > 0) rootFolder = args[0];
-		long newTime = 0;
+		String sourceFolder = "CTsource";
+		if(args.length > 0) sourceFolder = args[0];
 		long priorTime = 0;
+		boolean init = true;
 		
 		try {
-			CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
+			CTreader ctr = new CTreader(sourceFolder);	// set CTreader to rootFolder
 
 			// loop and read what source(s) and chan(s) are available
-			for(String source:ctr.listSources()) {
-				System.err.println("CTstitch, checking source: "+source);
+			for(String session:ctr.listSources()) {
+				System.err.println("CTstitch, checking session: "+session);
 
 				// parse baseTime from source
-				String[] parseTime = source.split(File.separator);
+				String[] parseTime = session.split(File.separator);
 				try { Long.parseLong(parseTime[0]); }		// sanity check:  make sure numeric
 				catch(NumberFormatException e) {
-					System.err.println("Error: Non-numeric baseTime: "+source);
+					System.err.println("Error: Non-numeric session time: "+session);
 					System.exit(0);
 				}
 
-				String rootSource = source;
-				if(parseTime.length > 1) rootSource = parseTime[0];		// skip possible segment layer folders
-				String sourcePath = rootFolder + File.separator + rootSource;
-				newTime = 1 + (long)(ctr.newTime(sourcePath)*1000.);		// sec -> msec
-				if(newTime < 1000) throw new IOException("unreasonable newTime: "+newTime);
+				String sessionRoot = session;
+				if(parseTime.length > 1) sessionRoot = parseTime[0];		// skip possible segment layer folders
+				String sessionPath = sourceFolder + File.separator + sessionRoot;
 				
-				if(priorTime>0) {		// prior source
-					String newBase = rootFolder + File.separator + priorTime;
-					if(sourcePath.equals(newBase)) System.err.println("Not renaming, identical already: "+newBase);
+				if(init) {
+					priorTime = 1 + (long)(ctr.newTime(sessionPath)*1000.);		// sec -> msec
+				}
+				else {		// prior source
+					String newSession = sourceFolder + File.separator + priorTime;
+					if(sessionPath.equals(newSession)) System.err.println("Not renaming, identical already: "+newSession);
 					else {
-						System.err.println("Renaming: "+sourcePath+" to: "+ newBase);
-						File file = new File(sourcePath);
-						File file2 = new File(newBase);
-						if (file2.exists()) System.err.println("Warning, file exists (skipping); "+newBase);
+						System.err.println("Renaming: "+sessionPath+" to: "+ newSession);
+						File file = new File(sessionPath);
+						File file2 = new File(newSession);
+						if (file2.exists()) System.err.println("Warning, file exists (skipping); "+newSession);
 						else {
-							if(!file.renameTo(file2)) throw new IOException("Failed to rename: "+sourcePath+" to: "+newBase);
+							if(file.renameTo(file2)) {
+								priorTime = 1 + (long)(ctr.newTime(newSession)*1000.);	// newest time from renamed source (sec -> msec)
+							}
+							else		throw new IOException("Failed to rename: "+sessionPath+" to: "+newSession);
 						}
 					}
 				}
 
-				priorTime = newTime;
+				init = false;
+				if(priorTime < 1000) throw new IOException("unreasonable session time: "+priorTime);		// fail safe
 			}
 		}
 		catch(Exception e) {
