@@ -903,24 +903,22 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Add controls to the controls panel
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
 		JLabel imgQualLabel = new JLabel("image qual",SwingConstants.LEFT);
-		gbc.insets = new Insets(5, 0, 0, 5);
+		gbc.insets = new Insets(5, 0, 0, 0);
 		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
-		gbc.insets = new Insets(5, 0, 0, 10);
+		gbc.insets = new Insets(5, 10, 0, 10);
 		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
-		//gbc.insets = new Insets(5, 0, 0, 0);
-		//Utility.add(controlsPanel, changeDetectCheck, controlsgbl, gbc, 2, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 5, 5);
+		gbc.insets = new Insets(0, 0, 5, 0);
 		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
 		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 2, 1);
+		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 1);
+		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 2, 0, 1, 1);
 		gbc.insets = new Insets(0, 0, 0, 0);
-		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 3, 1, 1, 1);
+		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 2, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
 		GridBagLayout panelgbl = new GridBagLayout();
@@ -930,19 +928,16 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		panelgbc.fill = GridBagConstraints.NONE;
 		panelgbc.weightx = 0;
 		panelgbc.weighty = 0;
-		cbPanel.setBorder(BorderFactory.createLineBorder(Color.BLUE,0));
+		// cbPanel.setBorder(BorderFactory.createLineBorder(Color.BLUE,0));
 		cbPanel.setBackground(controlsPanel.getBackground());
 		panelgbc.insets = new Insets(0, 0, 0, 0);
 		Utility.add(cbPanel, changeDetectCheck, panelgbl, gbc, 0, 0, 1, 1);
 		Utility.add(cbPanel, fullScreenCheck, panelgbl, gbc, 1, 0, 1, 1);
 		Utility.add(cbPanel, audioCheck, panelgbl, gbc, 2, 0, 1, 1);
-		//cbPanel.add(changeDetectCheck);
-		//cbPanel.add(fullScreenCheck);
-		//cbPanel.add(audioCheck);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 0, 0, 0);
-		Utility.add(controlsPanel, cbPanel, controlsgbl, gbc, 0, 2, 4, 1);
+		gbc.insets = new Insets(0, 0, 5, 0);
+		Utility.add(controlsPanel, cbPanel, controlsgbl, gbc, 0, 2, 3, 1);
 		
 		//
 		// Second row: the translucent/transparent capture panel
