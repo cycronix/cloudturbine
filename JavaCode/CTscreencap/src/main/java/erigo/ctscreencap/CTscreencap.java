@@ -199,7 +199,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public Rectangle regionToCapture = null;	// The region to capture
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bAudioCapture = false;		// record synchronous audio?
-	public boolean bFullScreen = false;			// automatically capture the full screen?
+	public boolean bFullScreen = false;			// capture the full screen?
 	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	public boolean bFTP = false;				// Are we in FTP mode?
@@ -232,10 +232,13 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
+	public JPanel guiPanel = null;				// top-level panel that will contain all UI components
+	public int guiFrameOrigHeight = -1;			// used when clicking the Checkbox to go between capturing the region defined by capturePanel and full screen
+	public JPanel controlsPanel = null;			// child of guiPanel; contains the controls at the top of the GUI
+	public JPanel capturePanel = null;			// translucent panel which defines the region to capture
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox audioCheck = null;		// checkbox to turn on/off audio capture
-	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture
 	public JButton startStopButton = null;		// One button to Start and then Stop screen captures
 	public JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
 												// just where we left off; kind of like a seamless "pause"
@@ -308,7 +311,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		options.addOption("x", "debug", false, "use debug mode");
 		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")"); // MJM
 		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")"); // MJM
-		options.addOption("fs", "full_screen", false, "automatically capture full screen (default="+bFullScreen+")");
+		options.addOption("fs", "full_screen", false, "automatically start capturing the full screen (default="+bFullScreen+")");
 		options.addOption("t", "UI_on_top", false, "CTscreencap UI will stay on top of all other windows (default=" + bStayOnTop + ")");
 
 		// Command line options that include a flag
@@ -481,7 +484,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         */
 	    
 	    //
-	    // Capture the entire screen in one of two situations:
+	    // Automatically start capturing the full screen in the following situations:
 	    // 1. The user has requested to do this via the -f command line option
 	    // 2. If the GraphicsDevice does not support translucency
 	    //       (see https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html)
@@ -684,26 +687,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
     	}
     	
 		// shut down audio
-		if (audioTask != null) {
-			System.err.println("Wait for AudiocapTask to stop");
-			audioTask.shutDown();
-			try {
-				// Wait for the audioTask thread to finish
-				Thread audioTaskThread = audioTask.captureThread;
-				audioTaskThread.join(autoFlushMillis);		// was 1000, but an audio buffer might take longer - MJM
-				if (audioTaskThread.isAlive()) {
-    				// AudiocapTask must be held up; interrupt it
-					audioTaskThread.interrupt();
-					audioTaskThread.join(500);
-    			}
-    			if (!audioTaskThread.isAlive()) {
-    				System.err.println("AudiocapTask has stopped");
-    			}
-			} catch (InterruptedException ie) {
-    			System.err.println("Caught exception trying to stop AudiocapTask:\n" + ie);
-    		}
-			audioTask = null;
-		}
+    	stopAudiocapTask();
 		
 		// shut down CTwriter
 		if (ctw != null) {
@@ -751,6 +735,36 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	}
 	
 	/**
+	 * stopAudiocapTask
+	 * 
+	 * Terminate audio capture
+	 */
+	private void stopAudiocapTask() {
+		if (audioTask == null) {
+			System.err.println("AudiocapTask is already stopped");
+			return;
+		}
+		System.err.println("Wait for AudiocapTask to stop");
+		audioTask.shutDown();
+		try {
+			// Wait for the audioTask thread to finish
+			Thread audioTaskThread = audioTask.captureThread;
+			audioTaskThread.join(autoFlushMillis);		// was 1000, but an audio buffer might take longer - MJM
+			if (audioTaskThread.isAlive()) {
+    			// AudiocapTask must be held up; interrupt it
+				audioTaskThread.interrupt();
+				audioTaskThread.join(500);
+    		}
+    		if (!audioTaskThread.isAlive()) {
+    			System.err.println("AudiocapTask has stopped");
+    		}
+		} catch (InterruptedException ie) {
+    		System.err.println("Caught exception trying to stop AudiocapTask:\n" + ie);
+    	}
+		audioTask = null;
+	}
+	
+	/**
 	 * Pop up the GUI
 	 * 
 	 * This method should be run in the event-dispatching thread.
@@ -792,7 +806,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         guiFrame.setBackground(new Color(0,0,0,0));
         guiFrame.getContentPane().setBackground(new Color(0,0,0,0));
 		GridBagLayout gbl = new GridBagLayout();
-		JPanel guiPanel = new JPanel(gbl);
+		guiPanel = new JPanel(gbl);
 		// if Shaped windows are supported, make guiPanel red;
 		// otherwise make it transparent
 		if (bShapedWindowSupportedI) {
@@ -804,7 +818,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		guiPanel.setFont(new Font("Dialog", Font.PLAIN, 12));
 		GridBagLayout controlsgbl = new GridBagLayout();
 		// *** controlsPanel contains the UI controls at the top of guiFrame
-		JPanel controlsPanel = new JPanel(controlsgbl);
+		controlsPanel = new JPanel(controlsgbl);
 		controlsPanel.setBackground(new Color(211,211,211,255));
 		JComboBox<Double> fpsCB = new JComboBox<Double>(FPS_VALUES);
 		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
@@ -1120,12 +1134,58 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				changeDetectCheck.setSelected(bChangeDetect);
 			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == changeDetectCheck)) {
-		    	if (changeDetectCheck.isSelected()) {
-		    		bChangeDetect = true;
-		    	} else {
-		    		bChangeDetect = false;
-		    	}
-		    	System.err.println("\nbChangeDetect = " + bChangeDetect);
+			if (changeDetectCheck.isSelected()) {
+				bChangeDetect = true;
+			} else {
+				bChangeDetect = false;
+			}
+		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == fullScreenCheck)) {
+			if (fullScreenCheck.isSelected()) {
+				bFullScreen = true;
+				// Set regionToCapture to be the full screen
+				regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+				// Save the original height
+				guiFrameOrigHeight = guiFrame.getHeight();
+				// Shrink the GUI down to just display controlsPanel
+				Rectangle guiFrameBounds = guiFrame.getBounds();
+				Rectangle updatedGUIFrameBounds = new Rectangle(guiFrameBounds.x,guiFrameBounds.y,guiFrameBounds.width,controlsPanel.getHeight()+22);
+				guiFrame.setBounds(updatedGUIFrameBounds);
+			} else {
+				bFullScreen = false;
+				// Expand the GUI to display capturePanel
+				Rectangle guiFrameBounds = guiFrame.getBounds();
+				int updatedHeight = guiFrameOrigHeight;
+				if (guiFrameOrigHeight == -1) {
+					updatedHeight = controlsPanel.getHeight()+450;
+				}
+				Rectangle updatedGUIFrameBounds = new Rectangle(guiFrameBounds.x,guiFrameBounds.y,guiFrameBounds.width,updatedHeight);
+				guiFrame.setBounds(updatedGUIFrameBounds);
+			}
+		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == audioCheck)) {
+			if (audioCheck.isSelected()) {
+				// Start audio capture
+				bAudioCapture = true;
+				if (ctw != null) {
+					System.err.println("\nStart audio capture");
+					if (audioTask != null) {
+						// Appears that it is already running
+						System.err.println("ERROR: audio is already running?");
+					} else {
+						audioTask = new AudiocapTask(this, ctw, autoFlushMillis);
+					}
+					// Turn autoFlush off (by making it huge)
+					ctw.autoFlush(Long.MAX_VALUE);
+				}
+			} else {
+				// Shut down audio capture
+				bAudioCapture = false;
+				if (ctw != null) {
+					System.err.println("\nShut down audio capture");
+					stopAudiocapTask();
+					// Turn autoFlush on (since we won't be flushing in AudiocapTask)
+					ctw.autoFlush(autoFlushMillis);
+				}
+			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			((JButton)source).setText("Starting...");
 			bContinueMode = false;
