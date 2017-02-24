@@ -820,13 +820,38 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// *** controlsPanel contains the UI controls at the top of guiFrame
 		controlsPanel = new JPanel(controlsgbl);
 		controlsPanel.setBackground(new Color(211,211,211,255));
+		startStopButton = new JButton("Start");
+		startStopButton.addActionListener(this);
+		startStopButton.setBackground(Color.GREEN);
+		continueButton = new JButton("Continue");
+		continueButton.addActionListener(this);
+		continueButton.setEnabled(false);
+		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
 		JComboBox<Double> fpsCB = new JComboBox<Double>(FPS_VALUES);
 		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
 		fpsCB.setSelectedIndex(tempIndex);
 		fpsCB.addActionListener(this);
 		// The popup doesn't display over the transparent region;
-		// therefore, just display a couple rows to keep it within controlsPanel
+		// therefore, just display a few rows to keep it within controlsPanel
 		fpsCB.setMaximumRowCount(3);
+		JLabel imgQualLabel = new JLabel("image qual",SwingConstants.LEFT);
+		// The slider will use range 0 - 1000
+		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
+		// NOTE: The JSlider's initial width was too large, so I'd like to set its preferred size
+		//       to try and constrain it some; also need to set its minimum size at the same time,
+		//       or else when the user makes the GUI frame smaller, the JSlider would pop down to
+		//       a really small minimum size.
+		imgQualSlider.setPreferredSize(new Dimension(120,30));
+		imgQualSlider.setMinimumSize(new Dimension(120,30));
+		imgQualSlider.setBackground(controlsPanel.getBackground());
+		imgQualSlider.addChangeListener(this);
+		// Add labels to the slider
+		// JPW 2017-02-24 Use separate labels instead of a label table set in the slider
+		// Hashtable<Integer, JLabel> labelTable = new Hashtable<Integer, JLabel>();
+		// labelTable.put( new Integer(100), new JLabel("Low") );
+		// labelTable.put( new Integer(900), new JLabel("High") );
+		// imgQualSlider.setLabelTable( labelTable );
+		// imgQualSlider.setPaintLabels(true);
 		changeDetectCheck = new JCheckBox("Change detect",bChangeDetect);
 		changeDetectCheck.setBackground(controlsPanel.getBackground());
 		changeDetectCheck.addActionListener(this);
@@ -836,29 +861,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		audioCheck = new JCheckBox("Audio",bAudioCapture);
 		audioCheck.setBackground(controlsPanel.getBackground());
 		audioCheck.addActionListener(this);
-		// The slider will use range 0 - 1000
-		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
-		// NOTE: The JSlider's initial width was too large, so I'd like to set its preferred size
-		//       to try and constrain it some; also need to set its minimum size at the same time,
-		//       or else when the user makes the GUI frame smaller, the JSlider would pop down to
-		//       a really small minimum size.
-		imgQualSlider.setPreferredSize(new Dimension(170,40));
-		imgQualSlider.setMinimumSize(new Dimension(170,40));
-		imgQualSlider.setBackground(controlsPanel.getBackground());
-		imgQualSlider.addChangeListener(this);
-		//Create the label table
-		Hashtable<Integer, JLabel> labelTable = new Hashtable<Integer, JLabel>();
-		labelTable.put( new Integer(100), new JLabel("Low") );
-		labelTable.put( new Integer(900), new JLabel("High") );
-		imgQualSlider.setLabelTable( labelTable );
-		imgQualSlider.setPaintLabels(true);
-		startStopButton = new JButton("Start");
-		startStopButton.addActionListener(this);
-		startStopButton.setBackground(Color.GREEN);
-		continueButton = new JButton("Continue");
-		continueButton.addActionListener(this);
-		continueButton.setEnabled(false);
-		// *** capturePanel 
+		// *** capturePanel
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
 			// Only make capturePanel translucent (ie, semi-transparent) if we aren't doing the Shaped window option
@@ -915,43 +918,72 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		++row;
 		
 		// Add controls to the controls panel
-		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
-		JLabel imgQualLabel = new JLabel("image qual",SwingConstants.LEFT);
-		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
-		gbc.insets = new Insets(5, 10, 0, 10);
-		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 5, 0);
-		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
-		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 1, 1);
-		gbc.anchor = GridBagConstraints.CENTER;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.weightx = 0;
-		gbc.weighty = 0;
-		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 2, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 0, 0);
-		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 2, 1, 1, 1);
-		gbc.anchor = GridBagConstraints.WEST;
-		gbc.fill = GridBagConstraints.NONE;
+		int panelrow = 0;
+		// (i) Start/Continue buttons
 		GridBagLayout panelgbl = new GridBagLayout();
-		JPanel cbPanel = new JPanel(panelgbl);
+		JPanel subPanel = new JPanel(panelgbl);
 		GridBagConstraints panelgbc = new GridBagConstraints();
 		panelgbc.anchor = GridBagConstraints.WEST;
 		panelgbc.fill = GridBagConstraints.NONE;
 		panelgbc.weightx = 0;
 		panelgbc.weighty = 0;
-		// cbPanel.setBorder(BorderFactory.createLineBorder(Color.BLUE,0));
-		cbPanel.setBackground(controlsPanel.getBackground());
+		subPanel.setBackground(controlsPanel.getBackground());
+		panelgbc.insets = new Insets(0, 0, 0, 5);
+		Utility.add(subPanel, startStopButton, panelgbl, panelgbc, 0, 0, 1, 1);
 		panelgbc.insets = new Insets(0, 0, 0, 0);
-		Utility.add(cbPanel, changeDetectCheck, panelgbl, gbc, 0, 0, 1, 1);
-		Utility.add(cbPanel, fullScreenCheck, panelgbl, gbc, 1, 0, 1, 1);
-		Utility.add(cbPanel, audioCheck, panelgbl, gbc, 2, 0, 1, 1);
+		Utility.add(subPanel, continueButton, panelgbl, panelgbc, 1, 0, 1, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 0, 5, 0);
-		Utility.add(controlsPanel, cbPanel, controlsgbl, gbc, 0, 2, 3, 1);
+		gbc.insets = new Insets(5, 0, 0, 0);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		++panelrow;
+		gbc.anchor = GridBagConstraints.WEST;
+		gbc.fill = GridBagConstraints.NONE;
+		// (ii) frames/sec control
+		gbc.insets = new Insets(5, 0, 0, 0);
+		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, panelrow, 1, 1);
+		gbc.insets = new Insets(5, 10, 0, 10);
+		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, panelrow, 1, 1);
+		++panelrow;
+		// (iii) image quality slider
+		gbc.insets = new Insets(-5, 0, 0, 0);
+		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, panelrow, 1, 1);
+		panelgbl = new GridBagLayout();
+		subPanel = new JPanel(panelgbl);
+		panelgbc = new GridBagConstraints();
+		panelgbc.anchor = GridBagConstraints.WEST;
+		panelgbc.fill = GridBagConstraints.NONE;
+		panelgbc.weightx = 0;
+		panelgbc.weighty = 0;
+		subPanel.setBackground(controlsPanel.getBackground());
+		JLabel sliderLabelLow = new JLabel("Low",SwingConstants.LEFT);
+		JLabel sliderLabelHigh = new JLabel("High",SwingConstants.LEFT);
+		panelgbc.insets = new Insets(-5, 5, 0, 5);
+		Utility.add(subPanel, sliderLabelLow, panelgbl, panelgbc, 0, 0, 1, 1);
+		panelgbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(subPanel, imgQualSlider, panelgbl, panelgbc, 1, 0, 1, 1);
+		panelgbc.insets = new Insets(-5, 5, 0, 0);
+		Utility.add(subPanel, sliderLabelHigh, panelgbl, panelgbc, 2, 0, 1, 1);
+		gbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 1, panelrow, 1, 1);
+		++panelrow;
+		// (iv) Change detect / Full screen / Audio checkboxes
+		panelgbl = new GridBagLayout();
+		subPanel = new JPanel(panelgbl);
+		panelgbc = new GridBagConstraints();
+		panelgbc.anchor = GridBagConstraints.WEST;
+		panelgbc.fill = GridBagConstraints.NONE;
+		panelgbc.weightx = 0;
+		panelgbc.weighty = 0;
+		subPanel.setBackground(controlsPanel.getBackground());
+		panelgbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(subPanel, changeDetectCheck, panelgbl, panelgbc, 0, 0, 1, 1);
+		Utility.add(subPanel, fullScreenCheck, panelgbl, panelgbc, 1, 0, 1, 1);
+		Utility.add(subPanel, audioCheck, panelgbl, panelgbc, 2, 0, 1, 1);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.insets = new Insets(-5, 0, 3, 0);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
 		
 		//
 		// Second row: the translucent/transparent capture panel
