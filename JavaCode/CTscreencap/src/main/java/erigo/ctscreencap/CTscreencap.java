@@ -45,9 +45,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Date;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Timer;
@@ -55,6 +57,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -199,6 +202,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public boolean bFullScreen = false;			// automatically capture the full screen?
 	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
+	public boolean bFTP = false;				// Are we in FTP mode?
+	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
 	
 	// To control CT shutdown
 	public boolean bShutdown = false;
@@ -228,6 +233,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	// GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
+	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
+	private JCheckBox audioCheck = null;		// checkbox to turn on/off audio capture
 	public JPanel capturePanel = null;			// Translucent panel which defines the region to capture
 	public JButton startStopButton = null;		// One button to Start and then Stop screen captures
 	public JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
@@ -276,7 +283,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         Runtime.getRuntime().addShutdownHook(new Thread() {
         	@Override
             public void run() {
-        		if (bCallExitFromShutdownHook) {
+        		if (!bJustDisplayUsage && bCallExitFromShutdownHook) {
         			temporaryCTS.exit(true);
         		}
             }
@@ -363,6 +370,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    //
 	    if (line.hasOption("help")) {
 	    	// Display help message and quit
+	    	bJustDisplayUsage = true;
 	    	HelpFormatter formatter = new HelpFormatter();
 	    	formatter.printHelp( "CTscreencap", options );
 	    	return;
@@ -521,21 +529,35 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		long nextTime = System.currentTimeMillis();
 		if (bContinueMode) {
 			if (firstCTtime == 0) {
-				// We are just starting continue mode
-				// Pick up 1msec after the last timestamp sent to CTwriter
-//				firstCTtime = lastCTtime + 1;
-				// MJM continue based on file vs memory time (may have deleted/changed disk folder)
-				firstCTtime = 1 + (long) ((new CTreader().newTime(outputFolder + File.separator + sourceName)) * 1000.);		
+				// Starting a new video segment ("continue" mode)
+				if (bFTP) {
+					// Since we can't interrogate the remote source to determine
+					// the last timestamp, pickup at 1msec after the last timestamp
+					// we sent to CTwriter.
+					firstCTtime = lastCTtime + 1;
+				} else {
+					// MJM 2017-02-23
+					// Pickup at 1msec after the last timestamp observed in the output source folders;
+					// this avoids a problem if user has manually deleted/changed CT disk folders
+					firstCTtime = 1 + (long)((new CTreader().newTime(outputFolder + sourceName)) * 1000.);
+				}
 				// Note the current wall clock time
 				continueWallclockInitTime = System.currentTimeMillis();
 			}
 			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
-			/*			// MJM:  this may be OK if manually trimmed folders
-			if (nextTime < lastCTtime) {
+			// Should we reject a backward going time?
+			// o When writing to local files (ie, *not* FTP mode) note that the user
+			//   may have manually deleted/adjusted folders and so it may appear that
+			//   the source time is going backward from the standpoint of the last
+			//   timestamp we actually wrote out (lastCTtime); it is OK to write out
+			//   a "backward going timestamp" in this case.
+			// o When we are in FTP mode, there's no way to know the latest time
+			//   in the output source folders, thus it seems best to simply reject
+			//   what looks to be a backward going time.
+			if ( (bFTP) && (nextTime < lastCTtime) ) {
 				System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
 				nextTime = lastCTtime;
 			}
-			*/
 		}
 		// Squirrel away this time
 		lastCTtime = nextTime;
@@ -546,18 +568,20 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	 * 
 	 * setLastCTtime
 	 * 
+	 * FUNCTION NO LONGER USED
+	 * 
 	 * Set lastCTtime to the given time.
 	 * 
 	 * @param timeI Set lastCTtime to this time
 	 */
-	public synchronized void setLastCTtime(long timeI) {
-		// Only save the time if it is moving forward
-		if (timeI > lastCTtime) {
-			lastCTtime = timeI;
-		} else {
-			// System.err.println("\nsetLastCTtime: time was moving backward, don't save it");
-		}
-	}
+	/**
+	 * public synchronized void setLastCTtime(long timeI) {
+	 * 	// Only save the time if it is moving forward
+	 * 	if (timeI > lastCTtime) {
+	 * 		lastCTtime = timeI;
+	 * 	}
+	 * }
+	 */
 	
 	/**
 	 * Method to Start screen capture
@@ -573,10 +597,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (writeTask != null)			{ System.err.println("ERROR in startCapture(): WriteTask object is not null; returning"); return; }
 		if (queue != null)				{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
 		
+		// Display current time
+		String currTimeStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+		long currTime = System.currentTimeMillis();
+		String datetimeStr = new String(currTimeStr + " (" + currTime + ")");
 		if (bContinueMode) {
-			System.err.println("\nContinue periodic screen capture from where we last left off");
+			System.err.println("\n" + datetimeStr + ": Continue periodic screen capture from where we last left off");
 		} else {
-			System.err.println("\nStart new periodic screen capture");
+			System.err.println("\n" + datetimeStr + ": Start new periodic screen capture");
 		}
 		
 		bShutdown = false;
@@ -626,7 +654,10 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	 */
 	private void stopCapture() {
 		
-		System.err.println("\n\nStop screen capture");
+		String currTimeStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+		long currTime = System.currentTimeMillis();
+		String datetimeStr = new String(currTimeStr + " (" + currTime + ")");
+		System.err.println("\n\n" + datetimeStr + ": Stop screen capture");
 		
 		// Flag that it is time to shut down
     	bShutdown = true;
@@ -785,6 +816,12 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		changeDetectCheck = new JCheckBox("Change detect",bChangeDetect);
 		changeDetectCheck.setBackground(controlsPanel.getBackground());
 		changeDetectCheck.addActionListener(this);
+		fullScreenCheck = new JCheckBox("Full Screen");
+		fullScreenCheck.setBackground(controlsPanel.getBackground());
+		fullScreenCheck.addActionListener(this);
+		audioCheck = new JCheckBox("Audio",bAudioCapture);
+		audioCheck.setBackground(controlsPanel.getBackground());
+		audioCheck.addActionListener(this);
 		// The slider will use range 0 - 1000
 		JSlider imgQualSlider = new JSlider(JSlider.HORIZONTAL,0,1000,(int)(imageQuality*1000.0));
 		// NOTE: The JSlider's initial width was too large, so I'd like to set its preferred size
@@ -866,26 +903,41 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Add controls to the controls panel
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
 		JLabel imgQualLabel = new JLabel("image qual",SwingConstants.LEFT);
-		gbc.insets = new Insets(5, 0, 0, 5);
-		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
-		gbc.insets = new Insets(5, 0, 0, 10);
-		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
 		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, changeDetectCheck, controlsgbl, gbc, 2, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 0, 5);
+		Utility.add(controlsPanel, fpsLabel, controlsgbl, gbc, 0, 0, 1, 1);
+		gbc.insets = new Insets(5, 10, 0, 10);
+		Utility.add(controlsPanel, fpsCB, controlsgbl, gbc, 1, 0, 1, 1);
+		gbc.insets = new Insets(0, 0, 5, 0);
 		Utility.add(controlsPanel, imgQualLabel, controlsgbl, gbc, 0, 1, 1, 1);
-		gbc.insets = new Insets(5, 0, 5, 0);
-		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 2, 1);
+		gbc.insets = new Insets(5, 0, 0, 0);
+		Utility.add(controlsPanel, imgQualSlider, controlsgbl, gbc, 1, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 3, 0, 1, 1);
-		gbc.insets = new Insets(0, 0, 5, 0);
-		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 3, 1, 1, 1);
+		Utility.add(controlsPanel, startStopButton, controlsgbl, gbc, 2, 0, 1, 1);
+		gbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(controlsPanel, continueButton, controlsgbl, gbc, 2, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
+		GridBagLayout panelgbl = new GridBagLayout();
+		JPanel cbPanel = new JPanel(panelgbl);
+		GridBagConstraints panelgbc = new GridBagConstraints();
+		panelgbc.anchor = GridBagConstraints.WEST;
+		panelgbc.fill = GridBagConstraints.NONE;
+		panelgbc.weightx = 0;
+		panelgbc.weighty = 0;
+		// cbPanel.setBorder(BorderFactory.createLineBorder(Color.BLUE,0));
+		cbPanel.setBackground(controlsPanel.getBackground());
+		panelgbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(cbPanel, changeDetectCheck, panelgbl, gbc, 0, 0, 1, 1);
+		Utility.add(cbPanel, fullScreenCheck, panelgbl, gbc, 1, 0, 1, 1);
+		Utility.add(cbPanel, audioCheck, panelgbl, gbc, 2, 0, 1, 1);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.insets = new Insets(0, 0, 5, 0);
+		Utility.add(controlsPanel, cbPanel, controlsgbl, gbc, 0, 2, 3, 1);
 		
 		//
 		// Second row: the translucent/transparent capture panel
