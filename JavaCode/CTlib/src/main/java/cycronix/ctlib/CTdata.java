@@ -451,6 +451,18 @@ public class CTdata {
 		return data;
 	}
 	
+	public byte[] getDataAsByteArray() {
+		int size = 0;
+		for(byte[] b:datalist) size += b.length;
+		byte[] bytearray = new byte[size];
+		for(int i=0,j=0; i<datalist.size(); i++) {
+			byte[] b = datalist.get(i);
+			System.arraycopy(b,0,bytearray,j,b.length);
+			j+=b.length;
+		}
+		return bytearray;
+	}
+	
 	// get raw (byte[]) data
 	public byte[][] getData() {
 		int nword = datalist.size();
