@@ -484,10 +484,10 @@ public class CTweb {
 
     						switch(ftype) {
 
-    						// binary types returned as byteArrays
+    						// binary types returned as byteArrays (no time stamps sent!)
     						case 'b':	
     						case 'B':   
-    							byte[][]bdata = tdata.getData();
+    							byte[] bdata = tdata.getDataAsByteArray();		// get as single byte array vs chunks
 
 	   							// add header info about time limits
     							double oldTime = ctreader.oldTime(sourcePath,chan);
@@ -499,7 +499,7 @@ public class CTweb {
     							else if(chan.endsWith(".wav")) 	response.setContentType("audio/wav");
     							else							response.setContentType("application/octet-stream");
 
-    							if(bdata == null || bdata[0] == null || bdata.length==0) {
+    							if(bdata == null || bdata.length==0) {
     								if(debug) System.err.println("No data for request: "+pathInfo);
     								formResponse(response, null);		// add CORS header even for error response
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -507,10 +507,15 @@ public class CTweb {
     							}
     							else	formResponse(response,null);
 
-    							for(byte[] b : bdata) {
-    								InputStream input = new ByteArrayInputStream(b);		// only return 1st image?
+    							if(bdata.length < 65536) {	// unchunked
+//    								System.err.println("b.length: "+bdata.length);
+    								response.setContentLength(bdata.length);
+    								response.getOutputStream().write(bdata);
+    							}
+    							else {			// chunked transfer
     								OutputStream out = response.getOutputStream();
-    								byte[] buffer = new byte[65536];
+    								InputStream input = new ByteArrayInputStream(bdata);		// only return 1st image?
+    								byte[] buffer = new byte[16384];
     								int length;
     								while ((length = input.read(buffer)) > 0){
     									out.write(buffer, 0, length);
@@ -518,6 +523,7 @@ public class CTweb {
     								input.close();
     								out.flush();
     							}
+
 
     							return;
 
