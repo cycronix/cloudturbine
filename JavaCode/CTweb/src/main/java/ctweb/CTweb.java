@@ -106,7 +106,7 @@ public class CTweb {
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTserver -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystorefile> -K <keystorePW> rootFolder");
+    		System.err.println("CTweb -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystorefile> -K <keystorePW> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -272,7 +272,14 @@ public class CTweb {
     	@Override
     	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     		
-    		if(debug) System.err.println("doGet, request: "+request.getPathInfo()+", queryCount: "+queryCount+", request.method: "+request.getMethod());
+    		if(debug) {
+    			String uri = request.getScheme() + "://" +
+    		             request.getServerName() + 
+    		             ("http".equals(request.getScheme()) && request.getServerPort() == 80 || "https".equals(request.getScheme()) && request.getServerPort() == 443 ? "" : ":" + request.getServerPort() ) +
+    		             request.getRequestURI() +
+    		            (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+    			System.err.println("doGet, URI: "+uri+", queryCount: "+queryCount+", request.method: "+request.getMethod());
+    		}
 //    		String servletPath = request.getServletPath();
     		String pathInfo = request.getPathInfo();
     		
@@ -360,7 +367,7 @@ public class CTweb {
     				String sname = pathParts[2];
     				for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
-    				if(debug) System.err.println("CTserver listChans for source: "+(rootFolder+File.separator+sname));
+    				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname);
 
     				if(clist == null) sbresp.append("<NULL>");
@@ -435,7 +442,7 @@ public class CTweb {
     					}
     					
     					int numData = time.length;
-    					if(debug) System.err.println("--------CTserver getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
+    					if(debug) System.err.println("--------CTweb getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
 
         				// check for If-None-Match and skip duplicates.
         				if(duration==0 && fetch=='b' && reference.equals("absolute")) {		// only works for single-object requests
@@ -470,7 +477,7 @@ public class CTweb {
     						numData = MaxDat;
     					}
     					
-    					// if(time.length == 0) System.err.println("CTserver warning: no data!");
+    					// if(time.length == 0) System.err.println("CTweb warning: no data!");
     					if(numData > 0) {
     						if(ftype == 's' /* && fetch=='b' */) ftype = CTinfo.fileType(chan,'s');	// over-ride for certain binary types
     						if(debug) System.err.println("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
@@ -479,7 +486,7 @@ public class CTweb {
 
     						// binary types returned as byteArrays
     						case 'b':	
-    						case 'B':           
+    						case 'B':   
     							byte[][]bdata = tdata.getData();
 
 	   							// add header info about time limits
@@ -503,7 +510,7 @@ public class CTweb {
     							for(byte[] b : bdata) {
     								InputStream input = new ByteArrayInputStream(b);		// only return 1st image?
     								OutputStream out = response.getOutputStream();
-    								byte[] buffer = new byte[4096];
+    								byte[] buffer = new byte[65536];
     								int length;
     								while ((length = input.read(buffer)) > 0){
     									out.write(buffer, 0, length);
@@ -605,7 +612,7 @@ public class CTweb {
 
 		response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
 		
-		if(debug) System.err.println("+++CTserver: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
+		if(debug) System.err.println("+++CTweb: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
     }
     
     //---------------------------------------------------------------------------------	
