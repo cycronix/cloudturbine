@@ -19,6 +19,8 @@
 
 package cycronix.ctlib;//---------------------------------------------------------------------------------	
 
+import java.io.ByteArrayOutputStream;
+
 // Matt Miller, Cycronix
 // 02/18/2014
 
@@ -247,6 +249,7 @@ public class CTdata {
 				if(duration==0 && tmode.equals("absolute")) {					// ensure d=0 gets at-or-BEFORE given time MJM 2/17
 					CTinfo.debugPrint("Zero duration check, i: "+i+", nframe: "+nframe+", time: "+time);
 					if(i==(nframe-1) || timelist.get(i+1)>start) {
+//						System.err.println("zero add, start: "+start+", timelist(i): "+timelist.get(i)+", timelist(i+1): "+timelist.get(i+1)+"dif: "+(timelist.get(i+1)-start));
 						ctd.add(timelist.get(i), datalist.get(i));
 						break;
 					}
@@ -452,18 +455,16 @@ public class CTdata {
 	}
 	
 	public byte[] getDataAsByteArray() {
-		int size = 0;
-		for(byte[] b:datalist) size += b.length;
-		byte[] bytearray = new byte[size];
-		for(int i=0,j=0; i<datalist.size(); i++) {
-			byte[] b = datalist.get(i);
-			System.arraycopy(b,0,bytearray,j,b.length);
-			j+=b.length;
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
+		try {
+			for(byte[] b:datalist) outputStream.write(b);
+		} catch(Exception e) {
+			System.err.println("getDataAsByteArray Exception: "+e);
 		}
-		return bytearray;
+		return outputStream.toByteArray();
 	}
 	
-	// get raw (byte[]) data
+	// get raw (byte[][]) data
 	public byte[][] getData() {
 		int nword = datalist.size();
 		byte[][] data = new byte[nword][];		// presume 1 element per arraylist
