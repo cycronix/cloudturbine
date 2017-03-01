@@ -125,6 +125,11 @@ public class CTweb {
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
+     	// If sourceFolder has been specified, make sure it exists
+     	if ( (sourceFolder != null) && ( (new File(sourceFolder).exists() == false) || (new File(sourceFolder).isDirectory() == false) ) ) {
+     		System.err.println("The source folder doesn't exist or isn't a directory.");
+ 			System.exit(0);
+     	}
 
      	if(rootFolder == null && sourceFolder != null) {	// source is full path
      		rootFolder = new File(sourceFolder).getParent();
