@@ -485,6 +485,7 @@ public class CTweb {
     					// if(time.length == 0) System.err.println("CTweb warning: no data!");
     					if(numData > 0) {
     						if(ftype == 's' /* && fetch=='b' */) ftype = CTinfo.fileType(chan,'s');	// over-ride for certain binary types
+    						if(fetch=='t') ftype ='s';								// time-only data returned as string
     						if(debug) System.err.println("getData: "+chan+"?t="+start+"&d="+duration+"&r="+reference+", ftype: "+ftype);
 
     						switch(ftype) {
@@ -500,9 +501,9 @@ public class CTweb {
     							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
 								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
     						
-    							if(chan.endsWith(".jpg")) 		response.setContentType("image/jpeg");
-    							else if(chan.endsWith(".wav")) 	response.setContentType("audio/wav");
-    							else							response.setContentType("application/octet-stream");
+    							if(chan.toLowerCase().endsWith(".jpg")) 		response.setContentType("image/jpeg");
+    							else if(chan.toLowerCase().endsWith(".wav")) 	response.setContentType("audio/wav");
+    							else											response.setContentType("application/octet-stream");
 
     							if(bdata == null || bdata.length==0) {
     								if(debug) System.err.println("No data for request: "+pathInfo);
@@ -659,12 +660,12 @@ public class CTweb {
     
     private static String mimeType(String fname, String deftype) {
 		String mime = deftype;
-		if		(fname.endsWith(".css")) mime = "text/css";
-		else if	(fname.endsWith(".js")) mime = "application/javascript";
-		else if	(fname.endsWith(".jpg")) mime = "image/jpeg";
-		else if	(fname.endsWith(".png")) mime = "image/png";
-		else if	(fname.endsWith(".wav")) mime = "audio/wav";
-		else if (fname.endsWith(".csv")) mime = "text/css";
+		if		(fname.toLowerCase().endsWith(".css")) mime = "text/css";
+		else if	(fname.toLowerCase().endsWith(".js")) mime = "application/javascript";
+		else if	(fname.toLowerCase().endsWith(".jpg")) mime = "image/jpeg";
+		else if	(fname.toLowerCase().endsWith(".png")) mime = "image/png";
+		else if	(fname.toLowerCase().endsWith(".wav")) mime = "audio/wav";
+		else if (fname.toLowerCase().endsWith(".csv")) mime = "text/css";
 		if(debug) System.err.println("fname: "+fname+", mime type: "+mime);
 		return mime;
     }
