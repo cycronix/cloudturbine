@@ -247,9 +247,9 @@ public class CTdata {
 				
 //				if(duration==0 && nframe==1) {		// special single-frame intact-frame case (e.g. images) MJM 8/16
 				if(duration==0 && tmode.equals("absolute")) {					// ensure d=0 gets at-or-BEFORE given time MJM 2/17
-					CTinfo.debugPrint("Zero duration check, i: "+i+", nframe: "+nframe+", time: "+time);
-					if(i==(nframe-1) || timelist.get(i+1)>start) {
-//						System.err.println("zero add, start: "+start+", timelist(i): "+timelist.get(i)+", timelist(i+1): "+timelist.get(i+1)+"dif: "+(timelist.get(i+1)-start));
+					CTinfo.debugPrint("Zero duration check, i: "+i+", nframe: "+nframe+", time: "+time+", timelist.size: "+timelist.size());
+					if( (timelist.size()>(i+1)) && (i==(nframe-1) || (timelist.get(i+1)>start)) ) {
+						CTinfo.debugPrint("CTdata zero add, time: "+timelist.get(i)+", start: "+start+", timelist(i+1): "+timelist.get(i+1));
 						ctd.add(timelist.get(i), datalist.get(i));
 						break;
 					}
@@ -262,18 +262,26 @@ public class CTdata {
 
 				if(duration == 0) {						// single-point case, just return first one BEFORE start time 
 					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
-					if(tmode.equals("next") && i<(nframe-1)) 
-							ctd.add(timelist.get(i+1), datalist.get(i+1));		// index "i" is current point
+					if(tmode.equals("next") && i<(nframe-1)) {
+						CTinfo.debugPrint("CTdata next add, time: "+timelist.get(i+1));
+						ctd.add(timelist.get(i+1), datalist.get(i+1));		// index "i" is current point
+					}
 //					else if((i>0) && ((start!=time) || tmode.equals("prev")))
-					else if((i>0) && (tmode.equals("prev")))
-							ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
-					else	ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
+					else if((i>0) && (tmode.equals("prev"))) {
+						CTinfo.debugPrint("CTdata prev add, time: "+timelist.get(i-1));
+						ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
+					}
+					else {
+						CTinfo.debugPrint("CTdata duration=0 add, time: "+timelist.get(i));
+						ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
+					}
 					break;
 				} 
 
 				if(time < start && i<(nframe-1)) continue;			// check last frame for duration=0 case
 				if(time > end) break;
 				
+				CTinfo.debugPrint("CTdata frame add, time: "+time);
 				ctd.add(time, datalist.get(i));			// add current frame
 			}
 			else {			//  multi-point blocks

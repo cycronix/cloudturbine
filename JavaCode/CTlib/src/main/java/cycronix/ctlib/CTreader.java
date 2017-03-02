@@ -101,7 +101,7 @@ public class CTreader {
 			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
 		} 
 		catch(Exception e) {
-			System.err.println("oops, exception: "+e+", ctmap: "+ctmap);
+			System.err.println("CTreader/getData oops, exception: "+e+", ctmap: "+ctmap);
 		}
 
 		//		CTdata tdata = ctmap.getTimeData(chan, ctmap.refTime, tdur, tmode);
@@ -391,12 +391,34 @@ public class CTreader {
 		return getDataMap(ctmap, rootfolder, getftime, duration, rmode, false);
 	}
 	
+	private CTFile lastRootFolder=null;
+	private long lastCallTime=0;
+	private CTFile[] lastListOfFolders=null;
+	
 	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) {
 		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 		try {
 			// get updated list of folders
-			CTFile[] listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only
+			CTFile[] listOfFolders;
+//			long startTime = System.nanoTime();
+			long thisCallTime = System.currentTimeMillis();
+			if((rootfolder.equals(lastRootFolder)) && ((thisCallTime-lastCallTime) < 100) && lastListOfFolders!=null) {
+				listOfFolders = lastListOfFolders;
+//				System.err.println("listOfFolders cache HIT");
+			}
+			else {
+//				System.err.println("listOfFolders cache MISS, rootFolder.equals: "+rootfolder.equals(lastRootFolder)+", dt: "+(thisCallTime-lastCallTime));
+//				listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only
+				listOfFolders = rootfolder.listFolders();	// don't prune by channels up-front (expensive), defer to gatherFiles()
+				lastCallTime = thisCallTime;				// reset on MISS-only, force a check every max-interval
+			}
+//			long endTime = System.nanoTime();
+//			System.err.println("getDataMap listFolders("+rootfolder.getName()+") time: "+((endTime-startTime)/1000000.)+" ms, length: "+listOfFolders.length);
 
+//			lastCallTime = thisCallTime;
+			lastListOfFolders = listOfFolders;
+			lastRootFolder = rootfolder;	
+			
 			if(listOfFolders == null || listOfFolders.length < 1) return ctmap;
 
 			if(rmode.equals("registration")) {				// handle registration

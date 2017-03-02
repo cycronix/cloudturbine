@@ -280,13 +280,16 @@ class CTFile extends File {
 	// file-list pruned to only include folders (inefficient?)
 	CTFile[] listFolders() {
 		CTFile[] filelist = this.listFiles();
+	
 		if(filelist == null) {
 //			System.err.println("CTFile: Empty folder-list!");
 			return null;
 		}
+		
 		CTFile[] folderlist = new CTFile[filelist.length];
 		int count=0;
 		for(CTFile f:filelist) if(f.isDirectory()) folderlist[count++]=f;
+
 		CTFile[] prunedlist = new CTFile[count];
 		System.arraycopy(folderlist, 0, prunedlist, 0, count);
 //		Arrays.sort(prunedlist, fileTimeComparator);		// listFiles already sorted
@@ -299,17 +302,34 @@ class CTFile extends File {
 	 */
 	// file-list pruned to only include folders (inefficient?)
 	CTFile[] listFolders(CTmap ctmap) {
+//		long t1 = System.nanoTime();
+
 		CTFile[] filelist = this.listFiles();
+//		long t2 = System.nanoTime();
+//		System.err.println("listFolders dt1: "+(t2-t1)/1000000.);
+	
+//		t1 = System.nanoTime();
+
 		if(filelist == null) {
 //			System.err.println("CTFile: Empty folder-list!");
 			return null;
 		}
 		CTFile[] folderlist = new CTFile[filelist.length];
 		int count=0;
+		// following is expensive
 		for(CTFile f:filelist) if(f.isDirectory() && f.containsFile(ctmap)) folderlist[count++]=f;
 		CTFile[] prunedlist = new CTFile[count];
+		
+//		t2 = System.nanoTime();
+//		System.err.println("listFolders dt2: "+(t2-t1)/1000000.);
+		
+//		t1 = System.nanoTime();
 		System.arraycopy(folderlist, 0, prunedlist, 0, count);
 //		Arrays.sort(prunedlist, fileTimeComparator);		// listFiles already sorted
+			
+//		t2 = System.nanoTime();
+//		System.err.println("listFolders dt3: "+(t2-t1)/1000000.);
+		
 		return prunedlist;
 	}
 	
@@ -434,9 +454,10 @@ class CTFile extends File {
 //		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
 		if(data != null) {
-//			System.err.println("cache hit on data read: "+myPath);
+//			System.err.println("File.read: cache hit: "+myPath);
 			return data;					// use cached data
 		}
+//		else System.err.println("File.read: cache miss: "+myPath);
 		
 //		if(myData!=null) return myData;		// cache
 		switch(fileType) {
