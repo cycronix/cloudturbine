@@ -143,7 +143,7 @@ public class CTftp extends CTwriter {
 						}
 					}
 					catch(IOException ioe) {
-						System.err.println("ftpCreateDir exception on dirTree: "+dirTree+", dir: "+dir+", error: "+ioe.getMessage());
+//						System.err.println("ftpCreateDir exception on dirTree: "+dirTree+", dir: "+dir+", error: "+ioe.getMessage());
 						throw ioe;
 					}
 				}

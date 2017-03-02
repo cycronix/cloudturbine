@@ -644,8 +644,8 @@ public class CTwriter {
 				CTinfo.debugPrint("writeData: "+outName+" to: "+destName);
 			}
 		} catch(Exception e) {
-			System.err.println("writeData exception: "+e);
-			e.printStackTrace();
+//			System.err.println("writeData exception: "+e);
+//			e.printStackTrace();
 			throw e;
 		}
 	}
@@ -818,8 +818,8 @@ public class CTwriter {
 			fis.close();
 		} 	
 		catch(Exception e) {
-			System.err.println("CTwriter putData(File) exception: "+e);
-			return;
+			throw new IOException("CTwriter putData(File) exception: "+e);
+//			return;
 		}
 		finally {
 			fis.close();
@@ -834,16 +834,14 @@ public class CTwriter {
 	 * Trim (delete) files older than spec.  Note this will be done automatically if trimTime provided in constructor.
 	 * @param oldTime time point at which to delete older files
 	 */
-	public boolean dotrim(double oldTime) {
+	public boolean dotrim(double oldTime) throws IOException {
 		
 		// validity checks (beware unwanted deletes!)
 		if(destPath == null || destPath.length() < 1) {		// was <6 ?
-			System.err.println("CTtrim Error, illegal parent folder: "+destPath);
-			return false;
+			throw new IOException("CTtrim Error, illegal parent folder: "+destPath);
 		}
 		if(oldTime < 1.e9 || oldTime > 1.e12) {
-			System.err.println("CTtrim time error, must specify full-seconds time since epoch.  oldTime: "+oldTime);
-			return false;
+			throw new IOException("CTtrim time error, must specify full-seconds time since epoch.  oldTime: "+oldTime);
 		}
 		
 		File rootFolder = new File(destPath);
@@ -869,7 +867,7 @@ public class CTwriter {
 */
 	}
 	
-	private boolean deleteOldTimes(File rootFolder, double trimTime)  {
+	private boolean deleteOldTimes(File rootFolder, double trimTime) throws IOException {
 		final double oldTime = trimTime;
 
 		Path directory = rootFolder.toPath();
@@ -883,8 +881,8 @@ public class CTwriter {
 						try {
 							Files.delete(file);
 						} catch(IOException e) {
-							System.err.println("Failed to delete file: "+file);
-
+							throw new IOException("Failed to delete file: "+file);
+//							System.err.println("Failed to delete file: "+file);
 						}
 					}
 //					else System.err.println("leave file: "+file);
@@ -898,7 +896,7 @@ public class CTwriter {
 						try {
 							Files.delete(dir);
 						} catch(IOException e) {
-							System.err.println("Failed to delete dir: "+dir);
+							throw new IOException("Failed to delete dir: "+dir);
 						}
 					}
 //					else System.err.println("leave non-empty dir: "+dir);
@@ -906,8 +904,8 @@ public class CTwriter {
 				}
 			});
 		} catch(IOException e) {
-			System.err.println("Exception on deleteOldTimes folder: "+rootFolder);
-			return false;
+			throw new IOException("Exception on deleteOldTimes folder: "+rootFolder);
+//			return false;
 		}
 
 		return true;
