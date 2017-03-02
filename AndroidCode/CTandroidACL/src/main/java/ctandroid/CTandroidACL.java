@@ -129,9 +129,10 @@ public class CTandroidACL extends Activity {
 		int icount = 0;
 		SensorManager sensorManager=null;
 		SensorEventListener mListener=null;
-		
+		String errMsg="";
+
 		collectAccel() {}
-		
+
 		@Override
 		protected Void doInBackground(Void... voids) {
 			try {
@@ -153,13 +154,13 @@ public class CTandroidACL extends Activity {
 
 				// Listener Method for Accelerometer updates
 				mListener = new SensorEventListener() {
- 
+
 					@Override
 					public void onSensorChanged(SensorEvent event) {
 //						Log.i(TAG,"onSensorChanged, icount: "+icount+", nsamp: "+event.values.length);
-						tv.post(new Runnable() { public void run() { tv.setText("Running: "+icount); } });	// can't tv.setText directly; not on same thread
+	//					tv.post(new Runnable() { public void run() { tv.setText("Running: "+icount); } });	// can't tv.setText directly; not on same thread
 						synchronized (this) {
-							try { 
+							try {
 								if(Running && (icount < nmax)) {
 									ctw.setTime();
 									if(event.values.length > 0) ctw.putData("ax.f32", event.values[0]);	// event.values.length > 1 for batch mode
@@ -168,7 +169,7 @@ public class CTandroidACL extends Activity {
 									icount++;
 									
 									if(icount%10==0)		// can't tv.setText directly; not on same thread
-										tv.post(new Runnable() { public void run() { tv.setText("Running: "+icount); } });	
+										tv.post(new Runnable() { public void run() { tv.setText("Running:: "+icount); } });
 								} else {		// all done
 									tv.post(new Runnable() { public void run() { tv.setText("Stopped: "+icount); } });
 									ctw.flush(true);
@@ -176,6 +177,8 @@ public class CTandroidACL extends Activity {
 								}
 							} catch(Exception e) {
 								Log.e(TAG,"Exception onSensorChanged: "+e);
+                                errMsg = e.toString();
+                                tv.post(new Runnable() { public void run() { tv.setText("Error:: "+errMsg); } });
 							}
 						}
 					}
