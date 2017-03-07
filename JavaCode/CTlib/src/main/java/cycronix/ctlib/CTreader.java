@@ -78,9 +78,8 @@ public class CTreader {
 	}
 	
 	boolean timeOnly=false;
-	@Deprecated
 	public void setTimeOnly(boolean tflag) {		// clumsy...  
-//		timeOnly = tflag;							// doesn't work for blockdata where time is derived from block-interval/points
+		timeOnly = tflag;							// doesn't work for blockdata where time is derived from block-interval/points
 	}
 	
 //---------------------------------------------------------------------------------	   
@@ -101,6 +100,7 @@ public class CTreader {
 			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
 		} 
 		catch(Exception e) {
+			e.printStackTrace();
 			System.err.println("CTreader/getData oops, exception: "+e+", ctmap: "+ctmap);
 		}
 
@@ -513,7 +513,8 @@ public class CTreader {
 				String fileName =  file.getName();
 				if(!cm.checkName(fileName)) continue;		// not a match 
 				byte[] data = null;
-				if(!timeOnly) data = file.read();
+				boolean getdata = !timeOnly || !fileName.toLowerCase().endsWith(".jpg");		// timeOnly only works for images at this point
+				if(getdata) data = file.read();
  				if(timeOnly || (data != null && data.length>0)) { 
 					if(file.isTFILE()) fileName = file.getName();
 					cm.add(fileName, new CTdata(ftime, data, file));			// squirrel away CTfile ref for timerange info??

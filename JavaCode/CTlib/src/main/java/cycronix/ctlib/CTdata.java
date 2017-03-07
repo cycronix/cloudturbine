@@ -240,7 +240,8 @@ public class CTdata {
 			CTinfo.debugPrint("frame: "+i+", tframe: "+time+", nframe: "+nframe+", start: "+start+", end: "+end);
 			if(time == prevtime) continue;				// skip dupes		
 			
-			int count = datalist.get(i).length/wordSize;
+			int count = 0;
+			try{ count = datalist.get(i).length/wordSize; } catch (Exception e) {};		// for timeonly, data could be nullptr
 			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time+", count: "+count);
 
 			if(wordSize <= 1 || count<=1) {							// full intact frames 

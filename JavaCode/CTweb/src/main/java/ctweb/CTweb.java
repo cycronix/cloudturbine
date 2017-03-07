@@ -425,9 +425,9 @@ public class CTweb {
     				String sourcePath = rootFolder+File.separator+source;
     				String[] strdata=null;		
 
-    				// setTimeOnly deprecated NOP
-    				//    			if(fetch == 't') 	ctreader.setTimeOnly(true);		// don't waste time/memory getting data...
-    				//    			else    			ctreader.setTimeOnly(false);
+    				// setTimeOnly partially-implemented
+    				if(fetch == 't') 	ctreader.setTimeOnly(true);		// don't waste time/memory getting data...
+    				else    			ctreader.setTimeOnly(false);
 
     				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
     				if(tdata == null) {		// empty response for WebTurbine compatibility
@@ -558,33 +558,34 @@ public class CTweb {
 
     							// all other types returned as rows of time,value strings
     						default:
-    							strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
-    							if(strdata != null) {
-    								if(fetch=='t') 
-    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i])+"\n");		// most recent
-    								else if(fetch=='d') 
-    									for(int i=time.length-numData; i<numData; i++) sbresp.append(strdata[i]+"\n");	
-    								else
-    									for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");	
-    							
-    	   							// add header info about time limits
-        							oldTime = ctreader.oldTime(sourcePath,chan);
-        							newTime = ctreader.newTime(sourcePath,chan);
-        							lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);  
-//    								response.setContentType(mimeType(pathInfo, "text/html"));
-    								response.setContentType("text/html");		// all string data in this case!
-    								formResponse(response, sbresp);
-    								return;
+    							if(fetch=='t') {
+    								for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i])+"\n");		// most recent
     							}
     							else {
-    								System.err.println("Unrecognized ftype: "+ftype);
-    								formResponse(response, null);		// add CORS header even for error response
-    								response.sendError(HttpServletResponse.SC_NOT_FOUND);
-    								return;
+    								strdata = tdata.getDataAsString(ftype);		// convert any/all numeric types to string
+    								if(strdata != null) {
+    									if(fetch=='d') 
+    										for(int i=time.length-numData; i<numData; i++) sbresp.append(strdata[i]+"\n");	
+    									else
+    										for(int i=time.length-numData; i<numData; i++) sbresp.append(formatTime(time[i]) +","+strdata[i]+"\n");	
+    								}
+    								else {
+    									System.err.println("Unrecognized ftype: "+ftype);
+    									formResponse(response, null);		// add CORS header even for error response
+    									response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    									return;
+    								}
     							}
+    							// add header info about time limits
+    							oldTime = ctreader.oldTime(sourcePath,chan);
+    							newTime = ctreader.newTime(sourcePath,chan);
+    							lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    							formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);  
+    							//    								response.setContentType(mimeType(pathInfo, "text/html"));
+    							response.setContentType("text/html");		// all string data in this case!
+    							formResponse(response, sbresp);
+    							return;
     						}
-
     					}
     					else {
     						// add header info about time limits even if no data
