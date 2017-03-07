@@ -415,7 +415,7 @@ public class CTweb {
     				formResponse(response, sbresp);
     				return;
     			}
-    			else {									// Channel level request for data
+    			else {																		// Channel level request for data
     				if(debug) System.err.println("data request: "+pathInfo);
     				
     				String source = pathParts[2];
@@ -571,8 +571,9 @@ public class CTweb {
         							oldTime = ctreader.oldTime(sourcePath,chan);
         							newTime = ctreader.newTime(sourcePath,chan);
         							lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);        							
-    								response.setContentType(mimeType(pathInfo, "text/html"));
+    								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);  
+//    								response.setContentType(mimeType(pathInfo, "text/html"));
+    								response.setContentType("text/html");		// all string data in this case!
     								formResponse(response, sbresp);
     								return;
     							}
