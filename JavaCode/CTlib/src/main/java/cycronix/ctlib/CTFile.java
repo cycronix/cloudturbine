@@ -668,7 +668,8 @@ class CTFile extends File {
   	private double fileTime(String fname) {
 //  		System.err.println("fileTime: "+fname);
   		// special logic for TFOLDER (e.g. camera time.jpg files)
-  		if(fileType==FileType.TFOLDER) return tfolderTime(fname);
+//  		System.err.println("CTFile/fileTime, fname: "+fname+", ftype: "+fileType);
+  		if(fileType==FileType.TFOLDER || fileType==FileType.TFILE) return tfolderTime(fname);
 	
   		return CTinfo.fileTime(fname);		// generalize
 /*  		
@@ -735,7 +736,7 @@ class CTFile extends File {
   	// clunky logic, needs to be generalized
   	
   	private double tfolderTime(String fname) {
-//		System.err.println("TFILE: "+fname);
+//		System.err.println("tfolderTime, TFILE: "+fname);
     	int islash = fname.lastIndexOf(File.separator);		// strip leading path from name
     	if(islash >= 0) fname = fname.substring(islash+1);
     	
@@ -796,15 +797,21 @@ class CTFile extends File {
 							try {				  		// dlink2015081713324201.jpg
 								SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSS");
 								ftime = sdf.parse(fname).getTime();
-//								System.err.println("dlink ftime: "+ftime+", fname: "+fname);
+								//								System.err.println("dlink ftime: "+ftime+", fname: "+fname);
 								sdflast=sdf;
 							}
-							catch(Exception e4) { sdflast=null; };
+							catch(Exception e4) {
+								try { 				
+									SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");	
+									ftime = sdf.parse(fname).getTime();
+									sdflast=sdf;
+								} catch(Exception e5) { sdflast=null; };
+							}
 						};
 					};
 				};
 		}
-//		System.err.println("fileTime("+fname+"): "+ftime+", date: "+new Date((long)ftime)+", sdflast: "+sdflast.toString());
+//		System.err.println("tfolderTime, fileTime("+fname+"): "+ftime);
 		return ftime / 1000.;
   	}
   	

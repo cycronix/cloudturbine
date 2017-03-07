@@ -189,8 +189,9 @@ public class CTreader {
 
 			int j = files.length-1;
 			for(; j>=0; j--) {
-//				System.err.println("newTime check file: "+files[j].getMyPath());
-				if(files[j].isDirectory()) ftime = newTime(new CTFile[] {files[j]}, ctmap);	// recurse
+//				System.err.println("newTime check file: "+files[j].getMyPath()+", isTFILE: "+files[j].isTFILE()+", fileType: "+files[j].fileType);
+				if(files[j].isTFILE()) ftime = files[j].fileTime();		// skip recursion, use the file-as-folder for TFILE
+				else if(files[j].isDirectory()) ftime = newTime(new CTFile[] {files[j]}, ctmap);	// recurse
 				else {
 //					System.err.println("newTime got fileTime: "+files[j].fileTime()+", containsFile: "+listOfFolders[idx].containsFile(ctmap));
 //					if(ctmap == null || containsFile(files, ctmap)) ftime = files[jdx].fileTime();
@@ -357,7 +358,8 @@ public class CTreader {
 					{
 						for(File file:dir.toFile().listFiles()) {
 							//							if(file.isFile()) {			// folder with at least one file is a candidate source
-							if((new CTFile(file.getName()).fileTime())>0.) {		// folder with a "timed" folder/file is a candidate source
+//							if((new CTFile(file.getName()).fileTime())>0.) {		// folder with a "timed" folder/file is a candidate source
+							if((new CTFile(file.getPath()).fileTime())>0.) {	// folder with "timed" folder/file is candidate source (getPath to distinguish TFILE's)
 								if ( dir.equals( rootPath ) ) return FileVisitResult.CONTINUE;
 								int npath = dir.getNameCount();
 								String thisPath = dir.getName(npath-1).toString();

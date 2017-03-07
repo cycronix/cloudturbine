@@ -30,8 +30,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
-import cycronix.ctlib.CTFile.FileType;
-
 /**
  * Utility class for CloudTurbine debugging and file info.
  * <p>
