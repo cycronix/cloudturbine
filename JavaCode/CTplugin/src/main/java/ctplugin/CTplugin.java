@@ -219,9 +219,9 @@ public class CTplugin {
 
 			try{ 
 				if ( ((picm.GetName(0).equals("...")) || (picm.GetName(0).equals("*"))) ) {
-
-					double otime=ctreader.oldTime(sourceFolder); 
-					double ntime=ctreader.newTime(sourceFolder);
+					// JPW, in next 2 calls, change sourceFolder to sName (ie, don't use full path)
+					double otime=ctreader.oldTime(sName); 
+					double ntime=ctreader.newTime(sName);
 					if(debug) System.err.println("handleRegistration picm[0]: "+picm.GetName(0)+", oldtime: "+otime+", newtime: "+ntime);
 
 					picm.PutTime(otime, ntime-otime);
@@ -249,8 +249,9 @@ public class CTplugin {
 					}
 				} else {
 					CTmap ctmap = PI2CTmap(picm);								// ignore time limits registration request
-					double otime=ctreader.oldTime(sourceFolder,ctmap); 
-					double ntime=ctreader.newTime(sourceFolder,ctmap);
+					// JPW, in next 2 calls, change sourceFolder to sName (ie, don't use full path)
+					double otime=ctreader.oldTime(sName,ctmap); 
+					double ntime=ctreader.newTime(sName,ctmap);
 					picm.PutTime(otime, ntime-otime);
 					if(debug) System.err.println("handleRegistration picm[0]: "+picm.GetName(0)+", oldtime: "+otime+", newtime: "+ntime);
 				

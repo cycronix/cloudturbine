@@ -319,7 +319,8 @@ public class CTlogger {
 				
 				if(appendMode) {
 					ctreader = new CTreader(CTrootfolder);
-					appendTime = (long)(ctreader.newTime(sourceFolder) * 1000);	 // convert sec to msec
+					// JPW, change from sourceFolder to SourceName (ie, not full path)
+					appendTime = (long)(ctreader.newTime(SourceName) * 1000);	 // convert sec to msec
 					if(debug) System.err.println("appending past time: "+appendTime);
 				}
 				ctw.setDebug(debug);

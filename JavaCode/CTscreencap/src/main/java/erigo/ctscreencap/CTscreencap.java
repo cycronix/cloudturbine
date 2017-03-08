@@ -542,7 +542,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 					// MJM 2017-02-23
 					// Pickup at 1msec after the last timestamp observed in the output source folders;
 					// this avoids a problem if user has manually deleted/changed CT disk folders
-					firstCTtime = 1 + (long)((new CTreader().newTime(outputFolder + sourceName)) * 1000.);
+					// JPW, changed to not use full path in newTime call
+					// firstCTtime = 1 + (long)((new CTreader().newTime(outputFolder + sourceName)) * 1000.);
+					firstCTtime = 1 + (long)((new CTreader(outputFolder).newTime(sourceName)) * 1000.);
 				}
 				// Note the current wall clock time
 				continueWallclockInitTime = System.currentTimeMillis();

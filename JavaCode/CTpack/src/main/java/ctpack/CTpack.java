@@ -82,15 +82,17 @@ public class CTpack {
 			if(sources.size() == 0) System.err.println("Warning:  no sources found in rootFolder: "+rootFolder);
 			for(String source:sources) {							// {Loop by Source}
 				String sourcePath = rootFolder + File.separator + source;
-				double oldTime = ctr.oldTime(sourcePath);		// go absolute time oldest to newest (straddling gaps)
-				double newTime = ctr.newTime(sourcePath);
+				// JPW, in next 2 calls, changed sourcePath to source (ie, don't use full path)
+				double oldTime = ctr.oldTime(source);		// go absolute time oldest to newest (straddling gaps)
+				double newTime = ctr.newTime(source);
 				System.err.println("Source: "+source+", oldTime: "+oldTime+", newTime: "+newTime);
 
 				if(singleFolder) {			// crop time to LCD of all chans
 					for(String chan:ctr.listChans(source)) {
-						double thisTime = ctr.oldTime(sourcePath,chan);
+						// JPW, in calls to oldTime and newTime, changed sourcePath to source (ie, don't use full path)
+						double thisTime = ctr.oldTime(source,chan);
 						if(thisTime > oldTime) oldTime = thisTime;
-						thisTime = ctr.newTime(sourcePath,chan);
+						thisTime = ctr.newTime(source,chan);
 						if(thisTime < newTime) newTime = thisTime;
 						timePerBlock = newTime - oldTime;			// single fetch
 					}

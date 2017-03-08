@@ -61,7 +61,8 @@ public class CTstitch {
 				String sessionPath = sourceFolder + File.separator + sessionRoot;
 				
 				if(init) {
-					priorTime = 1 + (long)(ctr.newTime(sessionPath)*1000.);		// sec -> msec
+					// JPW, change from using sessionPath to sessionRoot (ie, use relative path, not including root folder)
+					priorTime = 1 + (long)(ctr.newTime(sessionRoot)*1000.);		// sec -> msec
 				}
 				else {		// prior source
 					String newSession = sourceFolder + File.separator + priorTime;
@@ -73,7 +74,8 @@ public class CTstitch {
 						if (file2.exists()) System.err.println("Warning, file exists (skipping); "+newSession);
 						else {
 							if(file.renameTo(file2)) {
-								priorTime = 1 + (long)(ctr.newTime(newSession)*1000.);	// newest time from renamed source (sec -> msec)
+								// JPW, change from using newSession to priorTime (ie, use relative path, not including root folder)
+								priorTime = 1 + (long)(ctr.newTime(Long.toString(priorTime))*1000.);	// newest time from renamed source (sec -> msec)
 							}
 							else		throw new IOException("Failed to rename: "+sessionPath+" to: "+newSession);
 						}
