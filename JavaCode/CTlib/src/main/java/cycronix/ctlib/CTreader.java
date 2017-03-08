@@ -52,8 +52,11 @@ public class CTreader {
 
 //---------------------------------------------------------------------------------	
  // constructor for CTread.get() method
-	public CTreader() {}
-
+	public CTreader() {
+		// Use the default root folder
+		rootFolder = "CTdata";
+	}
+	
 	public CTreader(String fname) {
 		rootFolder = new String(fname);
 	}
