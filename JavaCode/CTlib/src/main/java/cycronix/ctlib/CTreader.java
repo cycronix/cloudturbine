@@ -112,22 +112,30 @@ public class CTreader {
 //---------------------------------------------------------------------------------	
 // oldTime:  find oldest time for this source (neglects block-duration)
 	
-	// NOTE:  this takes full-path (ignores CTreader rootFolder)
+	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double oldTime(String sourceFolder) {
 		return oldTime(sourceFolder, (CTmap)null);
 	}
 	
+	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double oldTime(String sourceFolder, String chan) {
 		return oldTime(sourceFolder, new CTmap(chan));
 	}
 	
+	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
+	//       in this method we prepend sourceFolder with rootFolder (if it is defined)
 	public double oldTime(String sourceFolder, CTmap ctmap) {
-		CTFile rootfolder = new CTFile(sourceFolder);
+		String sourceFolder_fullpath = sourceFolder;
+		if (rootFolder != null) {
+			sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
+		}
+		CTFile rootfolder = new CTFile(sourceFolder_fullpath);
 		CTFile[] listOfFolders = rootfolder.listFiles();
 		if(listOfFolders == null) return 0.;
 		return oldTime(listOfFolders, ctmap);
 	}
 	
+	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double oldTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
 
@@ -158,22 +166,30 @@ public class CTreader {
 // newTime:  find newest time for this source	(neglects block-duration)
 //	CTFile newFile = null;
 	
-	// NOTE:  this takes full-path (ignores CTreader rootFolder)
+	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double newTime(String sourceFolder) {
 		return newTime(sourceFolder, (CTmap)null);
 	}
 	
+	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double newTime(String sourceFolder, String chan) {
 		return newTime(sourceFolder, new CTmap(chan));
 	}
 	
+	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
+	//       in this method we prepend sourceFolder with rootFolder (if it is defined)
  	public double newTime(String sourceFolder, CTmap ctmap) {
-		CTFile rootfolder = new CTFile(sourceFolder);
+ 		String sourceFolder_fullpath = sourceFolder;
+		if (rootFolder != null) {
+			sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
+		}
+		CTFile rootfolder = new CTFile(sourceFolder_fullpath);
 		CTFile[] listOfFolders = rootfolder.listFiles();
 		if(listOfFolders == null) return 0.;
 		return(newTime(listOfFolders, ctmap));
 	}
 	
+ 	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double newTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
 

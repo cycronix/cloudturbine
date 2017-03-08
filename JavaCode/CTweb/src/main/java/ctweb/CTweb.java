@@ -464,8 +464,9 @@ public class CTweb {
         								if(debug) System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference);
 
         	   							// add header info about time limits
-            							double oldTime = ctreader.oldTime(sourcePath,chan);
-            							double newTime = ctreader.newTime(sourcePath,chan);
+        								// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
+            							double oldTime = ctreader.oldTime(source,chan);
+            							double newTime = ctreader.newTime(source,chan);
             							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
         								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
         								
@@ -496,8 +497,9 @@ public class CTweb {
     							byte[] bdata = tdata.getDataAsByteArray();		// get as single byte array vs chunks
 
 	   							// add header info about time limits
-    							double oldTime = ctreader.oldTime(sourcePath,chan);
-    							double newTime = ctreader.newTime(sourcePath,chan);
+    							// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
+    							double oldTime = ctreader.oldTime(source,chan);
+    							double newTime = ctreader.newTime(source,chan);
     							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
 								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
     						
@@ -577,8 +579,9 @@ public class CTweb {
     								}
     							}
     							// add header info about time limits
-    							oldTime = ctreader.oldTime(sourcePath,chan);
-    							newTime = ctreader.newTime(sourcePath,chan);
+    							// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
+    							oldTime = ctreader.oldTime(source,chan);
+    							newTime = ctreader.newTime(source,chan);
     							lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
     							formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);  
     							//    								response.setContentType(mimeType(pathInfo, "text/html"));
@@ -590,8 +593,9 @@ public class CTweb {
     					else {
     						// add header info about time limits even if no data
     						if(debug) System.err.println("No data for: "+pathInfo);
-    						double oldTime = ctreader.oldTime(sourcePath,chan);
-    						double newTime = ctreader.newTime(sourcePath,chan);
+    						// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
+    						double oldTime = ctreader.oldTime(source,chan);
+    						double newTime = ctreader.newTime(source,chan);
     						double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
     						formHeader(response, start, duration, oldTime, newTime, lagTime);
         					formResponse(response, null);		// add CORS header even for error response

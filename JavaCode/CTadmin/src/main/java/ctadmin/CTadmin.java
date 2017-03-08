@@ -192,8 +192,9 @@ public class CTadmin extends Application {
 				long dataSize = CTinfo.diskSize;	// shortcut, fetch side-effect from prior diskUsage() call (cluge for speed)
 
 				SimpleDateFormat format = new SimpleDateFormat("MMM dd, yyyy, HH:mm:ss");
-				double oldTime = myCTreader.oldTime(fullPath);
-				double newTime = myCTreader.newTime(fullPath);
+				// JPW, in next 2 calls, changed from fullPath to sourcePath (ie, don't use full path)
+				double oldTime = myCTreader.oldTime(sourcePath);
+				double newTime = myCTreader.newTime(sourcePath);
 				double duration = newTime - oldTime;
 				String newTimeStr = format.format((long)(newTime*1000.));
 
