@@ -44,7 +44,12 @@
 
 package ctweb;
  
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -54,6 +59,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 
+import javax.imageio.ImageIO;
 //import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -101,6 +107,8 @@ public class CTweb {
     private static String keyStorePW="ctweb.pw";		// keystore PW
 	private static int	port = 8000;					// default port
 	private static int sslport = 8443;					// HTTPS port (0 means none)
+	
+    private static int scaleImage=1;					// reduce image size by factor
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
@@ -121,6 +129,7 @@ public class CTweb {
      		if(args[dirArg].equals("-s"))  	sourceFolder = args[++dirArg]; 
      		if(args[dirArg].equals("-k"))	keyStoreFile = args[++dirArg];
      		if(args[dirArg].equals("-K"))	keyStorePW = args[++dirArg];
+     		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -515,6 +524,12 @@ public class CTweb {
     							}
     							else	formResponse(response,null);
 
+    							// down-size large images
+    							if(chan.endsWith(".jpg") && (scaleImage>1) && bdata.length>100000) {	
+    								if(bdata.length<200000 && scaleImage>2) bdata = scale(bdata, 2);
+    								else									bdata = scale(bdata, scaleImage);	
+    							}
+    							
     							if(bdata.length < 65536) {	// unchunked
 //    								System.err.println("b.length: "+bdata.length);
     								response.setContentLength(bdata.length);
@@ -674,6 +689,73 @@ public class CTweb {
 		else if (fname.toLowerCase().endsWith(".csv")) mime = "text/css";
 		if(debug) System.err.println("fname: "+fname+", mime type: "+mime);
 		return mime;
+    }
+    
+    //---------------------------------------------------------------------------------	
+    // Scale image.jpg to smaller size to save bandwidth
+    
+    private static byte[] scale(byte[] bdata, int scaleImage) throws Exception {
+    	if(scaleImage <= 1) return bdata;
+    	
+		BufferedImage img=ImageIO.read(new ByteArrayInputStream(bdata));
+		int targetWidth = img.getWidth()/scaleImage;
+		int targetHeight = img.getHeight()/scaleImage;
+		
+        int type = (img.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
+        BufferedImage ret = img;
+        BufferedImage scratchImage = null;
+        Graphics2D g2 = null;
+
+        int w = img.getWidth();
+        int h = img.getHeight();
+
+        int prevW = w;
+        int prevH = h;
+
+        do {
+            if (w > targetWidth) {
+                w /= 2;
+                w = (w < targetWidth) ? targetWidth : w;
+            }
+
+            if (h > targetHeight) {
+                h /= 2;
+                h = (h < targetHeight) ? targetHeight : h;
+            }
+
+            if (scratchImage == null) {
+                scratchImage = new BufferedImage(w, h, type);
+                g2 = scratchImage.createGraphics();
+            }
+
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.drawImage(ret, 0, 0, w, h, 0, 0, prevW, prevH, null);
+
+            prevW = w;
+            prevH = h;
+            ret = scratchImage;
+        } 
+        while (w != targetWidth || h != targetHeight);
+
+        if (g2 != null) g2.dispose();
+
+        if (targetWidth != ret.getWidth() || targetHeight != ret.getHeight()) {
+            scratchImage = new BufferedImage(targetWidth, targetHeight, type);
+            g2 = scratchImage.createGraphics();
+            g2.drawImage(ret, 0, 0, null);
+            g2.dispose();
+            ret = scratchImage;
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    	ImageIO.write( ret, "jpg", baos );
+    	baos.flush();
+    	byte[] bdata2 = baos.toByteArray();
+    	baos.close();
+    	
+		if(debug) System.err.println("Scale image "+scaleImage+"x, "+bdata.length+" to "+bdata2.length+" bytes");
+
+        return bdata2;
     }
 }
 
