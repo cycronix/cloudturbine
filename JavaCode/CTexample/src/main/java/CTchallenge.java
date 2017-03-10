@@ -36,10 +36,10 @@ import cycronix.ctlib.*;
 public class CTchallenge {
 	static String sourceFolder = "CTchallenge";
 	// read-performance:
-	static int nchan = 120;						// ~1/sqrt(nchan)
-	static int ncount = 10;
+	static long nchan = 120;					// ~1/sqrt(nchan)
+	static long ncount = 10;					// number of blocks to output
 	static boolean debug = false;
-	static long dt = 1000;						// msec
+	static long dt = 60000;						// msec
 	static long samprate = 40000;				// 40KHz
 	
 	public static void main(String[] args) {
@@ -54,11 +54,11 @@ public class CTchallenge {
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(dataFolder);
 			//			ctw.setDebug(debug);
-			ctw.setBlockMode(true, true);			// block data per flush
+			ctw.setBlockMode(true, false);			// pack, no-zip 
 			
 			int blocksize = (int)((dt/1000) * samprate);
 			int[] data = new int[blocksize];
-			for(int i=0; i<data.length; i++) data[i] = i;		// put something in (sawtooth)
+			for(int i=0; i<data.length; i++) data[i] = i%(int)samprate;		// put something in (1Hz sawtooth)
  			ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * 4).order(ByteOrder.LITTLE_ENDIAN);        
 	        IntBuffer intBuffer = byteBuffer.asIntBuffer();
 	        intBuffer.put(data);
@@ -77,9 +77,9 @@ public class CTchallenge {
 			}
 			long stopTime = System.currentTimeMillis();
 			long PPS = (long)(1000.*(nchan*blocksize*ncount)/(stopTime-startTime));
-			System.out.println("CTperf, Total Time (ms): "+(stopTime-startTime)+", Pts/Sec: "+PPS+", PPS/Chan: "+(PPS/nchan));
+			System.out.println("Total Time (ms): "+(stopTime-startTime)+", Pts/Sec: "+PPS+", PPS/Chan: "+(PPS/nchan));
 		} catch(Exception e) {
-			System.err.println("CTperf exception: "+e);
+			System.err.println("Exception: "+e);
 			e.printStackTrace();
 		} 
 	}
