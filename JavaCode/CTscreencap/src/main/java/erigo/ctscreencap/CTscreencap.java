@@ -172,7 +172,7 @@ import cycronix.ctlib.CTreader;
  * maintain seamless video/audio capture.
  * 
  * @author John P. Wilson, Matt J. Miller
- * @version 03/13/2017
+ * @version 03/14/2017
  *
  */
 public class CTscreencap implements ActionListener,ChangeListener,MouseMotionListener {
