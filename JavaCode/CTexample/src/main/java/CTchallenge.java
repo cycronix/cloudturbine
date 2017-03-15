@@ -2,6 +2,7 @@
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 import cycronix.ctlib.*;
@@ -35,13 +36,12 @@ import cycronix.ctlib.*;
 
 public class CTchallenge {
 	static String sourceFolder = "CTchallenge";
-	// read-performance:
-	static long nchan = 120;					// ~1/sqrt(nchan)
-	static long ncount = 10;					// number of blocks to output
+	static long nchan = 16;					// ~1/sqrt(nchan)
+	static long ncount = 24;				// number of blocks to output
 	static boolean debug = false;
-	static long blockDur = 60000;				// msec
-	static long blocksPerSeg = 60;			// msec
-	static long samprate = 40000;				// 40KHz
+	static long blockDur = 10000;			// msec
+	static long blocksPerSeg = 6;			// msec
+	static long samprate = 500000;			// was 40KHz
 	
 	public static void main(String[] args) {
 		if(args.length > 0) sourceFolder = args[0];
@@ -59,11 +59,12 @@ public class CTchallenge {
 			ctw.autoSegment(blocksPerSeg);			// segment layer
 			
 			int blocksize = (int)((blockDur/1000) * samprate);
-			int[] data = new int[blocksize];
-			for(int i=0; i<data.length; i++) data[i] = i%(int)samprate;		// put something in (1Hz sawtooth)
+			float[] data = new float[blocksize];
+			for(int i=0; i<data.length; i++) data[i] = i%(int)(1*samprate);		// put something in (10Hz sawtooth)
+			System.err.println("data.length: "+data.length+", lastVal: "+(data.length-1)%((int)samprate));
  			ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * 4).order(ByteOrder.LITTLE_ENDIAN);        
-	        IntBuffer intBuffer = byteBuffer.asIntBuffer();
-	        intBuffer.put(data);
+	        FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
+	        floatBuffer.put(data);
 	        
 			long time = System.currentTimeMillis();
 			long startTime = time;
@@ -73,7 +74,7 @@ public class CTchallenge {
 			ctw.setTime(time);		// establish initial blockTime
 			for(int i=1; i<=ncount; i++) {
 				ctw.setTime(time+=blockDur);			// block-interval times
-				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".i32", byteBuffer.array());
+				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".f32", byteBuffer.array());
 				ctw.flush(true);				// gapless back-to-back block times
 				System.out.println("Put block: "+i);
 			}
