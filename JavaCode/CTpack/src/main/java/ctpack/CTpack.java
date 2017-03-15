@@ -131,6 +131,9 @@ public class CTpack {
 						byte[][] bd=null;
 						float[] fd=null;
 						double[] dd=null;
+						
+						if(chan.endsWith(".wav")) chan = chan.replace(".wav",  ".pcm");		// lose .wav headers, treat as raw pcm
+
 						boolean numType = (CTinfo.fileType(chan)=='N');		// need to treat numeric data as such (needs CSV commas)
 						if(numType) {
 							if(binaryMode) {
@@ -221,7 +224,7 @@ public class CTpack {
 		if (line.hasOption("help")) {			// Display help message and quit
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.setWidth(120);
-			formatter.printHelp( "CTpack [options] sourceFolder (default: "+rootFolder+"), where [options] can be: ", options );
+			formatter.printHelp( "CTpack [options] rootFolder (default: "+rootFolder+"), where [options] can be: ", options );
 			return false;
 		}
 
@@ -239,28 +242,6 @@ public class CTpack {
 		}
 		
 		return true; 		// OK to go
-
-		/*		// old ArgHandler way
-    	if(args.length == 0) {
-    		System.err.println("CTpack -x -z -p -1 -o <outFolder> -t <timePerBlock> -s <segBlocks> rootFolder");
-    	}
-
-     	int dirArg = 0;
-     	while((dirArg<args.length) && args[dirArg].startsWith("-")) {		// arg parsing
-     		if(args[dirArg].equals("-x")) 	debug = true;
-     		if(args[dirArg].equals("-z")) 	zipMode = false;				// turn OFF zip
-     		if(args[dirArg].equals("-p")) 	packMode = false;				// turn OFF packed blocks
-
-     		if(args[dirArg].equals("-o"))  	packFolder = args[++dirArg]; 
-     		if(args[dirArg].equals("-t"))  	timePerBlock = Double.parseDouble(args[++dirArg]); 
-     		if(args[dirArg].equals("-s"))  	segBlocks = Integer.parseInt(args[++dirArg]); 
-
-     		if(args[dirArg].equals("-1")) 	singleFolder = true;
-
-     		dirArg++;
-     	}
-     	if(args.length > dirArg) rootFolder = args[dirArg++];  
-		 */	
 	}
 	
 } //end class CTpack
