@@ -339,8 +339,10 @@ public class CTdata {
 				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				
-				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count);
-				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
+				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count+", end: "+end);
+//				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
+				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
+
 					if(duration==0 && j==(count-1)) time = end;		// tweek for +=dt round off error
 
 					if(time < start) continue;
