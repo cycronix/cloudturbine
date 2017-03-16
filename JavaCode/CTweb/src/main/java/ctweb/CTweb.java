@@ -101,7 +101,7 @@ public class CTweb {
 	private static boolean swapFlag = false;
     private static String resourceBase = "CTweb";
     private static String sourceFolder = null;
-    private static int MaxDat = 1000000;				// max number data elements to return (was 65536)
+    private static int MaxDat = 10000000;				// max number data elements to return (was 65536)
     private static long queryCount=0;
     private static String keyStoreFile="ctweb.jks";		// HTTPS keystore file path
     private static String keyStorePW="ctweb.pw";		// keystore PW

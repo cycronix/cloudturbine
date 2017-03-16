@@ -3,7 +3,6 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 
 import cycronix.ctlib.*;
 
@@ -37,7 +36,7 @@ import cycronix.ctlib.*;
 public class CTchallenge {
 	static String sourceFolder = "CTchallenge";
 	static long nchan = 16;					// ~1/sqrt(nchan)
-	static long ncount = 24;				// number of blocks to output
+	static long ncount = 360;				// number of blocks to output
 	static boolean debug = false;
 	static long blockDur = 10000;			// msec
 	static long blocksPerSeg = 6;			// msec
@@ -61,7 +60,6 @@ public class CTchallenge {
 			int blocksize = (int)((blockDur/1000) * samprate);
 			float[] data = new float[blocksize];
 			for(int i=0; i<data.length; i++) data[i] = i%(int)(1*samprate);		// put something in (10Hz sawtooth)
-			System.err.println("data.length: "+data.length+", lastVal: "+(data.length-1)%((int)samprate));
  			ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * 4).order(ByteOrder.LITTLE_ENDIAN);        
 	        FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();
 	        floatBuffer.put(data);
