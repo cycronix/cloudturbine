@@ -298,7 +298,7 @@ public class CTweb {
     		String pathInfo = request.getPathInfo();
     		
     		queryCount++;
-    		StringBuilder sbresp = new StringBuilder(64);			// estimate initial size
+    		StringBuilder sbresp = new StringBuilder(8192);			// estimate initial size
 
     		// system clock utility
     		if(pathInfo.equals("/sysclock")) {
