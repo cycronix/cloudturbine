@@ -8,7 +8,7 @@ buildscript {
     }
     dependencies {
     	// The following specifies the version of the Android Plugin for Gradle
-		classpath 'com.android.tools.build:gradle:2.2.3'
+		classpath 'com.android.tools.build:gradle:2.3.0'
     }
 }
 
@@ -26,7 +26,7 @@ subprojects {
     	// Android SDK versions are at %ANDROID_HOME%\platforms
     	compileSdkVersion 23
     	// Android build tool versions are at %ANDROID_HOME%\build-tools
-    	buildToolsVersion "23.0.3"
+    	buildToolsVersion '25.0.0'
     	
     	// The following suppresses a Lint error which is raised because CTlib.jar
     	// references java.nio.file in cycronix.ctlib.CTreader; this is an error
