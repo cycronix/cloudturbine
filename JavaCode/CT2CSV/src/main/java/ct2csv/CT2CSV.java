@@ -61,23 +61,26 @@ public class CT2CSV {
 		int dirArg = 0;
 		while((dirArg<args.length) && args[dirArg].startsWith("-")) {		// arg parsing
 			if(args[dirArg].equals("-h")) {
-				System.err.println("CT2CSV -n <limit> -s <source> -t <start,duration> -o <outFolder> [rootFolder]");
+				System.err.println("java -jar CT2CSV.jar -h -x -r -n <limit> -t <start,duration> -o <outFolder> -f <rootFolder> [source(s)]");
 				System.err.println("where:");
-				System.err.println("-n <limit>  	limits number of output lines, default=10000, set this option to increase");
-				System.err.println("-t <start,dur> 	specify offset from start of data plus duration to extract (sec)");
-				System.err.println("-o <outFolder> 	output folder for CSV files (default = ./CTcsv)");
-				System.err.println("-r <rootFolder> root folder containing data source folders, default=CTdata or CloudTurbine");
-				System.err.println("[source]  		specify single data source, default=all available sources in rootFolder");
+				System.err.println("-h              display help message");
+				System.err.println("-x              turn on debug output");
+				System.err.println("-r              swap byte order; with this flag, interpret data as \"big-endian\", without this flag use \"little-endian\"");
+				System.err.println("-n <limit>      limits number of output lines, default=" + MaxDat + ", set this option to increase");
+				System.err.println("-t <start,dur>  specify offset from start of data plus duration to extract (sec)");
+				System.err.println("-o <outFolder>  output folder for CSV files (default = ./" + outFolder + ")");
+				System.err.println("-f <rootFolder> root folder containing data source folders, default=CTdata or CloudTurbine");
+				System.err.println("[source(s)]     space-delimited list of one or more data sources; default=all available sources in rootFolder");
 				System.exit(0);
 			}
-			if(args[dirArg].equals("-r")) 	swapFlag = true;
 			if(args[dirArg].equals("-x")) 	debug = true;
+			if(args[dirArg].equals("-r")) 	swapFlag = true;
 			if(args[dirArg].equals("-n")) 	MaxDat = Integer.parseInt(args[++dirArg]);
-			if(args[dirArg].equals("-s"))	slist.add(new File(args[++dirArg]).getName());
+			// if(args[dirArg].equals("-s"))	slist.add(new File(args[++dirArg]).getName());   // Not currently used
 			if(args[dirArg].equals("-t"))	timespec = args[++dirArg];
 			if(args[dirArg].equals("-o"))	outFolder = args[++dirArg];
-			if(args[dirArg].equals("-r"))	rootFolder = args[++dirArg];
-
+			if(args[dirArg].equals("-f"))	rootFolder = args[++dirArg];
+			
 			dirArg++;
 		}
 		for(int i=dirArg; i<args.length; i++) slist.add(new File(args[i]).getName());		// add source(s) to slist (strip full path)
@@ -85,7 +88,8 @@ public class CT2CSV {
 
 //		if(args.length > dirArg) rootFolder = args[dirArg++];
 		
-		if(rootFolder.equals(".") && slist.size()==0) {		// no root or source specified: check for a couple defaults
+		// if(rootFolder.equals(".") && slist.size()==0) {		// no root or source specified: check for a couple defaults
+		if(rootFolder.equals(".")) {	// no root folder specified: check for a couple defaults
 			if		(new File("CTdata").exists()) 		rootFolder = "CTdata";
 			else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
 //			else {
@@ -93,7 +97,7 @@ public class CT2CSV {
 //				System.exit(0);	
 //			}
 		}
-
+		
 		if(!(new File(rootFolder).exists())) {
 			System.err.println("Cannot find specified data folder: "+rootFolder);
 			System.exit(0);	
