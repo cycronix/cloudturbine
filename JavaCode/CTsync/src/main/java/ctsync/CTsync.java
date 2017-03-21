@@ -1,23 +1,19 @@
-/*******************************************************************************
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+/*
+Copyright 2014-2017 Cycronix
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package ctsync;
- 
 
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
@@ -80,28 +76,30 @@ public class CTsync {
     private Map<WatchKey,Path> keys;
     private LinkedList<String> fileQ=new LinkedList<String>();
     	
-    private static boolean recursive;
-	private static boolean debug = false;
-	private static boolean zipflag=false;
-	private static boolean unzipflag = false;
-	private static boolean copyflag = false;
-	private static boolean delflag = false;
+    private static boolean recursive;				// watch all directories and sub-directories?
+	private static boolean debug = false;			// display debug information?
+	private static boolean zipflag=false;			// ZIP input files together before writing to the CT destination?
+	private static boolean unzipflag = false;		// unzip input ".zip" files before writing to the CT destination?
+	private static boolean copyflag = false;		// copy files from source to CT output destination?
+	private static boolean delflag = false;			// delete input file after writing to the CT destination
 	
 	private static int mgranularity=100;			// msec file timestamp granularity (limits number of time-folders)
 	private static int mcheckinterval=20;			// msec check for new files interval 
 	private static int mflushinterval=1000;			// rate at which to flush zip files (limits Dropbox update rate)
-	private static long mpacetime=0;
+	private static long mpacetime=0;				// msec file timestamp period in a ZIP file (spreads the files in a ZIP across time)
 
 //	private static String tempPath=".";				// was "Temp"
-	private static String destPath="Stream";
-	private static String srcPath="CV";
-    private static String outName=null;
+	private static String destPath="Stream";		// root output CT folder
+	private static String srcPath="CV";				// input folder
+    private static String outName=null;				// optional output channel name (default is to use the file name)
     
     private CTwriter CTW;			// writes data to folder/zip files
    
 	//------------------------------------------------------------------------------------------------
     /**
      * Creates a WatchService and registers the given directory
+     * 
+     * @throws IOException if there is a problem creating the CTwriter
      */
     public CTsync() throws IOException {
     	System.err.println("CTsync running...");
@@ -125,6 +123,7 @@ public class CTsync {
     	if (args.length == 0) usage();
     	int dirArg = 0;
     	while(args[dirArg].startsWith("-")) {		// clugey arg parsing
+    		if(args[dirArg].equals("-h")) { usage(); }
     		if(args[dirArg].equals("-r")) 	recursive = true;
     		if(args[dirArg].equals("-z")) 	zipflag = true;
     		if(args[dirArg].equals("-u")) 	unzipflag = true;
@@ -149,7 +148,26 @@ public class CTsync {
 
     //------------------------------------------------------------------------------------------------
     static void usage() {
-    	System.err.println("Usage: java -jar CTsync.jar [-r -c -z -u -x -d -t -n] CVdir StreamDir [mflush]");
+    	System.err.println("Usage:");
+    	System.err.println("java -jar CTsync.jar [-h] [-r] [-c] [-z] [-u] [-x] [-d] [-t <mpacetime>] [-n <outName>] [CVdir [StreamDir [mflush]]]");
+    	System.err.println("-h               show this message");
+    	System.err.println("-r               watch all directories and sub-directories");
+    	System.err.println("                 (default is watch only the top directory)");
+    	System.err.println("-c               copy files from source to CT output destination;");
+    	System.err.println("                 this is the default if neither the -z nor -u flags are specified");
+    	System.err.println("-z               ZIP input files together before writing to the CT destination");
+    	System.err.println("-u               unzip input \".zip\" files before writing to the CT destination");
+    	System.err.println("-x               display debug information");
+    	System.err.println("-d               delete input file after writing to the CT destination");
+    	System.err.println("-t <mpacetime>   msec file timestamp period in a ZIP file");
+    	System.err.println("                 (spreads the files in a ZIP across time)");
+    	System.err.println("-n <outName>     optional output channel name");
+    	System.err.println("                 (default is to use the input file name)");
+    	System.err.println("CVdir            current value input folder (ie, source folder);");
+    	System.err.println("                 folder must exist when CTsync launches; default = \"" + srcPath + "\"");
+    	System.err.println("StreamDir        CloudTurbine output root folder;");
+    	System.err.println("                 default = \"" + destPath + "\"");
+    	System.err.println("mflush           msec period for flushing output ZIP files");
     	System.exit(-1);
     }
 
