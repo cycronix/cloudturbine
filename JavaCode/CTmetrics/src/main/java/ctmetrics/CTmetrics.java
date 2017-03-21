@@ -21,7 +21,7 @@
  * CTmetrics:  CloudTurbine metrics-generating utility
  * <p>
  * @author Matt Miller (MJM), Cycronix
- * @version 11/07/2016
+ * @version 03/21/2017
  * 
 */
 
@@ -46,6 +46,7 @@ public class CTmetrics {
 	CTreader ctr;								// CTreader
 	CTwriter ctw;								// CTwriter
 
+	int     diskBlockSize = 4096;				// disk block size (bytes), used for calculating DiskSize, JPW 3/21/2017
 	boolean debug=false;						// debug T/F
 	boolean zipmode=true;						// zip output T/F
 	String 	monitorFolder = "CTdata";			// monitor source(s) in this folder
@@ -97,7 +98,7 @@ public class CTmetrics {
 					if(sources.size() == 0) System.err.println("Warning:  no sources found in monitorFolder: "+monitorFolder);
 					for(String source:sources) {				// {Loop by Source}
 						String sourcePath = monitorFolder+File.separator+source;
-						long diskSize = CTinfo.diskUsage(sourcePath, 4096);
+						long diskSize = CTinfo.diskUsage(sourcePath, diskBlockSize);
 						long dataSize = CTinfo.dataUsage(sourcePath);
 						String src = source.replace(File.separator, "_");	// can't have multi-level channel name!
 						ctw.putData(src+"_DiskUsage", diskSize);
@@ -106,7 +107,7 @@ public class CTmetrics {
 					}
 				}
 				else {
-					long diskSize = CTinfo.diskUsage(monitorFolder, 4096);
+					long diskSize = CTinfo.diskUsage(monitorFolder, diskBlockSize);
 					long dataSize = CTinfo.dataUsage(monitorFolder);
 					ctw.putData("DiskSpace", diskSize);
 					ctw.putData("DataSpace", dataSize);
@@ -130,6 +131,7 @@ public class CTmetrics {
 		options.addOption("z", "zip", false, "zip mode"+", default: "+zipmode);
 		options.addOption("i", "individualSources", false, "monitor sources individually");
 
+		options.addOption(Option.builder("b").argName("diskBlockSize").hasArg().desc("disk block size (bytes), used for calculating DiskSize, default: " + diskBlockSize + " bytes").build());
 		options.addOption(Option.builder("o").argName("metricsFolder").hasArg().desc("name of output folder"+", default: "+metricsSource).build());
 		options.addOption(Option.builder("T").argName("timePerBlock").hasArg().desc("time per output block (sec)"+", default: "+timePerBlock).build());
 		options.addOption(Option.builder("t").argName("timePerSample").hasArg().desc("time per sample (sec)"+", default: "+timePerSample).build());
@@ -160,6 +162,7 @@ public class CTmetrics {
 		zipmode 		 	= line.hasOption("zip")?(!zipmode):zipmode;		// toggles default
 		individualSources 	= line.hasOption("individualSources");
 
+		diskBlockSize		= Integer.parseInt(line.getOptionValue("b",""+diskBlockSize));
 		metricsSource 		= line.getOptionValue("o",metricsSource);
 		timePerBlock 		= Double.parseDouble(line.getOptionValue("T",""+timePerBlock));
 		timePerSample 		= Double.parseDouble(line.getOptionValue("t",""+timePerSample));
