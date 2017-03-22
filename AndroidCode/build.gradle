@@ -38,12 +38,12 @@ subprojects {
     	
     	// [OPTIONAL] Specify default settings here; some of the items which can be
     	// included in defaultConfig can override attributes in AndroidManifest.xml
-    	// defaultConfig {
-    	//     // Defines the minimum API level required to run the app.
-    	//     minSdkVersion 14
-    	//     // Specifies the API level used to test the app.
-    	//     targetSdkVersion 23
-    	// }
+    	defaultConfig {
+    	    // Defines the minimum API level required to run the app.
+    	    minSdkVersion 14
+    	    // Specifies the API level used to test the app.
+    		// targetSdkVersion 23
+    	}
     	
     }
     

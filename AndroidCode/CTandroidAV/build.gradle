@@ -4,6 +4,5 @@ dependencies {
     // An alternate way to specify this file using a relative path
     // compile files('../Common/CTlib.jar')
     compile group: 'commons-net', name: 'commons-net', version: '3.5'
-    compile 'com.google.android.gms:play-services-appindexing:8.1.0'
 }
 
