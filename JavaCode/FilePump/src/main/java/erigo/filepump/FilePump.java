@@ -123,7 +123,7 @@ public class FilePump implements ActionListener {
 		Option totNumFilesOption = Option.builder("totnum")
                 .argName("num")
                 .hasArg()
-                .desc("Total number of output files; default = " + initial_totNumFiles)
+                .desc("Total number of output files; use -1 for unlimited number; default = " + initial_totNumFiles)
                 .build();
 		options.addOption(totNumFilesOption);
 		Option outputModeOption = Option.builder("mode")
@@ -439,7 +439,7 @@ public class FilePump implements ActionListener {
 	private void updateMainFrame() {
 		outputFolderLabel.setText(new String("\"" + pumpSettings.getOutputFolder() + "\""));
 		filesPerSecLabel.setText(Double.toString(pumpSettings.getFilesPerSec()));
-		if (pumpSettings.getTotNumFiles() == Integer.MAX_VALUE) {
+		if ( (pumpSettings.getTotNumFiles() == Integer.MAX_VALUE) || (pumpSettings.getTotNumFiles() == -1) ) {
 			totNumFilesLabel.setText("unlimited");
 		} else {
 			totNumFilesLabel.setText(Integer.toString(pumpSettings.getTotNumFiles()));
