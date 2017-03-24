@@ -510,7 +510,7 @@ public class FilePumpSettings extends JDialog implements ActionListener,ItemList
 		// Initialize data in the dialog
 		outputFolderTF.setText(outputFolder);
 		filesPerSecTF.setText(Double.toString(filesPerSec));
-		if (totNumFiles == Integer.MAX_VALUE) {
+		if ( (totNumFiles == Integer.MAX_VALUE) || (totNumFiles == -1) ) {
 			totNumFilesTF.setText("");
 		} else {
 			totNumFilesTF.setText(Integer.toString(totNumFiles));
