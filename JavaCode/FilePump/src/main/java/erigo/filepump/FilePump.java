@@ -1,27 +1,20 @@
-/*******************************************************************************
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+/*
+Copyright 2016-2017 Erigo Technologies LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package erigo.filepump;
-
-/*
- * Copyright 2016 Erigo Technologies LLC
- */
 
 /*
  * FilePump
@@ -93,10 +86,10 @@ public class FilePump implements ActionListener {
 		
 		boolean local_bShowGUI = true;
 		
-		String initial_outputFolder;
-	    double initial_filesPerSec;
-	    int initial_totNumFiles;
-	    FileMode initial_mode;
+		String initial_outputFolder = ".";
+	    double initial_filesPerSec = 1.0;
+	    int initial_totNumFiles = 1000;
+	    String initial_mode_str = "local";
 	    String initial_ftpHost;
 	    String initial_ftpUser;
 		String initial_ftpPassword;
@@ -109,10 +102,6 @@ public class FilePump implements ActionListener {
 		// for examples, although note that we use the more up-to-date form
 		// (Option.builder) to create Option objects.
 		//
-		// Default values, used if the user does not specify the command line option
-		final String DEFAULT_FPS = "1.0";
-		final String DEFAULT_TOT_NUM = "1000";
-		final String DEFAULT_MODE = "local";
 		// 1. Setup command line options
 		//
 		Options options = new Options();
@@ -122,25 +111,25 @@ public class FilePump implements ActionListener {
 		Option outputFolderOption = Option.builder("outputfolder")
                 .argName("folder")
                 .hasArg()
-                .desc("Location of output files")
+                .desc("Location of output files; this folder must exist (it will not be created); default = \"" + initial_outputFolder + "\"")
                 .build();
 		options.addOption(outputFolderOption);
 		Option filesPerSecOption = Option.builder("fps")
                 .argName("filespersec")
                 .hasArg()
-                .desc("Desired file rate, files/sec; default = " + DEFAULT_FPS)
+                .desc("Desired file rate, files/sec; default = " + initial_filesPerSec)
                 .build();
 		options.addOption(filesPerSecOption);
 		Option totNumFilesOption = Option.builder("totnum")
                 .argName("num")
                 .hasArg()
-                .desc("Total number of output files; default = " + DEFAULT_TOT_NUM)
+                .desc("Total number of output files; default = " + initial_totNumFiles)
                 .build();
 		options.addOption(totNumFilesOption);
 		Option outputModeOption = Option.builder("mode")
                 .argName("mode")
                 .hasArg()
-                .desc("Specifies output interface, one of <local|ftp|sftp>; default = " + DEFAULT_MODE)
+                .desc("Specifies output interface, one of <local|ftp|sftp>; default = " + initial_mode_str)
                 .build();
 		options.addOption(outputModeOption);
 		Option ftpHostOption = Option.builder("ftphost")
@@ -189,31 +178,25 @@ public class FilePump implements ActionListener {
 	    	local_bShowGUI = false;
 	    }
 	    // Where to write the files to
-	    initial_outputFolder = line.getOptionValue("outputfolder","");
+	    initial_outputFolder = line.getOptionValue("outputfolder",initial_outputFolder);
 	    // How many files per second the pump should output
 	    try {
-	    	initial_filesPerSec = Double.parseDouble(line.getOptionValue("fps",DEFAULT_FPS));
+	    	initial_filesPerSec = Double.parseDouble(line.getOptionValue("fps",""+initial_filesPerSec));
 	    } catch (NumberFormatException nfe) {
 	    	System.err.println("\nError parsing \"fps\" (it should be a floating point value):\n" + nfe);
 	    	return;
 	    }
 	    // Total number of files to write out; -1 indicates unlimited
 	    try {
-	    	initial_totNumFiles = Integer.parseInt(line.getOptionValue("totnum",DEFAULT_TOT_NUM));
+	    	initial_totNumFiles = Integer.parseInt(line.getOptionValue("totnum",""+initial_totNumFiles));
 	    } catch (NumberFormatException nfe) {
 	    	System.err.println("\nError parsing \"totnum\" (it should be an integer):\n" + nfe);
 	    	return;
 	    }
 	    // Specifies how files will be written out
-	    String modeStr = line.getOptionValue("mode",DEFAULT_MODE);
-	    if (modeStr.equals("local")) {
-	    	initial_mode = FileMode.LOCAL_FILESYSTEM;
-	    } else if (modeStr.equals("ftp")) {
-	    	initial_mode = FileMode.FTP;
-	    } else if (modeStr.equals("sftp")) {
-	    	initial_mode = FileMode.SFTP;
-	    } else {
-	    	System.err.println(new String("\nUnrecognized mode, \"" + modeStr + "\""));
+	    initial_mode_str = line.getOptionValue("mode",initial_mode_str);
+	    if ( !initial_mode_str.equals("local") && !initial_mode_str.equals("ftp") && !initial_mode_str.equals("sftp") ) {
+	    	System.err.println(new String("\nUnrecognized mode, \"" + initial_mode_str + "\""));
 	    	return;
 	    }
 	    // FTP hostname
@@ -224,7 +207,7 @@ public class FilePump implements ActionListener {
 		initial_ftpPassword = line.getOptionValue("ftppass","");
 	    
 		// Create the FilePump object
-		new FilePump(local_bShowGUI, initial_outputFolder, initial_filesPerSec, initial_totNumFiles, initial_mode, initial_ftpHost, initial_ftpUser, initial_ftpPassword);
+		new FilePump(local_bShowGUI, initial_outputFolder, initial_filesPerSec, initial_totNumFiles, initial_mode_str, initial_ftpHost, initial_ftpUser, initial_ftpPassword);
 		
 	}
 	
@@ -232,16 +215,25 @@ public class FilePump implements ActionListener {
 	 * Constructor
 	 * 
 	 */
-	public FilePump(boolean bShowGUI_I, String default_outputFolderI, double default_filesPerSecI, int default_totNumFilesI, FileMode default_modeI, String default_ftpHostI, String default_ftpUserI, String default_ftpPasswordI) {
+	public FilePump(boolean bShowGUI_I, String default_outputFolderI, double default_filesPerSecI, int default_totNumFilesI, String default_mode_strI, String default_ftpHostI, String default_ftpUserI, String default_ftpPasswordI) {
 		
 		bShowGUI = bShowGUI_I;
+		
+		FileMode temp_FileMode = null;
+		if (default_mode_strI.equals("local")) {
+			temp_FileMode = FileMode.LOCAL_FILESYSTEM;
+	    } else if (default_mode_strI.equals("ftp")) {
+	    	temp_FileMode = FileMode.FTP;
+	    } else if (default_mode_strI.equals("sftp")) {
+	    	temp_FileMode = FileMode.SFTP;
+	    }
 		
 		// Save the arguments as final variables so they can be used
 		// in the call to createAndShowGUI() in the inner class below.
 		final String default_outputFolder = default_outputFolderI;
 		final double default_filesPerSec = default_filesPerSecI;
 		final int default_totNumFiles = default_totNumFilesI;
-		final FileMode default_mode = default_modeI;
+		final FileMode default_mode = temp_FileMode;
 		final String default_ftpHost = default_ftpHostI;
 		final String default_ftpUser = default_ftpUserI;
 		final String default_ftpPassword = default_ftpPasswordI;
@@ -445,7 +437,7 @@ public class FilePump implements ActionListener {
 	 * Update the main frame based on current settings
 	 */
 	private void updateMainFrame() {
-		outputFolderLabel.setText(pumpSettings.getOutputFolder());
+		outputFolderLabel.setText(new String("\"" + pumpSettings.getOutputFolder() + "\""));
 		filesPerSecLabel.setText(Double.toString(pumpSettings.getFilesPerSec()));
 		if (pumpSettings.getTotNumFiles() == Integer.MAX_VALUE) {
 			totNumFilesLabel.setText("unlimited");
@@ -455,17 +447,17 @@ public class FilePump implements ActionListener {
 		if (pumpSettings.getMode() == FilePumpSettings.FileMode.LOCAL_FILESYSTEM) {
 			modeLabel.setText("Write to local filesystem");
 			if ( (pumpSettings.getOutputFolder() != null) && (!pumpSettings.getOutputFolder().isEmpty()) ) {
-				modeLabel.setText("Write to " + pumpSettings.getOutputFolder());
+				modeLabel.setText("Write to \"" + pumpSettings.getOutputFolder() + "\"");
 			}
 		} else if (pumpSettings.getMode() == FilePumpSettings.FileMode.FTP) {
 			modeLabel.setText("FTP");
 			if ( (pumpSettings.getFTPHost() != null) && (!pumpSettings.getFTPHost().isEmpty()) && (pumpSettings.getOutputFolder() != null) && (!pumpSettings.getOutputFolder().isEmpty()) ) {
-				modeLabel.setText("FTP to " + pumpSettings.getFTPHost() + ", path = " + pumpSettings.getOutputFolder());
+				modeLabel.setText("FTP to " + pumpSettings.getFTPHost() + ", path = \"" + pumpSettings.getOutputFolder() + "\"");
 			}
 		} else if (pumpSettings.getMode() == FilePumpSettings.FileMode.SFTP) {
 			modeLabel.setText("SFTP");
 			if ( (pumpSettings.getFTPHost() != null) && (!pumpSettings.getFTPHost().isEmpty()) && (pumpSettings.getOutputFolder() != null) && (!pumpSettings.getOutputFolder().isEmpty()) ) {
-				modeLabel.setText("SFTP to " + pumpSettings.getFTPHost() + ", path = " + pumpSettings.getOutputFolder());
+				modeLabel.setText("SFTP to " + pumpSettings.getFTPHost() + ", path = \"" + pumpSettings.getOutputFolder() + "\"");
 			}
 		}
 		fileCountLabel.setText("0");
