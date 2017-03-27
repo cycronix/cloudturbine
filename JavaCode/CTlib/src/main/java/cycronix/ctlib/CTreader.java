@@ -280,6 +280,11 @@ public class CTreader {
 		
 		int i=0;
 		int last = listOfFiles.length-1;
+		if(last<0) {
+			System.err.println("Warning, buildChanList, no files: "+sourceFolder);
+			return;
+		}
+		
 		while(true) {
 			CTFile thisFile=listOfFiles[i];
 //			if(thisFile.isFile() && thisFile.length() <= 0) continue;
