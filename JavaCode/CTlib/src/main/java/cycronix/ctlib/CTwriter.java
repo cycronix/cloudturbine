@@ -567,11 +567,16 @@ public class CTwriter {
 	Timer flushTimer = null;
 	
 //	private void writeData(long time, String outName, byte[] bdata) throws Exception {		// sync makes remote writes pace slow???
-	private synchronized void writeData(long time, String outName, byte[] bdata) throws Exception {
+	private synchronized void writeData(long time, String outName, byte[] bdata) throws IOException {
 		
 		CTinfo.debugPrint("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", blockTime: "+blockTime);
+		
+		if(time<blockTime) {
+			throw new IOException("OOPS negative CT time (dropping): "+time+", blockTime: "+blockTime);
+//			return;			// drop it with warning (no exception?)
+		}
+		
 		try {
-			
 			// block/segment logic:
 			if(blockTime > prevblockTime) {
 				CTinfo.debugPrint("writeData; blockCount: "+blockCount+", blocksPerSegment: "+blocksPerSegment);
@@ -609,10 +614,6 @@ public class CTwriter {
 				String name = "";
 				if(timeRelative) 	name = (time-blockTime) + "/" + outName;	// always use subfolders in zip files
 				else				name = time + "/" + outName;
-				
-				if((time-blockTime) < 0) {
-					new Exception("OOPS negative CT time: "+time+", blockTime: "+blockTime).printStackTrace();
-				}
 				
 				ZipEntry entry = new ZipEntry(name);
 				try {

@@ -100,15 +100,18 @@ public class CTftp extends CTwriter {
 
 			CTinfo.debugPrint("ftp pathname: "+pathname+", filename: "+filename+", filepath: "+filepath);
 			if(ostream==null) {
+				client.deleteFile(filename+".tmp");		// try not to orphan empty tmp file
 				throw new IOException("Unable to FTP file: " + client.getReplyString());
 			}
 
 			ostream.write(bdata);
 			ostream.close();
-			if(!client.completePendingCommand())
+			if(!client.completePendingCommand()) {
+				client.deleteFile(filename+".tmp");		// try not to orphan empty tmp file
 				throw new IOException("Unable to FTP file: " + client.getReplyString());
+			}
 			
-			if(!client.rename(filename+".tmp", filename)) 
+			if(!client.rename(filename+".tmp", filename))		// rename to actual filename
 				throw new IOException("Unable to rename file: " + client.getReplyString());
 
 		} catch (Exception e) {

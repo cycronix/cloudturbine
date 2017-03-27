@@ -310,7 +310,7 @@ public class CTandroidAV extends Activity {
 
             try {
                 boolean recording = false;
-                long oldtime = 0;
+ //               long oldtime = 0;
 
                 while (true) {
                     if (status.equals("Stopped")) status = "Running...";
@@ -336,15 +336,15 @@ public class CTandroidAV extends Activity {
                         }
 
                         int bufferReadResult = audioRecord.read(dataBuffer, 0, bufferSize);        // blocking read for bufferSize
-                        long time = System.currentTimeMillis();
-                        if (oldtime != 0) {
-                            long dt = time - oldtime;
-                            if (Math.abs(blockDur - dt) < 50)
-                                time = oldtime + blockDur;            // consistent timing if close
-                            if (debug)
-                                Log.i(TAG, "dt: " + dt + ", blockDur: " + blockDur + ", time: " + time + ", oldtime: " + oldtime);
-                        }
-                        oldtime = time;
+  //                      long time = System.currentTimeMillis();
+ //                       if (oldtime != 0) {
+ //                           long dt = time - oldtime;
+ //                           if (Math.abs(blockDur - dt) < 50)
+ //                               time = oldtime + blockDur;            // consistent timing if close
+ //                           if (debug)
+ //                               Log.i(TAG, "dt: " + dt + ", blockDur: " + blockDur + ", time: " + time + ", oldtime: " + oldtime);
+ //                       }
+ //                       oldtime = time;
 
                         if (debug)
                             System.err.println("bufferLen: " + dataBuffer.length + ", bufferSize: " + bufferSize + ", blockDur: " + audioRateList[rateIndex] + "rateIndex: " + rateIndex);
@@ -371,15 +371,15 @@ public class CTandroidAV extends Activity {
                                 if (debug) Log.i(TAG, status);
 
                                 synchronized (TAG) {        // don't let an image slip in between audio put and flush
-//									long time = System.currentTimeMillis();
-                                    ctw.setTime(time);
+									ctw.setTime(System.currentTimeMillis());     // use running clock time, avoid inconsistent block/file times
+ //                                   ctw.setTime(time);
                                     if (waveFormat)
                                         ctw.putData("audio.wav", addWaveHeader(dataBuffer, frequency));    // don't need blockmode, one-audio block flush per file
                                     else ctw.putData("audio.pcm", dataBuffer);
                                     if (debug) Log.i(TAG, "audio flush!");
-//									ctw.flush(true); 							// gapless flag
+									ctw.flush(true); 							// gapless flag
                                 }
-                                ctw.flush(true);                            // gapless flag
+ //                               ctw.flush(true);                            // gapless flag
 
                                 bytesWritten += dataBuffer.length;
                                 status = "Running: Files: " + icount + ", Total (KB): " + (int) (bytesWritten / 1024);
