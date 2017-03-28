@@ -313,23 +313,27 @@ public class CTandroidAV extends Activity {
  //               long oldtime = 0;
 
                 while (true) {
+                    long oldTime = 0;
                     if (status.equals("Stopped")) status = "Running...";
                     int blockDur = audioRateList[rateIndex];        // expected audio block duration (ms)
 
                     if (Running) {
-                        if (recording == false) {
+                        if (recording == false) {       // startup
                             setup();
                             if (avMode != 1)
                                 audioRecord.startRecording();                                            // start audio
-                            if (avMode != 2) {
+                            if (avMode != 2) {          // not audio-only
                                 if (debug) Log.i(TAG, "Starting Timer!!!!");
-                                VideoTask videoTask = new VideoTask();
-                                new Timer().schedule(videoTask, 0, videoRateList[rateIndex] / 4);            // go 4x faster to catch up with Q
+                                if(avMode == 1) {    // only run videoTask if video-only mode, otherwise audio task outputs Q images
+                                    VideoTask videoTask = new VideoTask();
+                                    new Timer().schedule(videoTask, 0, videoRateList[rateIndex] / 4);            // go 4x faster to catch up with Q
+                                }
                                 CameraTask cameraTask = new CameraTask(maxQ);
                                 new Timer().scheduleAtFixedRate(cameraTask, 0, videoRateList[rateIndex]); // fixed rate
                             }
                             recording = true;
                         }
+
                         if (avMode == 1) {
                             Thread.sleep(100);            // no audio
                             continue;
@@ -371,13 +375,39 @@ public class CTandroidAV extends Activity {
                                 if (debug) Log.i(TAG, status);
 
                                 synchronized (TAG) {        // don't let an image slip in between audio put and flush
-									ctw.setTime(System.currentTimeMillis());     // use running clock time, avoid inconsistent block/file times
- //                                   ctw.setTime(time);
-                                    if (waveFormat)
-                                        ctw.putData("audio.wav", addWaveHeader(dataBuffer, frequency));    // don't need blockmode, one-audio block flush per file
-                                    else ctw.putData("audio.pcm", dataBuffer);
-                                    if (debug) Log.i(TAG, "audio flush!");
-									ctw.flush(true); 							// gapless flag
+                                    long time = System.currentTimeMillis();
+
+                                    // MJM new logic 3/28/2017:
+                                    // snag images from Queue that fit in current range
+                                    if(avMode != 2) {
+                                        TimeValue TV;
+                                        while ((TV = imageQueue.poll()) != null) {
+                                            long imageTime = TV.time;
+                                            if (imageTime < oldTime) continue;  // disccard too-old
+                                            if (imageTime > time) break;        // out of range (save one?)
+                                            ctw.setTime(imageTime);
+  //                                          ctw.putData("image.jpg", jpegFromPreview(TV.value));
+                                            ctw.putData("image.jpg", TV.value);     // image converted to jpeg in cameraTask
+                                        }
+                                    }
+                                    oldTime = time;
+
+
+									ctw.setTime(time);     // use running clock time, avoid inconsistent block/file times
+                                    try {
+ //                                       Log.d(TAG,"########about to flush, time: "+time);
+                                        if (waveFormat)
+                                            ctw.putData("audio.wav", addWaveHeader(dataBuffer, frequency));    // don't need blockmode, one-audio block flush per file
+                                        else ctw.putData("audio.pcm", dataBuffer);
+                                        if (debug) Log.i(TAG, "audio flush!");
+                                        ctw.flush(true);                            // gapless flag
+ //                                       Log.d(TAG,"########   done flush, time: "+time);
+                                    }
+                                    catch(IOException ioe) {
+                                        System.err.println("FTP exception: "+ioe.getMessage());     // Log not work inside asyncTask
+                                        Log.w(TAG,"FTP exception: "+ioe.getMessage());
+                                            // lumber on
+                                    }
                                 }
  //                               ctw.flush(true);                            // gapless flag
 
@@ -400,6 +430,7 @@ public class CTandroidAV extends Activity {
                     }
                 }
             } catch (Exception e) {
+                System.err.println("CTandroidAV exception: "+e);
                 Log.e(TAG, "Exception collectAudio: " + e);
                 Toast.makeText(CTandroidAV.this, "Exception: " + e, Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
@@ -481,13 +512,15 @@ public class CTandroidAV extends Activity {
                     public void onPreviewFrame(byte[] data, Camera camera) {
 //                        currentPreview = data;
                         long t = System.currentTimeMillis();
-                        imageQueue.add(new TimeValue(t, data));
+                        imageQueue.add(new TimeValue(t, jpegFromPreview(data)));    // convert to jpeg on the fly, spread out the CPU work
+   //                     imageQueue.add(new TimeValue(t, data));
                         if (debug) Log.i(TAG, "CameraTask, time: " + t);
                     }
                 });
             }
         }
 
+        //-----------------------------------------------------------------------------------------------------------
         // VideoTask grabs most recent camera snapshot and puts it to CT
         class VideoTask extends TimerTask {
             long vcount = 0;
@@ -508,14 +541,7 @@ public class CTandroidAV extends Activity {
                     this.cancel();
                     return;
                 }
-/*
-                mCamera.setOneShotPreviewCallback(new PreviewCallback() {
-					public void onPreviewFrame(byte[] data, Camera camera) { 
-						currentPreview = data;
-                        currentTime = System.currentTimeMillis();
-					};
-				});
-*/
+
                 try {
                     TimeValue tv = imageQueue.pop();
                     currentTime = tv.time;
@@ -530,46 +556,11 @@ public class CTandroidAV extends Activity {
 //				long time = System.currentTimeMillis();
                 if (debug) Log.i(TAG, "currentPreview.length: " + currentPreview.length);
 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
                 try {
-                    Parameters parameters = mCamera.getParameters();
-                    Size size = parameters.getPreviewSize();
-                    YuvImage image = new YuvImage(currentPreview, parameters.getPreviewFormat(), size.width, size.height, null);
+                    byte[] jpeg = jpegFromPreview(currentPreview);
 
-                    image.compressToJpeg(new Rect(0, 0, image.getWidth(), image.getHeight()), quality, baos);
+                    if (debug) Log.i(TAG, "converted raw: " + currentPreview.length + " to: " + jpeg.length);
 
-                    byte[] jpeg = baos.toByteArray();
-                    float rotation = (float) 0.;
-                    if (cameraId == 1 && mDisplay.getRotation() == Surface.ROTATION_0)
-                        rotation = (float) 270.;
-                    else if (cameraId == 0 && mDisplay.getRotation() == Surface.ROTATION_0)
-                        rotation = (float) 90.;
-
-                    if (debug)
-                        Log.i(TAG, "cameraId: " + cameraId + ", getRotation: " + mDisplay.getRotation() + ", rotation: " + rotation);
-
-                    if (rotation != 0.) {
-                        // This is the same image as the preview but in JPEG and not rotated
-                        Bitmap bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length);
-                        ByteArrayOutputStream rotatedStream = new ByteArrayOutputStream();
-
-                        // Rotate the Bitmap
-                        Matrix matrix = new Matrix();
-                        matrix.postRotate(rotation);
-
-                        // We rotate the same Bitmap
-                        bitmap = Bitmap.createBitmap(bitmap, 0, 0, image.getWidth(), image.getHeight(), matrix, false);
-
-                        // We dump the rotated Bitmap to the stream
-                        bitmap.compress(CompressFormat.JPEG, 50, rotatedStream);
-                        jpeg = rotatedStream.toByteArray();
-
-                        // whew
-                    }
-
-                    if (debug)
-                        Log.i(TAG, "converted raw: " + currentPreview.length + " to: " + jpeg.length);
                     synchronized (TAG) {        // don't let an image slip in between audio put and flush
                         ctw.setTime(currentTime);
 //						ctw.setTime(System.currentTimeMillis());			// for in-frame times, just set it here
@@ -596,11 +587,47 @@ public class CTandroidAV extends Activity {
                     Log.e(TAG, "ERROR on image conversion to JPEG");
                 }
             }
-
-            ;
         }
+    }
 
-        ;
+    //-----------------------------------------------------------------------------------------------------------
+    byte[] jpegFromPreview(byte[] currentPreview) {
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        Parameters parameters = mCamera.getParameters();
+        Size size = parameters.getPreviewSize();
+        YuvImage image = new YuvImage(currentPreview, parameters.getPreviewFormat(), size.width, size.height, null);
+
+        image.compressToJpeg(new Rect(0, 0, image.getWidth(), image.getHeight()), quality, baos);
+
+        byte[] jpeg = baos.toByteArray();
+        float rotation = (float) 0.;
+        if (cameraId == 1 && mDisplay.getRotation() == Surface.ROTATION_0)
+                rotation = (float) 270.;
+        else if (cameraId == 0 && mDisplay.getRotation() == Surface.ROTATION_0)
+                rotation = (float) 90.;
+
+        if (debug) Log.i(TAG, "cameraId: " + cameraId + ", getRotation: " + mDisplay.getRotation() + ", rotation: " + rotation);
+
+        if (rotation != 0.) {
+            // This is the same image as the preview but in JPEG and not rotated
+            Bitmap bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length);
+            ByteArrayOutputStream rotatedStream = new ByteArrayOutputStream();
+
+            // Rotate the Bitmap
+            Matrix matrix = new Matrix();
+            matrix.postRotate(rotation);
+
+            // We rotate the same Bitmap
+            bitmap = Bitmap.createBitmap(bitmap, 0, 0, image.getWidth(), image.getHeight(), matrix, false);
+
+            // We dump the rotated Bitmap to the stream
+            bitmap.compress(CompressFormat.JPEG, 50, rotatedStream);
+            jpeg = rotatedStream.toByteArray();
+            // whew
+        }
+        return jpeg;
     }
 
     //-----------------------------------------------------------------------------------------------------------

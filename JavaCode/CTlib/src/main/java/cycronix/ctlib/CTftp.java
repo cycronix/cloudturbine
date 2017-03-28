@@ -95,24 +95,31 @@ public class CTftp extends CTwriter {
 				currentDir = filepath;
 			}
 
-			OutputStream ostream = client.storeFileStream(filename+".tmp");
-//			OutputStream ostream = client.storeFileStream(filename);				// try without tmp file
-
 			CTinfo.debugPrint("ftp pathname: "+pathname+", filename: "+filename+", filepath: "+filepath);
+
+			OutputStream ostream = client.storeFileStream(filename+".tmp");
+			//			OutputStream ostream = client.storeFileStream(filename);				// try without tmp file
 			if(ostream==null) {
-				client.deleteFile(filename+".tmp");		// try not to orphan empty tmp file
-				throw new IOException("Unable to FTP file: " + client.getReplyString());
+				System.err.println("CTftp, bad FTP connection, try again: "+client.getReplyString());
+				ostream = client.storeFileStream(filename+".tmp");		// try again?
+				if(ostream == null) {
+					String ereply = client.getReplyString();
+					System.err.println("CTftp, bad FTP connection, throw exception: "+ereply);
+					client.deleteFile(filename+".tmp");		// try not to orphan empty tmp file
+					throw new IOException("Bad FTP connection, file: " +filename+", status: "+ ereply);
+				}
 			}
 
 			ostream.write(bdata);
 			ostream.close();
 			if(!client.completePendingCommand()) {
+				String ereply = client.getReplyString();
 				client.deleteFile(filename+".tmp");		// try not to orphan empty tmp file
-				throw new IOException("Unable to FTP file: " + client.getReplyString());
+				throw new IOException("Unable to FTP file: " + ereply);
 			}
 			
 			if(!client.rename(filename+".tmp", filename))		// rename to actual filename
-				throw new IOException("Unable to rename file: " + client.getReplyString());
+				throw new IOException("Unable to rename file: " +filename+", status: "+ client.getReplyString());
 
 		} catch (Exception e) {
 			e.printStackTrace();
