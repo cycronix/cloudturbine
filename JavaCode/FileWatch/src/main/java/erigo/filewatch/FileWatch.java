@@ -147,6 +147,14 @@ import java.util.*;
 import javax.swing.SwingUtilities;
 
 import com.sun.nio.file.SensitivityWatchEventModifier;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 public class FileWatch {
@@ -159,12 +167,24 @@ public class FileWatch {
     private int num_received_files = 0;
     private int num_skipped_files = 0;
     
-    private boolean bRecast = false;
+    private static final String DEFAULT_WATCH_DIR = "."; 
     
+    //
     // Variables used when running in "recaster" mode
-    Random random_generator = new Random();
+    //
+    private boolean bRecast = false;					// are we running in recaster mode?
+    private boolean bOutputResultsInRecastMode = false;	// when we are in recaster mode, output results at the end of the test?
+    Random random_generator = new Random();				// used to set random number as the content of the recast file
     int random_range = 999999;
-    private File outputDir = null;
+    private File outputDir = null;						// where to put the new recaster output files
+    
+    // If this FileWatch is observing test data files which have come round-trip
+    // (ie, gone from FilePump, to a recaster machine and then back to the
+    // FilePump machine) then set this flag try so that the output latency
+    // metrics are cut in half
+    private boolean bAdjustLatencyMetrics = false;
+    
+    private String latencyPlotTitle = "Latency";
     
     @SuppressWarnings("unchecked")
     static <T> WatchEvent<T> cast(WatchEvent<?> event) {
@@ -183,14 +203,107 @@ public class FileWatch {
     /**
      * Creates a WatchService and registers the given directory
      */
-    FileWatch(Path watchDirI, String outputFilenameI, Path outputDirI) throws IOException {
+    // FileWatch(Path watchDir, String outputFilename, Path outputDirI) throws IOException {
+    FileWatch(String[] argsI) throws IOException {
     	
-    	// Are we going to recast the files as they come in to some other directory?
-    	bRecast = false;
-    	if (outputDirI != null) {
-    		bRecast = true;
-    		outputDir = outputDirI.toFile();
-    	}
+    	//
+		// Parse command line arguments
+		//
+		// 1. Setup command line options
+		//
+		Options options = new Options();
+		// Boolean options (only the flag, no argument)
+		options.addOption("h", "help", false, "print this message");
+		options.addOption("a", "adjust_latency", false, "divide latency results by 2 because test data files are from a recaster (round-trip)");
+		options.addOption("d", "display_results_in_recaster_mode", false, "display results when operating in recaster mode");
+		// Command line options that include a flag
+		Option nextOption = Option.builder("i").argName("watchdir").hasArg().desc("directory to watch for incoming test data files (must be an existing directory); default = \"" + DEFAULT_WATCH_DIR + "\"").build();
+		options.addOption(nextOption);
+		nextOption = Option.builder("o").argName("outfilename").hasArg().desc("name of the output metrics data file; must be a new file").build();
+		options.addOption(nextOption);
+		nextOption = Option.builder("r").argName("recasterdir").hasArg().desc("recast test data files to the specified output directory (must be an existing directory)").build();
+		options.addOption(nextOption);
+		
+		//
+		// 2. Parse command line options
+		//
+	    CommandLineParser parser = new DefaultParser();
+	    CommandLine line = null;
+	    try {
+	        line = parser.parse( options, argsI );
+	    }
+	    catch( ParseException exp ) {
+	        // oops, something went wrong
+	        System.err.println( "Command line argument parsing failed: " + exp.getMessage() );
+	     	return;
+	    }
+	    
+	    //
+	    // 3. Retrieve the command line values
+	    //
+	    if (line.hasOption("h")) {
+	    	// Display help message and quit
+	    	HelpFormatter formatter = new HelpFormatter();
+	    	formatter.printHelp( "FileWatch", options );
+	    	return;
+	    }
+	    bAdjustLatencyMetrics = line.hasOption("a");
+	    bOutputResultsInRecastMode = line.hasOption("d");
+	    // Watch directory
+	    String watchDirName = line.getOptionValue("i",DEFAULT_WATCH_DIR);
+	    Path watchDir = Paths.get(watchDirName);
+        if (!watchDir.toFile().isDirectory()) {
+        	System.err.println("\nThe given watch directory does not exist.");
+        	System.exit(-1);
+        }
+        // Recaster directory
+        Path outputDirPath = null;
+        String outputDirName = line.getOptionValue("r");
+        if (outputDirName != null) {
+        	outputDirPath = Paths.get(outputDirName);
+        	if (!outputDirPath.toFile().isDirectory()) {
+        		System.err.println("\nThe given recaster output directory does not exist.");
+        		System.exit(-1);
+        	}
+        	// Make sure watchDir and outputDir aren't the same
+        	if (watchDir.toAbsolutePath().compareTo(outputDirPath.toAbsolutePath()) == 0) {
+        		System.err.println("\nThe recaster output directory cannot be the same as the watch directory.");
+        		System.exit(-1);
+        	}
+        	bRecast = true;
+    		outputDir = outputDirPath.toFile();
+        }
+        // Output filename
+        String outputFilename = line.getOptionValue("o");
+        if ( (outputFilename == null) && (!bRecast || bOutputResultsInRecastMode) ) {
+        	System.err.println("\nMust specify the name of the output data file.");
+        	System.exit(-1);
+        }
+        if (outputFilename != null) {
+        	File outputFile = new File(outputFilename);
+            if (outputFile.isDirectory()) {
+            	System.err.println("\nThe given output data file is the name of a directory; must specify an output filename.");
+            	System.exit(-1);
+            } else if (outputFile.isFile()) {
+            	System.err.println("\nThe given output data file is the name of an existing file; must specify a new filename.");
+            	System.exit(-1);
+            }
+        }
+        // Make sure "end.txt" doesn't already exist in the directory; this file is our signal
+        // that we're done processing
+        File endFile = new File(watchDir.toFile(),"end.txt");
+        if (endFile.exists()) {
+        	System.err.println("\nMust delete \"" + endFile + "\" before running test.");
+        	System.exit(-1);
+        }
+        // If we are recasting, make sure "end.txt" doesn't exist in the output directory either
+        if (outputDirPath != null) {
+        	endFile = new File(outputDirPath.toFile(),"end.txt");
+            if (endFile.exists()) {
+            	System.err.println("\nMust delete \"" + endFile + "\" in output directory before running test.");
+            	System.exit(-1);
+            }
+        }
     	
         // Register the directory with the WatchService
         // dirI.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
@@ -199,15 +312,17 @@ public class FileWatch {
     	// triggered because the file's content and its parameters (such as
     	// timestamp) are independently set.
         // dirI.register(watcher, ENTRY_CREATE);
-        watchDirI.register(watcher, new WatchEvent.Kind[]{StandardWatchEventKinds.ENTRY_CREATE}, SensitivityWatchEventModifier.HIGH);
+        watchDir.register(watcher, new WatchEvent.Kind[]{StandardWatchEventKinds.ENTRY_CREATE}, SensitivityWatchEventModifier.HIGH);
         
-        System.err.println("\nWatching directory \"" + watchDirI + "\" for incoming files...");
+        System.err.println("\nWatching directory \"" + watchDir + "\" for incoming files...");
         processEvents();
         
         watcher.close();
         
-        System.err.println("\nWrite data to file \"" + outputFilenameI + "\"...");
-        processData(outputFilenameI);
+        if ( !bRecast || bOutputResultsInRecastMode ) {
+        	System.err.println("\nWrite data to file \"" + outputFilename + "\"...");
+        }
+        processData(outputFilename);
         
         System.err.println("\nFileWatch received a total of " + num_received_files + " files (not including \"end.txt\")");
         System.err.println("In processing, " + num_skipped_files + " files were skipped (due to wrong name format)");
@@ -485,6 +600,14 @@ public class FileWatch {
     	double Lmax = Lav_reg.getIntercept() + 3.0 * (latency_stddev);
     	
     	//
+    	// If we are in recaster mode, see if user wants to output results
+    	//
+    	if ( bRecast && !bOutputResultsInRecastMode ) {
+    		// we're done
+    		return;
+    	}
+    	
+    	//
     	// Write out data to console
     	//
     	System.err.println("\nTest metrics:");
@@ -492,10 +615,15 @@ public class FileWatch {
     	System.err.println("Metrics applicable to \"fast\" file tests:");
     	System.err.println("   Rku = " + String.format("%5g",Rku_reg.getSlope()) + " files/sec");
     	System.err.println("Metrics applicable to \"slow\" file tests:");
-    	System.err.println("   Lav = " + String.format("%5g",Lav_reg.getIntercept()) + " sec");
-    	System.err.println("   Lmax observed = " + String.format("%.3f",latency_max) + " sec");
-    	System.err.println("   Lmax calculated (Lav + 3*(stddev of latency)) = " + String.format("%.3f",Lmax) + " sec");
-    	System.err.println("   Lgr = " + String.format("%5g",Lgr_reg.getSlope()) + " sec/file");
+    	double latencyMultiplier = 1.0;
+    	if (bAdjustLatencyMetrics) {
+    		System.err.println("(NOTE: these latency metrics have been divided by 2 to represent the equivalent one-way metrics values)");
+    		latencyMultiplier = 0.5;
+    	}
+    	System.err.println("   Lav = " + String.format("%5g",Lav_reg.getIntercept()*latencyMultiplier) + " sec");
+    	System.err.println("   Lmax observed = " + String.format("%.3f",latency_max*latencyMultiplier) + " sec");
+    	System.err.println("   Lmax calculated (Lav + 3*(stddev of latency)) = " + String.format("%.3f",Lmax*latencyMultiplier) + " sec");
+    	System.err.println("   Lgr = " + String.format("%5g",Lgr_reg.getSlope()*latencyMultiplier) + " sec/file");
     	
     	//
     	// Write out data to file
@@ -508,11 +636,16 @@ public class FileWatch {
     	    
     	    // Write header, including statistics and metrics
     	    writer.write("\nFile sharing test\ntest start time\t" + earliestSourceCreationTime + "\tmsec since epoch\n");
-    	    writer.write("min latency\t" + String.format("%.3f",latency_min) + "\tsec\n");
-    	    writer.write("max latency\t" + String.format("%.3f",latency_max) + "\tsec\n");
-    	    writer.write("avg latency\t" + String.format("%.3f",latency_avg) + "\tsec\n");
-    	    writer.write("std dev of latency\t" + String.format("%.3f",latency_stddev) + "\tsec\n");
-    	    writer.write("calc max latency, Lmax\t" + String.format("%.3f",Lmax) + "\tsec\n");
+    	    if (bAdjustLatencyMetrics) {
+        		writer.write("NOTE: the latency metrics that follow have been divided by 2 to represent the equivalent one-way metrics values; Regression values and the raw data below represent the full round-trip values\n");
+    	    }
+    	    writer.write("Actual source rate\t"                            + String.format("%5g",actual_source_rate_reg.getSlope())        + "\tfiles/sec\n");
+    	    writer.write("Rku\t"                                           + String.format("%5g",Rku_reg.getSlope())                       + "\tfiles/sec\n");
+    	    writer.write("Lav\t"                                           + String.format("%5g",Lav_reg.getIntercept()*latencyMultiplier) + "\tsec\n");
+    	    writer.write("Lmax observed\t"                                 + String.format("%.3f",latency_max*latencyMultiplier)           + "\tsec\n");
+    	    writer.write("std dev of latency\t"                            + String.format("%.3f",latency_stddev*latencyMultiplier)        + "\tsec\n");
+    	    writer.write("Lmax calculated (Lav + 3*(stddev of latency))\t" + String.format("%.3f",Lmax*latencyMultiplier)                  + "\tsec\n");
+    	    writer.write("Lgr\t"                                           + String.format("%5g",Lgr_reg.getSlope()*latencyMultiplier)     + "\tsec/file\n");
     	    // Write out regression data
     	    writer.write("Regression\tslope\tintercept\tR-squared\tMetric of interest\n\t\t\t\tname\tvalue\n");
     	    double slope = actual_source_rate_reg.getSlope();
@@ -561,11 +694,14 @@ public class FileWatch {
     	//
     	// Display plots
     	//
+    	if (bAdjustLatencyMetrics) {
+    		latencyPlotTitle = "Round-trip Latency";
+    	}
     	SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
             	new DisplayPlot(
-            	    "Latency",
+            		latencyPlotTitle,
             	    "Create time at source (sec)",
             	    "Latency (sec)",
             	    normalizedSourceCreationTimeList,
@@ -646,60 +782,7 @@ public class FileWatch {
     
     public static void main(String[] args) throws IOException {
         
-    	if ( (args.length < 2) || (args[0].equals("-h")) ) {
-        	System.err.println("\nusage: java FileWatch <directory_to_watch> <output_datafile_name> [recaster_output_dir]");
-            System.exit(-1);
-        }
-        
-        // Check command line arguments
-        Path watchDir = Paths.get(args[0]);
-        // Make sure this is a directory
-        if (!watchDir.toFile().isDirectory()) {
-        	System.err.println("\nThe given directory does not exist.");
-        	System.exit(-1);
-        }
-        String outputFilename = args[1];
-        File outputFile = new File(outputFilename);
-        if (outputFile.isDirectory()) {
-        	System.err.println("\nThe given data file name is the name of an existing directory.");
-        	System.exit(-1);
-        } else if (outputFile.isFile()) {
-        	System.err.println("\nThe given data file name is the name of an existing file; must specify a new file.");
-        	System.exit(-1);
-        }
-        // User may optionally have specified a recaster directory
-        Path outputDir = null;
-        if (args.length > 2) {
-        	outputDir = Paths.get(args[2]);
-        	if (!outputDir.toFile().isDirectory()) {
-        		System.err.println("\nThe given recaster output directory does not exist.");
-        		System.exit(-1);
-        	}
-        	// Make sure watchDir and outputDir aren't the same
-        	if (watchDir.toAbsolutePath().compareTo(outputDir.toAbsolutePath()) == 0) {
-        		System.err.println("\nThe recaster directory cannot be the same as the watch directory.");
-        		System.exit(-1);
-        	}
-        }
-        
-        // Make sure "end.txt" doesn't already exist in the directory; this file is our signal
-        // that we're done processing
-        File endFile = new File(watchDir.toFile(),"end.txt");
-        if (endFile.exists()) {
-        	System.err.println("\nMust delete \"" + endFile + "\" before running test.");
-        	System.exit(-1);
-        }
-        // If we are recasting, make sure "end.txt" doesn't exist in the output directory either
-        if (outputDir != null) {
-        	endFile = new File(outputDir.toFile(),"end.txt");
-            if (endFile.exists()) {
-            	System.err.println("\nMust delete \"" + endFile + "\" in output directory before running test.");
-            	System.exit(-1);
-            }
-        }
-        
-        new FileWatch(watchDir,outputFilename,outputDir);
+        new FileWatch(args);
         
     }
 }
-

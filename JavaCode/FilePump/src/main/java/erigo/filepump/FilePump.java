@@ -35,6 +35,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.Random;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -59,6 +60,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 public class FilePump implements ActionListener {
 	
@@ -271,7 +274,7 @@ public class FilePump implements ActionListener {
 			}
 			bPumpRunning = true;
 			// Start pump
-			filePumpWorker = new FilePumpWorker(this, pumpSettings);
+			filePumpWorker = new FilePumpWorker(this, pumpSettings,false);
 			filePumpThread = new Thread(filePumpWorker);
 			filePumpThread.start();
 		}
@@ -427,6 +430,9 @@ public class FilePump implements ActionListener {
 		JMenuItem menuItem = new JMenuItem("Settings...");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
+		menuItem = new JMenuItem("Create \"end.txt\" file");
+		menu.add(menuItem);
+		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("Exit");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
@@ -484,6 +490,20 @@ public class FilePump implements ActionListener {
 				// Update the main frame with the new settings
 				updateMainFrame();
 			}
+		} else if (eventI.getActionCommand().equals("Create \"end.txt\" file")) {
+			// Turn off pump if it is currently running
+			resetGUI_EDT();
+			stopFilePumpWorkerThread();
+			// Create an "end.txt" file in the output directory
+			// Make sure we can do this
+			String errStr = pumpSettings.canPumpRun();
+			if (!errStr.isEmpty()) {
+				JOptionPane.showMessageDialog(filePumpGuiFrame, new String("Settings error:\n" + errStr), "Settings error", JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			filePumpWorker = new FilePumpWorker(this, pumpSettings,true);
+			filePumpThread = new Thread(filePumpWorker);
+			filePumpThread.start();
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit();
 		} else if (source == actionButton) {
@@ -500,7 +520,7 @@ public class FilePump implements ActionListener {
 				actionButton.setText("Stop");
 				actionButton.setBackground(Color.RED);
 				// Start pump
-				filePumpWorker = new FilePumpWorker(this, pumpSettings);
+				filePumpWorker = new FilePumpWorker(this, pumpSettings,false);
 				filePumpThread = new Thread(filePumpWorker);
 				filePumpThread.start();
 			} else {
