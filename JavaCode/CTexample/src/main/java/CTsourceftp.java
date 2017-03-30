@@ -45,7 +45,7 @@ public class CTsourceftp {
 			// setup CTwriter
 //			CTwriter ctw = new CTwriter(dstFolder);
 			CTftp ctftp = new CTftp(dstFolder);
-			ctftp.login(host,user,pw);
+			ctftp.login(host,user,pw, true);
 			CTwriter ctw = ctftp;			// upcast to common reference
 			
 			ctw.setZipMode(true);			// bundle to zip files

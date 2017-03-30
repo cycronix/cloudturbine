@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPSClient;
 
 /**
  * CloudTurbine utility class that extends CTwriter class to write via FTP versus local filesystem
@@ -40,7 +41,7 @@ import org.apache.commons.net.ftp.FTPClient;
 
 public class CTftp extends CTwriter {
 
-	private FTPClient client = new FTPClient();
+	private FTPClient client = null;
 	private String loginDir = "";
 	private String currentDir = "";
 	
@@ -59,6 +60,13 @@ public class CTftp extends CTwriter {
 	//------------------------------------------------------------------------------------------------
 	
 	public void login(String host, String user, String pw) throws Exception {
+		login(host, user, pw, false);
+	}
+	
+	public void login(String host, String user, String pw, boolean secure) throws Exception {
+		if(secure) 	client = new FTPSClient(true);
+		else		client = new FTPClient();
+		
 		client.connect(host);
 		boolean success = client.login(user, pw); 
 		if(!success) {
