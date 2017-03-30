@@ -57,6 +57,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 
 import javax.imageio.ImageIO;
@@ -67,6 +68,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.HashLoginService;
+import org.eclipse.jetty.security.LoginService;
+import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -79,6 +85,9 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.util.security.Credential;
+import org.eclipse.jetty.util.security.Password;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.server.Connector;
 
@@ -105,6 +114,7 @@ public class CTweb {
     private static long queryCount=0;
     private static String keyStoreFile="ctweb.jks";		// HTTPS keystore file path
     private static String keyStorePW="ctweb.pw";		// keystore PW
+    private static String realmProps=null;				// authentication realm user/password info
 	private static int	port = 8000;					// default port
 	private static int sslport = 8443;					// HTTPS port (0 means none)
 	
@@ -114,7 +124,7 @@ public class CTweb {
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTweb -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystorefile> -K <keystorePW> rootFolder");
+    		System.err.println("CTweb -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -129,6 +139,7 @@ public class CTweb {
      		if(args[dirArg].equals("-s"))  	sourceFolder = args[++dirArg]; 
      		if(args[dirArg].equals("-k"))	keyStoreFile = args[++dirArg];
      		if(args[dirArg].equals("-K"))	keyStorePW = args[++dirArg];
+     		if(args[dirArg].equals("-a"))	realmProps = args[++dirArg];
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		dirArg++;
      	}
@@ -207,12 +218,9 @@ public class CTweb {
         		//        	sslContextFactory.setKeyManagerPassword(keypw);
 
         		// HTTPS Configuration
-        		// A new HttpConfiguration object is needed for the next connector and
-        		// you can pass the old one as an argument to effectively clone the
-        		// contents. On this HttpConfiguration object we add a
+        		// On this HttpConfiguration object we add a
         		// SecureRequestCustomizer which is how a new connector is able to
-        		// resolve the https connection before handing control over to the Jetty
-        		// Server.
+        		// resolve the https connection before handing control over to the Jetty Server.
         		HttpConfiguration https_config = new HttpConfiguration(http_config);
         		SecureRequestCustomizer src = new SecureRequestCustomizer();
         		src.setStsMaxAge(2000);
@@ -245,13 +253,6 @@ public class CTweb {
         else server.setConnectors(new Connector[] { http });
 
         // Set a handler
-        
-        // following ResourceHandler code doesn't seem to help? Handle resourceBase explicitly in doGet()
-//        ResourceHandler resource_handler = new ResourceHandler();
-//        resource_handler.setDirectoriesListed(true);
-//       resource_handler.setWelcomeFiles(new String[]{ "index.htm", "index.html", "cloudscan.htm", "webscan.htm"});
-//        resource_handler.setResourceBase(resourceBase);
-
         ServletHandler shandler = new ServletHandler();
         ServletHolder sholder;
         sholder = new ServletHolder(new CTServlet());
@@ -259,7 +260,8 @@ public class CTweb {
         sholder.setAsyncSupported(true);					// need fewer threads if non-blocking?
         sholder.setInitParameter("maxThreads", "100");		// how many is good?
         shandler.addServletWithMapping(sholder, "/*");
-        server.setHandler(shandler);
+        
+        setupAuthentication(server,shandler);				// set handler with optional authentication
 
         String msg;
         if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
@@ -267,6 +269,46 @@ public class CTweb {
         System.out.println("Server started.  webFolder: "+resourceBase+", dataFolder: "+rootFolder+msg+"\n");
 
         return server;
+    }
+    
+    //---------------------------------------------------------------------------------	
+    // setup authentication.  ref: https://www.eclipse.org/jetty/documentation/9.4.x/embedded-examples.html
+    
+    private static void setupAuthentication(Server server, ServletHandler shandler) {
+    	if(realmProps == null) {		// notta
+    		server.setHandler(shandler);
+    		return;
+    	}
+    	
+        // setup a hashmap based LoginService
+        HashLoginService loginService = new HashLoginService("CTrealm",realmProps);
+        server.addBean(loginService);
+
+        // The ConstraintSecurityHandler allows matching of urls to different constraints. 
+        ConstraintSecurityHandler security = new ConstraintSecurityHandler();
+        server.setHandler(security);
+
+        // This constraint requires authentication and that an
+        // authenticated user be a member of a given set of roles
+        Constraint constraint = new Constraint();
+        constraint.setName("auth");
+        constraint.setAuthenticate(true);
+//        constraint.setRoles(new String[] { "user", "admin" });
+        constraint.setRoles(new String[] { "**" });		// any role
+        
+        // Binds a url pattern with the previously created constraint.
+        ConstraintMapping mapping = new ConstraintMapping();
+        mapping.setPathSpec("/*");
+        mapping.setConstraint(constraint);
+
+        // Next we set a BasicAuthenticator that checks the credentials
+        // followed by the LoginService which is the store of known users, etc.
+        security.setConstraintMappings(Collections.singletonList(mapping));
+        security.setAuthenticator(new BasicAuthenticator());
+        security.setLoginService(loginService);
+
+        // set the given servlet handler on the to complete the simple handler chain.
+        security.setHandler(shandler);
     }
     
     //---------------------------------------------------------------------------------	
