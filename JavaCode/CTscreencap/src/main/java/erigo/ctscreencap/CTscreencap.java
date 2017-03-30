@@ -50,14 +50,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -94,19 +92,20 @@ import cycronix.ctlib.CTreader;
  * Classes involved in this application:
  * -------------------------------------
  * 1. CTscreencap: main class; manages the GUI and program flow
- * 2. DefineCaptureRegion: NO LONGER USED; we previously used this class to allow the
+ * 2. CTsettings: creates and manages a dialog to allow the user to edit settings
+ * 3. DefineCaptureRegion: NO LONGER USED; we previously used this class to allow the
  *       user to select the region of the screen they wish to capture; this is now
  *       done dynamically by the user moving and resizing the main application frame
- * 3. ScreencapTimerTask: the run() method in this class is called by the periodic
+ * 4. ScreencapTimerTask: the run() method in this class is called by the periodic
  *       Timer to take a screen capture; what this class does is create an instance
  *       of ScreencapTask and run it in a separate Thread
- * 4. ScreencapTask: generates a single screen capture and puts it on the queue
- * 5. TimeValue: these are the object put on the queue; each object contains
+ * 5. ScreencapTask: generates a single screen capture and puts it on the queue
+ * 6. TimeValue: these are the object put on the queue; each object contains
  *       a screen capture image and the time at which the screen capture was taken
- * 6. AudiocapTask: capture and save audio to CloudTurbine as ".wav" files
- * 7. WriteTask: grab images off the queue and write them to CT; this is executed
+ * 7. AudiocapTask: capture and save audio to CloudTurbine as ".wav" files
+ * 8. WriteTask: grab images off the queue and write them to CT; this is executed
  *       in a separate Thread
- * 8. Utility: contains utility methods
+ * 9. Utility: contains utility methods
  * 
  * How the program works:
  * ----------------------
@@ -184,25 +183,34 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	public final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 	
+	//
 	// Settings
+	//
+	// Setting made in the main GUI panel
 	public double framesPerSec;					// how many frames to capture per second
-	public long capturePeriodMillis;			// capture period in milliseconds
+	public long capturePeriodMillis;			// capture period in milliseconds; calculated from framesPerSec
+	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
+	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
+	public boolean bFullScreen = false;			// capture the full screen?
+	public boolean bAudioCapture = false;		// record synchronous audio?
+	public Rectangle regionToCapture = null;	// The region to capture
+	// Settings made in the Settings dialog, CTsettings
+	public CTsettings ctSettings = null;		// GUI to view/edit settings
 	public String outputFolder = "CTdata";		// location of output files
 	public String sourceName = "CTscreencap";	// output source name
 	public String channelName = "image.jpg";	// output channel name
+	public boolean bFTP = false;				// Are we in FTP mode?
+	public String ftpHost = "";					// FTP hostname
+	public String ftpUser = "";					// FTP username
+	public String ftpPassword = "";				// FTP password
 	public boolean bZipMode = true;				// output ZIP files?
 	public long autoFlushMillis;				// flush interval (msec)
 	public boolean bDebugMode = false;			// run CT in debug mode?
 	public boolean bIncludeMouseCursor = true;	// include the mouse cursor in the screencap image?
-	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
-	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
-	public Rectangle regionToCapture = null;	// The region to capture
-	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
-	public boolean bAudioCapture = false;		// record synchronous audio?
-	public boolean bFullScreen = false;			// capture the full screen?
 	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
+	// Other settings and flags
+	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
-	public boolean bFTP = false;				// Are we in FTP mode?
 	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
 	
 	// To control CT shutdown
@@ -230,7 +238,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public long lastCTtime = 0;					// Last timestamp sent to CTwriter.setTime(<time>)
 	public long continueWallclockInitTime = 0;	// Wallclock time when continue starts up.
 	
-	// GUI objects
+	// Main panel GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	public JPanel guiPanel = null;				// top-level panel that will contain all UI components
 	public int guiFrameOrigHeight = -1;			// used when clicking the Checkbox to go between capturing the region defined by capturePanel and full screen
@@ -385,6 +393,10 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    // Auto-flush time
 		double autoFlush = Double.parseDouble(line.getOptionValue("f",""+AUTO_FLUSH_DEFAULT));
 		autoFlushMillis = (long)(autoFlush*1000.);
+		if (autoFlushMillis < CTsettings.flushIntervalLongs[0]) {
+			System.err.println("autoFlush must be greater than or equal to " + CTsettings.flushIntervalLongs[0]);
+	     	return;
+		}
 	    // ZIP output files?
 	    bZipMode = !line.hasOption("no_zipfiles");
 	    // Include cursor in output screen capture images?
@@ -1107,6 +1119,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			}
 		}
 		
+		ctSettings = new CTsettings(this,guiFrame);
+		
 		guiFrame.setVisible(true);
 		
 	}
@@ -1244,6 +1258,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			startStopButton.setText("Stop");
 			startStopButton.setBackground(Color.RED);
 			continueButton.setEnabled(false);
+		} else if (eventI.getActionCommand().equals("Settings...")) {
+			// Turn off screencap (if it is running)
+			stopCapture();
+			startStopButton.setText("Start");
+			startStopButton.setBackground(Color.GREEN);
+			// Let user edit settings; the following function will not
+			// return until the user clicks the OK or Cancel button.
+			ctSettings.popupSettingsDialog();
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
 		}
