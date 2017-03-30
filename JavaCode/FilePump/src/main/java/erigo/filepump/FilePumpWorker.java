@@ -19,8 +19,14 @@ package erigo.filepump;
 /*
  * FilePumpWorker
  * 
- * This class is the real work-horse of the application.  It writes small files
- * at a user-specified rate into a specified directory.
+ * This class writes files into a user-specified directory.  It can be
+ * run in one of two modes:
+ * 
+ * 1. Write out a single "end.txt" file; this will signal to the
+ * downstream FileWatch application that the test is over.
+ * 
+ * 2. The main purpose of this class is to write small files at a user-
+ * specified rate into a specified directory.  Details described below.
  * 
  * The file names are of the format:
  * 
@@ -74,6 +80,9 @@ public class FilePumpWorker implements Runnable {
 	
 	private Boolean debug = false;
 	
+	// Should this class only write an end.txt file and then stop?
+	private boolean bJustWriteEndFile = false;
+	
 	// Variables dealing with FTP writes
 	private FTPClient ftpClient = null;
 	private String loginDir = "";
@@ -84,9 +93,10 @@ public class FilePumpWorker implements Runnable {
     FileSystemOptions fileSystemOptions = null;
     String baseConnectionStr = null;
     
-    public FilePumpWorker(FilePump pumpGUII, FilePumpSettings pumpSettingsI) {
+    public FilePumpWorker(FilePump pumpGUII, FilePumpSettings pumpSettingsI, boolean bJustWriteEndFileI) {
     	pumpGUI = pumpGUII;
     	pumpSettings = pumpSettingsI;
+    	bJustWriteEndFile = bJustWriteEndFileI;
     }
     
     public void run() {
@@ -106,7 +116,11 @@ public class FilePumpWorker implements Runnable {
         int random_range = 999999;
         
         if (mode == FilePumpSettings.FileMode.LOCAL_FILESYSTEM) {
-        	System.err.println("\nWrite files to " + output_dir_name);
+        	if (bJustWriteEndFile) {
+        		System.err.println("\nWrite \"end.txt\" file to " + output_dir_name);
+        	} else {
+        		System.err.println("\nWrite files to " + output_dir_name);
+        	}
         } else if (mode == FilePumpSettings.FileMode.FTP) {
         	ftpClient = new FTPClient();
         	try {
@@ -117,7 +131,11 @@ public class FilePumpWorker implements Runnable {
         	}
         	// Make sure we are only using "/" in output_dir_name
     		output_dir_name = output_dir_name.replace('\\', '/');
-        	System.err.println("\nFTP files: host = " + ftpHost + ", username = " + ftpUsername + ", folder = " + output_dir_name);
+    		if (bJustWriteEndFile) {
+    			System.err.println("\nWrite \"end.txt\" file out using FTP: host = " + ftpHost + ", username = " + ftpUsername + ", folder = " + output_dir_name);
+    		} else {
+    			System.err.println("\nFTP files: host = " + ftpHost + ", username = " + ftpUsername + ", folder = " + output_dir_name);
+    		}
         } else if (mode == FilePumpSettings.FileMode.SFTP) {
         	// Make sure output_dir_name starts with an "/"
         	if (output_dir_name.charAt(0) != '/') {
@@ -141,7 +159,43 @@ public class FilePumpWorker implements Runnable {
     		//     sftp://fooUser:fooPW@192.168.2.56/FooFolder
     		// Note that up above we made sure that output_dir_name starts with "/"
     		baseConnectionStr = "sftp://" + ftpUsername + ":" + ftpPassword + "@" + ftpHost + output_dir_name;
-    		System.err.println("\nSFTP files: host = " + ftpHost + ", username = " + ftpUsername + ", folder = " + output_dir_name);
+    		if (bJustWriteEndFile) {
+    			System.err.println("\nWrite \"end.txt\" file out using SFTP: host = " + ftpHost + ", username = " + ftpUsername + ", folder = " + output_dir_name);
+    		} else {
+    			System.err.println("\nSFTP files: host = " + ftpHost + ", username = " + ftpUsername + ", folder = " + output_dir_name);
+    		}
+        }
+        
+        //
+        // If out only task is to send an end.txt file, go ahead and do it and then return
+        //
+        if (bJustWriteEndFile) {
+        	String filename = "end.txt";
+        	if (mode == FilePumpSettings.FileMode.FTP) {
+        		writeToFTP(output_dir_name, filename, 1);
+        	} else if (mode == FilePumpSettings.FileMode.SFTP) {
+        		writeToSFTP(filename, 1);
+        	} else {
+        		File full_filename = new File(output_dir_name,filename);
+        		FileWriter fw;
+				try {
+					fw = new FileWriter(full_filename,false);
+				} catch (IOException e) {
+					System.err.println("Caught IOException trying to create the FileWriter:\n" + e + "\n");
+					e.printStackTrace();
+					return;
+				}
+        		PrintWriter pw = new PrintWriter(fw);
+        		pw.format("1\n");
+        		pw.close();
+        	}
+        	if (mode == FilePumpSettings.FileMode.FTP) {
+            	logout();
+            } else if (mode == FilePumpSettings.FileMode.SFTP) {
+            	manager.close();
+            }
+        	System.err.println("Wrote out \"end.txt\"");
+        	return;
         }
         
         //
@@ -225,7 +279,7 @@ public class FilePumpWorker implements Runnable {
         
         if (mode == FilePumpSettings.FileMode.FTP) {
         	logout();
-        } else if (mode == FilePumpSettings.FileMode.FTP) {
+        } else if (mode == FilePumpSettings.FileMode.SFTP) {
         	manager.close();
         }
         
