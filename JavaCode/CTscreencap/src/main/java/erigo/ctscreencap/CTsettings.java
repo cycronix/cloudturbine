@@ -67,6 +67,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private String orig_outputFolder;
 	private String orig_sourceName;
 	private String orig_channelName;
+	private String orig_audioChannelName;
 	private boolean orig_bFTP;
 	private String orig_ftpHost;
 	private String orig_ftpUser;
@@ -82,6 +83,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JTextField outputFolderTF = null;
 	private JTextField sourceNameTF = null;
 	private JTextField channelNameTF = null;
+	private JTextField audioChannelNameTF = null;
 	private JCheckBox bFTPCheckB = null;
 	private JLabel ftpHostLabel = null;
 	private JTextField ftpHostTF = null;
@@ -124,6 +126,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		outputFolderTF = new JTextField(25);
 		sourceNameTF = new JTextField(25);
 		channelNameTF = new JTextField(10);
+		audioChannelNameTF = new JTextField(10);
 		bFTPCheckB = new JCheckBox("Use FTP");
 		bFTPCheckB.addItemListener(this);
 		ftpHostLabel = new JLabel("Host",SwingConstants.LEFT);
@@ -180,7 +183,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		tempLabel = new JLabel("Channel name",SwingConstants.LEFT);
+		tempLabel = new JLabel("Image channel name",SwingConstants.LEFT);
 		gbc.insets = new Insets(10,15,0,10);
 		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
 		gbc.insets = new Insets(10,0,0,15);
@@ -190,7 +193,21 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,channelNameTF,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 4 - FTP checkbox
+		// ROW 4 - audio channel name
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		tempLabel = new JLabel("Audio channel name",SwingConstants.LEFT);
+		gbc.insets = new Insets(10,15,0,10);
+		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
+		gbc.insets = new Insets(10,0,0,15);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		Utility.add(guiPanel,audioChannelNameTF,gbl,gbc,1,row,1,1);
+		row++;
+		
+		// ROW 5 - FTP checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -198,7 +215,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bFTPCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 5 - panel containing the FTP parameters (host, username, password)
+		// ROW 6 - panel containing the FTP parameters (host, username, password)
 		GridBagLayout panel_gbl = new GridBagLayout();
 		JPanel ftpPanel = new JPanel(panel_gbl);
 		GridBagConstraints panel_gbc = new GridBagConstraints();
@@ -232,7 +249,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,ftpPanel,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 6 - flush interval
+		// ROW 7 - flush interval
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -246,7 +263,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,flushIntervalComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 7 - num blocks per segment
+		// ROW 8 - num blocks per segment
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -260,7 +277,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,numBlocksPerSegmentComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 8 - debug checkbox
+		// ROW 9 - debug checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -268,7 +285,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 9 - include mouse cursor checkbox
+		// ROW 10 - include mouse cursor checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -276,7 +293,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 10 - stay on top checkbox
+		// ROW 11 - stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -284,7 +301,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bStayOnTopCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 11 - OK/Cancel command buttons
+		// ROW 12 - OK/Cancel command buttons
 		// Put the command buttons in a JPanel so they are all the same size
         JPanel buttonPanel = new JPanel(new GridLayout(1,2,15,0));
         buttonPanel.add(okButton);
@@ -341,21 +358,38 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 			return "You must specify a source name.";
 		}
 		
-		// Check channelName
+		// Check image channelName
 		if ( (ctScreencap.channelName == null) || (ctScreencap.channelName.length() == 0) ) {
-			return "You must specify a channel name";
+			return "You must specify an image channel name";
 		}
 		if (ctScreencap.channelName.contains(" ")) {
-			return "You must specify a channel name that does not contain embedded spaces";
+			return "You must specify an image channel name that does not contain embedded spaces";
 		}
-		// Check the filename extension on the channel name; should be .jpg or .jpeg
+		// Check the filename extension on the image channel name; should be .jpg or .jpeg
 		int dotIdx = ctScreencap.channelName.lastIndexOf('.');
 		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctScreencap.channelName.length()-1)) ) {
-			return "The channel name must end in \".jpg\" or \".jpeg\"";
+			return "The image channel name must end in \".jpg\" or \".jpeg\"";
 		}
 		String filenameExt = ctScreencap.channelName.substring(dotIdx).toLowerCase();
 		if ( !filenameExt.equals(".jpg") && !filenameExt.equals(".jpeg") ) {
-			return "The channel name must end in \".jpg\" or \".jpeg\"";
+			return "The image channel name must end in \".jpg\" or \".jpeg\"";
+		}
+		
+		// Check audio channelName
+		if ( (ctScreencap.audioChannelName == null) || (ctScreencap.audioChannelName.length() == 0) ) {
+			return "You must specify an audio channel name";
+		}
+		if (ctScreencap.audioChannelName.contains(" ")) {
+			return "You must specify an audio channel name that does not contain embedded spaces";
+		}
+		// Check the filename extension on the audio channel name; should be .wav
+		dotIdx = ctScreencap.audioChannelName.lastIndexOf('.');
+		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctScreencap.audioChannelName.length()-1)) ) {
+			return "The audio channel name must end in \".wav\"";
+		}
+		filenameExt = ctScreencap.audioChannelName.substring(dotIdx).toLowerCase();
+		if (!filenameExt.equals(".wav")) {
+			return "The audio channel name must end in \".wav\"";
 		}
 		
 		// Check FTP parameters, when using FTP
@@ -390,6 +424,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_outputFolder = ctScreencap.outputFolder;
 		orig_sourceName = ctScreencap.sourceName;
 		orig_channelName = ctScreencap.channelName;
+		orig_audioChannelName = ctScreencap.audioChannelName;
 		orig_bFTP = ctScreencap.bFTP;
 		orig_ftpHost = ctScreencap.ftpHost;
 		orig_ftpUser = ctScreencap.ftpUser;
@@ -405,6 +440,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		outputFolderTF.setText(ctScreencap.outputFolder);
 		sourceNameTF.setText(ctScreencap.sourceName);
 		channelNameTF.setText(ctScreencap.channelName);
+		audioChannelNameTF.setText(ctScreencap.audioChannelName);
 		bFTPCheckB.setSelected(ctScreencap.bFTP);
 		ftpHostTF.setText(ctScreencap.ftpHost);
 		ftpUserTF.setText(ctScreencap.ftpUser);
@@ -505,6 +541,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctScreencap.outputFolder = outputFolderTF.getText().trim();
 		ctScreencap.sourceName = sourceNameTF.getText().trim();
 		ctScreencap.channelName = channelNameTF.getText().trim();
+		ctScreencap.audioChannelName = audioChannelNameTF.getText().trim();
 		ctScreencap.bFTP = bFTPCheckB.isSelected();
 		ctScreencap.ftpHost = ftpHostTF.getText().trim();
 		ctScreencap.ftpUser = ftpUserTF.getText().trim();
@@ -530,7 +567,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		String errStr = canCTrun();
 		if (!errStr.isEmpty()) {
 			// Was a problem with the data the user entered
-			JOptionPane.showMessageDialog(this, errStr, "CloudTurbine settings error", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(this, errStr, "CTscreencap settings error", JOptionPane.ERROR_MESSAGE);
 			return;
 		}
 		
@@ -548,6 +585,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctScreencap.outputFolder = orig_outputFolder;
 		ctScreencap.sourceName = orig_sourceName;
 		ctScreencap.channelName = orig_channelName;
+		ctScreencap.audioChannelName = orig_audioChannelName;
 		ctScreencap.bFTP = orig_bFTP;
 		ctScreencap.ftpHost = orig_ftpHost;
 		ctScreencap.ftpUser = orig_ftpUser;
