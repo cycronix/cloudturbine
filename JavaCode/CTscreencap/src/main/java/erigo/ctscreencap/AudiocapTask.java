@@ -119,7 +119,7 @@ public class AudiocapTask {
 								 */
 								if (count > 0) {
 									ctw.setTime(time);
-									ctw.putData("audio.wav", addWaveHeader(buffer));
+									ctw.putData(cts.audioChannelName, addWaveHeader(buffer));
 									ctw.flush(true);		// gapless
 								}
 

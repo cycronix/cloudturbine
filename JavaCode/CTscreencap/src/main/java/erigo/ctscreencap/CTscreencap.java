@@ -64,6 +64,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
@@ -199,7 +200,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public CTsettings ctSettings = null;		// GUI to view/edit settings
 	public String outputFolder = "CTdata";		// location of output files
 	public String sourceName = "CTscreencap";	// output source name
-	public String channelName = "image.jpg";	// output channel name
+	public String channelName = "image.jpg";	// output image channel name; must end in ".jpg" or ".jpeg"
+	public String audioChannelName="audio.wav";	// output audio channel name; must end in ".wav"
 	public boolean bFTP = false;				// Are we in FTP mode?
 	public String ftpHost = "";					// FTP hostname
 	public String ftpUser = "";					// FTP username
@@ -364,7 +366,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		Option chanNameOption = Option.builder("c")
 				.argName("channelname")
 				.hasArg()
-				.desc("name of output channel; default = \"" + channelName + "\"")
+				.desc("name of output image channel; must end in \".jpg\" or \".jpeg\"; default = \"" + channelName + "\"")
 				.build();
 		options.addOption(chanNameOption);
 		Option imgQualityOption = Option.builder("q")
@@ -1277,6 +1279,12 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				}
 			}
 		} else if (eventI.getActionCommand().equals("Start")) {
+			// Make sure all needed values have been set
+			String errStr = ctSettings.canCTrun();
+			if (!errStr.isEmpty()) {
+				JOptionPane.showMessageDialog(guiFrame, errStr, "CTscreencap settings error", JOptionPane.ERROR_MESSAGE);
+				return;
+			}
 			((JButton)source).setText("Starting...");
 			bContinueMode = false;
 			firstCTtime = 0;
