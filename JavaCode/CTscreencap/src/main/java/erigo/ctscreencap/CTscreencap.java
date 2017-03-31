@@ -50,14 +50,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -82,6 +80,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import cycronix.ctlib.CTwriter;
+import cycronix.ctlib.CTftp;
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTreader;
 
@@ -94,19 +93,20 @@ import cycronix.ctlib.CTreader;
  * Classes involved in this application:
  * -------------------------------------
  * 1. CTscreencap: main class; manages the GUI and program flow
- * 2. DefineCaptureRegion: NO LONGER USED; we previously used this class to allow the
+ * 2. CTsettings: creates and manages a dialog to allow the user to edit settings
+ * 3. DefineCaptureRegion: NO LONGER USED; we previously used this class to allow the
  *       user to select the region of the screen they wish to capture; this is now
  *       done dynamically by the user moving and resizing the main application frame
- * 3. ScreencapTimerTask: the run() method in this class is called by the periodic
+ * 4. ScreencapTimerTask: the run() method in this class is called by the periodic
  *       Timer to take a screen capture; what this class does is create an instance
  *       of ScreencapTask and run it in a separate Thread
- * 4. ScreencapTask: generates a single screen capture and puts it on the queue
- * 5. TimeValue: these are the object put on the queue; each object contains
+ * 5. ScreencapTask: generates a single screen capture and puts it on the queue
+ * 6. TimeValue: these are the object put on the queue; each object contains
  *       a screen capture image and the time at which the screen capture was taken
- * 6. AudiocapTask: capture and save audio to CloudTurbine as ".wav" files
- * 7. WriteTask: grab images off the queue and write them to CT; this is executed
+ * 7. AudiocapTask: capture and save audio to CloudTurbine as ".wav" files
+ * 8. WriteTask: grab images off the queue and write them to CT; this is executed
  *       in a separate Thread
- * 8. Utility: contains utility methods
+ * 9. Utility: contains utility methods
  * 
  * How the program works:
  * ----------------------
@@ -184,25 +184,35 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	public final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 	
+	//
 	// Settings
+	//
+	// Setting made in the main GUI panel
 	public double framesPerSec;					// how many frames to capture per second
-	public long capturePeriodMillis;			// capture period in milliseconds
+	public long capturePeriodMillis;			// capture period in milliseconds; calculated from framesPerSec
+	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
+	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
+	public boolean bFullScreen = false;			// capture the full screen?
+	public boolean bAudioCapture = false;		// record synchronous audio?
+	public Rectangle regionToCapture = null;	// The region to capture
+	// Settings made in the Settings dialog, CTsettings
+	public CTsettings ctSettings = null;		// GUI to view/edit settings
 	public String outputFolder = "CTdata";		// location of output files
 	public String sourceName = "CTscreencap";	// output source name
 	public String channelName = "image.jpg";	// output channel name
+	public boolean bFTP = false;				// Are we in FTP mode?
+	public String ftpHost = "";					// FTP hostname
+	public String ftpUser = "";					// FTP username
+	public String ftpPassword = "";				// FTP password
 	public boolean bZipMode = true;				// output ZIP files?
 	public long autoFlushMillis;				// flush interval (msec)
+	public long numBlocksPerSegment = 0;		// number of blocks per segment; defaults to 0 (no segments)
 	public boolean bDebugMode = false;			// run CT in debug mode?
 	public boolean bIncludeMouseCursor = true;	// include the mouse cursor in the screencap image?
-	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
-	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
-	public Rectangle regionToCapture = null;	// The region to capture
-	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
-	public boolean bAudioCapture = false;		// record synchronous audio?
-	public boolean bFullScreen = false;			// capture the full screen?
 	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
+	// Other settings and flags
+	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
-	public boolean bFTP = false;				// Are we in FTP mode?
 	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
 	
 	// To control CT shutdown
@@ -230,7 +240,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public long lastCTtime = 0;					// Last timestamp sent to CTwriter.setTime(<time>)
 	public long continueWallclockInitTime = 0;	// Wallclock time when continue starts up.
 	
-	// GUI objects
+	// Main panel GUI objects
 	public JFrame guiFrame = null;				// JFrame which contains translucent panel which defines the capture region
 	public JPanel guiPanel = null;				// top-level panel that will contain all UI components
 	public int guiFrameOrigHeight = -1;			// used when clicking the Checkbox to go between capturing the region defined by capturePanel and full screen
@@ -297,6 +307,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         for (int i=1; i<FPS_VALUES.length; ++i) {
         	FPS_VALUES_STR = FPS_VALUES_STR + "," + FPS_VALUES[i].toString();
         }
+        
+        // Create a String version of CTsettings.flushIntervalLongs
+        String FLUSH_VALUES_STR = String.format("%.1f",CTsettings.flushIntervalLongs[0]/1000.0);
+        for (int i=1; i<CTsettings.flushIntervalLongs.length; ++i) {
+        	// Except for the first flush value (handled above, first item in the string) the rest of these
+        	// are whole numbers, so we will print them out with no decimal places
+        	FLUSH_VALUES_STR = FLUSH_VALUES_STR + "," + String.format("%.0f",CTsettings.flushIntervalLongs[i]/1000.0);
+        }
 		
 		//
 		// Parse command line arguments
@@ -307,7 +325,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Boolean options (only the flag, no argument)
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption("nm", "no_mouse_cursor", false, "don't include mouse cursor in output screen capture images");
-		options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
+		// JPW 2017-03-31: automatically use ZIP
+		//     only case where ZIP mode is turned off is if the user has selected "Max responsiveness" for the flush interval
+		// options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
 		options.addOption("x", "debug", false, "use debug mode");
 		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")"); // MJM
 		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")"); // MJM
@@ -332,7 +352,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		Option autoFlushOption = Option.builder("f")
 				.argName("autoFlush")
 				.hasArg()
-				.desc("flush interval (sec); amount of data per zipfile; default = " + Double.toString(AUTO_FLUSH_DEFAULT))
+				.desc("flush interval (sec); amount of data per block; default = " + Double.toString(AUTO_FLUSH_DEFAULT) + "; accepted values = " + FLUSH_VALUES_STR)
 				.build();
 		options.addOption(autoFlushOption);
 		Option sourceNameOption = Option.builder("s")
@@ -383,18 +403,35 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    // Channel name
 	    channelName = line.getOptionValue("c",channelName);
 	    // Auto-flush time
-		double autoFlush = Double.parseDouble(line.getOptionValue("f",""+AUTO_FLUSH_DEFAULT));
-		autoFlushMillis = (long)(autoFlush*1000.);
+	    try {
+	    	double autoFlush = Double.parseDouble(line.getOptionValue("f",""+AUTO_FLUSH_DEFAULT));
+	    	autoFlushMillis = (long)(autoFlush*1000.);
+	    	boolean bGotMatch = false;
+	    	for (int i=0; i<CTsettings.flushIntervalLongs.length; ++i) {
+	    		if (autoFlushMillis == CTsettings.flushIntervalLongs[i]) {
+	    			bGotMatch = true;
+	    			break;
+	    		}
+	    	}
+	    	if (!bGotMatch) {
+	    		throw new NumberFormatException("bad input value");
+	    	}
+	    } catch (NumberFormatException nfe) {
+	    	System.err.println("\nAuto flush time must be one of the following values: " + FLUSH_VALUES_STR);
+	    	return;
+	    }
 	    // ZIP output files?
-	    bZipMode = !line.hasOption("no_zipfiles");
+		// JPW 2017-03-31: no longer a "no zip" command line flag
+		// only case where ZIP mode is turned off is if the user has selected the minimum flush interval
+	    // bZipMode = !line.hasOption("no_zipfiles");
+	    bZipMode = true;
+	    if (autoFlushMillis == CTsettings.flushIntervalLongs[0]) {
+	    	bZipMode = false;
+	    }
 	    // Include cursor in output screen capture images?
 	    bIncludeMouseCursor = !line.hasOption("no_mouse_cursor");
 	    // Where to write the files to
 	    outputFolder = line.getOptionValue("outputfolder",outputFolder);
-	    // Make sure outputFolder ends in a file separator
-	    if (!outputFolder.endsWith(File.separator)) {
-	    	outputFolder = outputFolder + File.separator;
-	    }
 	    // How many frames (i.e., screen dumps) to capture per second
 	    try {
 	    	framesPerSec = Double.parseDouble(line.getOptionValue("fps",""+DEFAULT_FPS));
@@ -617,13 +654,30 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Setup CTwriter
 		try {
 			CTinfo.setDebug(bDebugMode);
-			ctw = new CTwriter(outputFolder + sourceName);
+			// Make sure outputFolder ends in a file separator
+			String outFolderToUse = outputFolder;
+		    if (!outputFolder.endsWith(File.separator)) {
+		    	outFolderToUse = outputFolder + File.separator;
+		    }
+		    if (!bFTP) {
+				ctw = new CTwriter(outFolderToUse + sourceName);
+			} else {
+				CTftp ctftp = new CTftp(outFolderToUse + sourceName);
+				try {
+					ctftp.login(ftpHost,ftpUser,ftpPassword);
+					// upcast to CTWriter
+					ctw = ctftp;
+				} catch (Exception e) {
+					System.err.println("Error logging into FTP server \"" + ftpHost + "\":\n" + e.getMessage());
+					return;
+				}
+			}
 			if (!bAudioCapture) {
 				// if no audio, auto-flush on video
 				ctw.autoFlush(autoFlushMillis);
 			}
 			ctw.setZipMode(bZipMode);
-			ctw.autoSegment(1000);
+			ctw.autoSegment(numBlocksPerSegment);
 		} catch (IOException ioe) {
 			System.err.println("Error trying to create CloudTurbine writer object:\n" + ioe);
 			return;
@@ -1107,6 +1161,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			}
 		}
 		
+		ctSettings = new CTsettings(this,guiFrame);
+		
 		guiFrame.setVisible(true);
 		
 	}
@@ -1244,6 +1300,22 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			startStopButton.setText("Stop");
 			startStopButton.setBackground(Color.RED);
 			continueButton.setEnabled(false);
+		} else if (eventI.getActionCommand().equals("Settings...")) {
+			boolean bBeenRunning = false;
+			if (startStopButton.getText().equals("Stop")) {
+				bBeenRunning = true;
+			}
+			// Turn off screencap (if it is running)
+			stopCapture();
+			startStopButton.setText("Start");
+			startStopButton.setBackground(Color.GREEN);
+			// Only want to enable the Continue button if the user had in fact been running
+			if (bBeenRunning) {
+				continueButton.setEnabled(true);
+			}
+			// Let user edit settings; the following function will not
+			// return until the user clicks the OK or Cancel button.
+			ctSettings.popupSettingsDialog();
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
 		}
