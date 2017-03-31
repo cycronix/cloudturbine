@@ -75,6 +75,7 @@ public class CTdata {
 	
 	// add byte array
 	void add(double mytime, byte[] mydata, CTFile file) {
+		if(mydata==null) return;		// firewall
 		timelist.add(mytime);
 		datalist.add(mydata);
 		filelist.add(file);
