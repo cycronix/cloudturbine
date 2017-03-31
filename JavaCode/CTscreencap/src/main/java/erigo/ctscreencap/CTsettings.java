@@ -54,8 +54,11 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
     
 	private static final long serialVersionUID = 1L;
 	
-	private static final String[] flushIntervalStrings = { "Max responsiveness", "1sec", "2s", "5s", "10s", "30s", "1min" };
-	public static final Long[] flushIntervalLongs = { new Long(100), new Long(1000), new Long(2000), new Long(5000), new Long(10000), new Long(30000), new Long(60000) };
+	private static final String[] flushIntervalStrings = { "Max responsiveness", "1sec", "2s", "5s", "10s", "30s", "1min", "2min", "5min", "10min" };
+	public static final Long[] flushIntervalLongs = { new Long(100), new Long(1000), new Long(2000), new Long(5000), new Long(10000), new Long(30000), new Long(60000), new Long(120000), new Long(300000), new Long(600000) };
+	
+	private static final String[] numBlocksPerSegmentStrings = { "No segments", "10", "20", "60", "120", "300", "600", "1800", "3600" };
+	public static final Long[] numBlocksPerSegmentLongs = { new Long(0), new Long(10), new Long(20), new Long(60), new Long(120), new Long(300), new Long(600), new Long(1800), new Long(3600) };
 	
 	CTscreencap ctScreencap = null;
 	JFrame parentFrame = null;
@@ -70,6 +73,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private String orig_ftpPassword;
 	private boolean orig_bZipMode;
 	private long orig_autoFlushMillis;
+	private long orig_numBlocksPerSegment;
 	private boolean orig_bDebugMode;
 	private boolean orig_bIncludeMouseCursor;
 	private boolean orig_bStayOnTop;
@@ -86,6 +90,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JLabel ftpPasswordLabel = null;
 	private JPasswordField ftpPasswordTF = null;
 	private JComboBox<String> flushIntervalComboB = null;
+	private JComboBox<String> numBlocksPerSegmentComboB = null;
 	private JCheckBox bDebugModeCheckB = null;
 	private JCheckBox bIncludeMouseCursorCheckB = null;
 	private JCheckBox bStayOnTopCheckB = null;
@@ -129,6 +134,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ftpPasswordTF = new JPasswordField(15);
 		flushIntervalComboB = new JComboBox<String>(flushIntervalStrings);
 		flushIntervalComboB.setPrototypeDisplayValue("XXXXXXXXXXXXXXXXXXX");
+		numBlocksPerSegmentComboB = new JComboBox<String>(numBlocksPerSegmentStrings);
+		numBlocksPerSegmentComboB.setPrototypeDisplayValue("XXXXXXXXXXXX");
 		flushIntervalComboB.setEditable(false);
 		bDebugModeCheckB = new JCheckBox("Turn on CT debug");
 		bIncludeMouseCursorCheckB = new JCheckBox("Include cursor in screen capture");
@@ -239,7 +246,21 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,flushIntervalComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 7 - debug checkbox
+		// ROW 7 - num blocks per segment
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		gbc.insets = new Insets(10,15,0,10);
+		tempLabel = new JLabel("Num blocks per segment",SwingConstants.LEFT);
+		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
+		gbc.insets = new Insets(10,0,0,15);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		Utility.add(guiPanel,numBlocksPerSegmentComboB,gbl,gbc,1,row,1,1);
+		row++;
+		
+		// ROW 8 - debug checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -247,7 +268,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 8 - include mouse cursor checkbox
+		// ROW 9 - include mouse cursor checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -255,7 +276,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 9 - stay on top checkbox
+		// ROW 10 - stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -263,7 +284,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bStayOnTopCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 10 - OK/Cancel command buttons
+		// ROW 11 - OK/Cancel command buttons
 		// Put the command buttons in a JPanel so they are all the same size
         JPanel buttonPanel = new JPanel(new GridLayout(1,2,15,0));
         buttonPanel.add(okButton);
@@ -327,6 +348,15 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		if (ctScreencap.channelName.contains(" ")) {
 			return "You must specify a channel name that does not contain embedded spaces";
 		}
+		// Check the filename extension on the channel name; should be .jpg or .jpeg
+		int dotIdx = ctScreencap.channelName.lastIndexOf('.');
+		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctScreencap.channelName.length()-1)) ) {
+			return "The channel name must end in \".jpg\" or \".jpeg\"";
+		}
+		String filenameExt = ctScreencap.channelName.substring(dotIdx).toLowerCase();
+		if ( !filenameExt.equals(".jpg") && !filenameExt.equals(".jpeg") ) {
+			return "The channel name must end in \".jpg\" or \".jpeg\"";
+		}
 		
 		// Check FTP parameters, when using FTP
 		if (ctScreencap.bFTP) {
@@ -366,6 +396,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_ftpPassword = ctScreencap.ftpPassword;
 		orig_bZipMode = ctScreencap.bZipMode;
 		orig_autoFlushMillis = ctScreencap.autoFlushMillis;
+		orig_numBlocksPerSegment = ctScreencap.numBlocksPerSegment;
 		orig_bDebugMode = ctScreencap.bDebugMode;
 		orig_bIncludeMouseCursor = ctScreencap.bIncludeMouseCursor;
 		orig_bStayOnTop = ctScreencap.bStayOnTop;
@@ -389,6 +420,11 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 			selectedIdx = 1;
 		}
 		flushIntervalComboB.setSelectedIndex(selectedIdx);
+		selectedIdx = Arrays.asList(numBlocksPerSegmentLongs).indexOf(ctScreencap.numBlocksPerSegment);
+		if (selectedIdx == -1) {
+			selectedIdx = 0;
+		}
+		numBlocksPerSegmentComboB.setSelectedIndex(selectedIdx);
 		bDebugModeCheckB.setSelected(ctScreencap.bDebugMode);
 		bIncludeMouseCursorCheckB.setSelected(ctScreencap.bIncludeMouseCursor);
 		bStayOnTopCheckB.setSelected(ctScreencap.bStayOnTop);
@@ -480,6 +516,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		} else {
 			ctScreencap.bZipMode = true;
 		}
+		ctScreencap.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctScreencap.bDebugMode = bDebugModeCheckB.isSelected();
 		ctScreencap.bIncludeMouseCursor = bIncludeMouseCursorCheckB.isSelected();
 		ctScreencap.bStayOnTop = bStayOnTopCheckB.isSelected();
@@ -517,6 +554,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctScreencap.ftpPassword = orig_ftpPassword;
 		ctScreencap.bZipMode = orig_bZipMode;
 		ctScreencap.autoFlushMillis = orig_autoFlushMillis;
+		ctScreencap.numBlocksPerSegment = orig_numBlocksPerSegment;
 		ctScreencap.bDebugMode = orig_bDebugMode;
 		ctScreencap.bIncludeMouseCursor = orig_bIncludeMouseCursor;
 		ctScreencap.bStayOnTop = orig_bStayOnTop;

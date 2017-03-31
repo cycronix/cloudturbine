@@ -80,6 +80,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import cycronix.ctlib.CTwriter;
+import cycronix.ctlib.CTftp;
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTreader;
 
@@ -205,6 +206,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public String ftpPassword = "";				// FTP password
 	public boolean bZipMode = true;				// output ZIP files?
 	public long autoFlushMillis;				// flush interval (msec)
+	public long numBlocksPerSegment = 0;		// number of blocks per segment; defaults to 0 (no segments)
 	public boolean bDebugMode = false;			// run CT in debug mode?
 	public boolean bIncludeMouseCursor = true;	// include the mouse cursor in the screencap image?
 	public boolean bStayOnTop = false;			// keep the CTscreencap UI on top of all other windows on the desktop
@@ -305,6 +307,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
         for (int i=1; i<FPS_VALUES.length; ++i) {
         	FPS_VALUES_STR = FPS_VALUES_STR + "," + FPS_VALUES[i].toString();
         }
+        
+        // Create a String version of CTsettings.flushIntervalLongs
+        String FLUSH_VALUES_STR = String.format("%.1f",CTsettings.flushIntervalLongs[0]/1000.0);
+        for (int i=1; i<CTsettings.flushIntervalLongs.length; ++i) {
+        	// Except for the first flush value (handled above, first item in the string) the rest of these
+        	// are whole numbers, so we will print them out with no decimal places
+        	FLUSH_VALUES_STR = FLUSH_VALUES_STR + "," + String.format("%.0f",CTsettings.flushIntervalLongs[i]/1000.0);
+        }
 		
 		//
 		// Parse command line arguments
@@ -315,7 +325,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Boolean options (only the flag, no argument)
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption("nm", "no_mouse_cursor", false, "don't include mouse cursor in output screen capture images");
-		options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
+		// JPW 2017-03-31: automatically use ZIP
+		//     only case where ZIP mode is turned off is if the user has selected "Max responsiveness" for the flush interval
+		// options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
 		options.addOption("x", "debug", false, "use debug mode");
 		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")"); // MJM
 		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")"); // MJM
@@ -340,7 +352,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		Option autoFlushOption = Option.builder("f")
 				.argName("autoFlush")
 				.hasArg()
-				.desc("flush interval (sec); amount of data per zipfile; default = " + Double.toString(AUTO_FLUSH_DEFAULT))
+				.desc("flush interval (sec); amount of data per block; default = " + Double.toString(AUTO_FLUSH_DEFAULT) + "; accepted values = " + FLUSH_VALUES_STR)
 				.build();
 		options.addOption(autoFlushOption);
 		Option sourceNameOption = Option.builder("s")
@@ -391,22 +403,35 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    // Channel name
 	    channelName = line.getOptionValue("c",channelName);
 	    // Auto-flush time
-		double autoFlush = Double.parseDouble(line.getOptionValue("f",""+AUTO_FLUSH_DEFAULT));
-		autoFlushMillis = (long)(autoFlush*1000.);
-		if (autoFlushMillis < CTsettings.flushIntervalLongs[0]) {
-			System.err.println("autoFlush must be greater than or equal to " + CTsettings.flushIntervalLongs[0]);
-	     	return;
-		}
+	    try {
+	    	double autoFlush = Double.parseDouble(line.getOptionValue("f",""+AUTO_FLUSH_DEFAULT));
+	    	autoFlushMillis = (long)(autoFlush*1000.);
+	    	boolean bGotMatch = false;
+	    	for (int i=0; i<CTsettings.flushIntervalLongs.length; ++i) {
+	    		if (autoFlushMillis == CTsettings.flushIntervalLongs[i]) {
+	    			bGotMatch = true;
+	    			break;
+	    		}
+	    	}
+	    	if (!bGotMatch) {
+	    		throw new NumberFormatException("bad input value");
+	    	}
+	    } catch (NumberFormatException nfe) {
+	    	System.err.println("\nAuto flush time must be one of the following values: " + FLUSH_VALUES_STR);
+	    	return;
+	    }
 	    // ZIP output files?
-	    bZipMode = !line.hasOption("no_zipfiles");
+		// JPW 2017-03-31: no longer a "no zip" command line flag
+		// only case where ZIP mode is turned off is if the user has selected the minimum flush interval
+	    // bZipMode = !line.hasOption("no_zipfiles");
+	    bZipMode = true;
+	    if (autoFlushMillis == CTsettings.flushIntervalLongs[0]) {
+	    	bZipMode = false;
+	    }
 	    // Include cursor in output screen capture images?
 	    bIncludeMouseCursor = !line.hasOption("no_mouse_cursor");
 	    // Where to write the files to
 	    outputFolder = line.getOptionValue("outputfolder",outputFolder);
-	    // Make sure outputFolder ends in a file separator
-	    if (!outputFolder.endsWith(File.separator)) {
-	    	outputFolder = outputFolder + File.separator;
-	    }
 	    // How many frames (i.e., screen dumps) to capture per second
 	    try {
 	    	framesPerSec = Double.parseDouble(line.getOptionValue("fps",""+DEFAULT_FPS));
@@ -629,13 +654,30 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Setup CTwriter
 		try {
 			CTinfo.setDebug(bDebugMode);
-			ctw = new CTwriter(outputFolder + sourceName);
+			// Make sure outputFolder ends in a file separator
+			String outFolderToUse = outputFolder;
+		    if (!outputFolder.endsWith(File.separator)) {
+		    	outFolderToUse = outputFolder + File.separator;
+		    }
+		    if (!bFTP) {
+				ctw = new CTwriter(outFolderToUse + sourceName);
+			} else {
+				CTftp ctftp = new CTftp(outFolderToUse + sourceName);
+				try {
+					ctftp.login(ftpHost,ftpUser,ftpPassword);
+					// upcast to CTWriter
+					ctw = ctftp;
+				} catch (Exception e) {
+					System.err.println("Error logging into FTP server \"" + ftpHost + "\":\n" + e.getMessage());
+					return;
+				}
+			}
 			if (!bAudioCapture) {
 				// if no audio, auto-flush on video
 				ctw.autoFlush(autoFlushMillis);
 			}
 			ctw.setZipMode(bZipMode);
-			ctw.autoSegment(1000);
+			ctw.autoSegment(numBlocksPerSegment);
 		} catch (IOException ioe) {
 			System.err.println("Error trying to create CloudTurbine writer object:\n" + ioe);
 			return;
@@ -1259,10 +1301,18 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			startStopButton.setBackground(Color.RED);
 			continueButton.setEnabled(false);
 		} else if (eventI.getActionCommand().equals("Settings...")) {
+			boolean bBeenRunning = false;
+			if (startStopButton.getText().equals("Stop")) {
+				bBeenRunning = true;
+			}
 			// Turn off screencap (if it is running)
 			stopCapture();
 			startStopButton.setText("Start");
 			startStopButton.setBackground(Color.GREEN);
+			// Only want to enable the Continue button if the user had in fact been running
+			if (bBeenRunning) {
+				continueButton.setEnabled(true);
+			}
 			// Let user edit settings; the following function will not
 			// return until the user clicks the OK or Cancel button.
 			ctSettings.popupSettingsDialog();
