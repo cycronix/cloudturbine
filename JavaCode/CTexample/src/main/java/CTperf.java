@@ -62,14 +62,14 @@ public class CTperf {
 //			ctw.setBlockMode(blockMode);			// block data per flush
 
 			long time = System.currentTimeMillis();
-			long dt = 10;
+			long dt = 1;
 			long startTime = time;
 			if(blockMode) ctw.setBlockMode(blockMode);			// block duration (msec)
 			//			time = 0;									// try absolute 0-based time						
 			// loop and write some output
 			if(blockMode) ctw.setTime(time);			// blockMode:  set time at start of block
-			for(int i=1; i<=ncount; i++) {
-				ctw.setTime(time+=dt);
+			for(int i=1; i<=ncount; i++,time+=dt) {
+				ctw.setTime(time);
 				for(int j=0; j<nchan; j++) ctw.putData("c"+j, i+j);
 
 				if(!blockMode) ctw.flush();				// flush (zip) them
