@@ -122,8 +122,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			System.out.print(".");
 			// Add baos to the asynchronous event queue of to-be-processed objects
 			// cts.queue.put(jpegByteArray);
-			cts.queue.put(new TimeValue(System.currentTimeMillis(), jpegByteArray));
-
+//			cts.queue.put(new TimeValue(System.currentTimeMillis(), jpegByteArray));
+			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// MJM 4/3/17: queue "nextTime" for continue mode
 		} catch (Exception e) {
 			if (!cts.bShutdown) {
 				// Only print out error messages if we know we aren't in shutdown mode

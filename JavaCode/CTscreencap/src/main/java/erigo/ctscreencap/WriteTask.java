@@ -56,14 +56,14 @@ public class WriteTask implements Runnable {
 				break;
 			}
 			byte[] jpegByteArray = null;
-			// long currentTime=0;  // No longer used
+			long currentTime=0;  
 			try {
 				// We used to queue just the byte array of the JPG,
 				// but now queue TimeValue objects which is a combo
 				// of the JPG and time
 				// jpegByteArray = queue.take();
 				TimeValue tv = cts.queue.take();
-				// currentTime = tv.time;
+				currentTime = tv.time;
 				jpegByteArray = tv.value;
 			} catch (InterruptedException e) {
 				if (cts.bShutdown) {
@@ -76,7 +76,8 @@ public class WriteTask implements Runnable {
 				try {
 					// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
 					synchronized(cts.ctwLockObj) {
-						long nextTime = cts.getNextTime();
+//						long nextTime = cts.getNextTime();
+						long nextTime = currentTime;				// MJM 4/3/17:  use queued time
 						cts.ctw.setTime(nextTime);
 						cts.ctw.putData(cts.channelName,jpegByteArray);
 					}

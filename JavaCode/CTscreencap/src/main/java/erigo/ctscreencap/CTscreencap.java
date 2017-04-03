@@ -598,10 +598,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			// o When we are in FTP mode, there's no way to know the latest time
 			//   in the output source folders, thus it seems best to simply reject
 			//   what looks to be a backward going time.
-			if ( (bFTP) && (nextTime < lastCTtime) ) {
-				System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
-				nextTime = lastCTtime;
-			}
+// NO, let audioTask logic cover sane timestamps - MJM 4/4/17
+//			if ( (bFTP) && (nextTime < lastCTtime) ) {
+//				System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
+//				nextTime = lastCTtime;
+//			}
 		}
 		// Squirrel away this time
 		lastCTtime = nextTime;
@@ -704,10 +705,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Create a new WriteTask which continually grabs images off the queue and writes them to CT
 		// Run this in a new thread
 		//
-		writeTask = new WriteTask(this);
-		writeTaskThread = new Thread(writeTask);
-		writeTaskThread.start();
-		
+		if(!bAudioCapture) {				// if audioCapture, images written out in AudiocapTask thread
+			writeTask = new WriteTask(this);
+			writeTaskThread = new Thread(writeTask);
+			writeTaskThread.start();
+		}
 	}
 	
 	/**

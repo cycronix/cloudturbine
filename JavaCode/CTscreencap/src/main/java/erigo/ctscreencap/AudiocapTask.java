@@ -55,71 +55,40 @@ public class AudiocapTask {
 				double flushInterval = flushMillis / 1000.;
 				long oldTime = 0;
 				int bufferSize = (int)Math.round(format.getSampleRate() * format.getFrameSize() * flushInterval);		// bytes per flushMillis
-				byte buffer[] = new byte[bufferSize];
-
+				byte buffer[] = new byte[2*bufferSize];			// generous double-buffer size?
+				
 				public void run() {
 					running = true;
 					try {
-						// long nextTime = System.currentTimeMillis();
+//						long nextTime = System.currentTimeMillis();
 						long nextTime = cts.getNextTime();
-//						ctw.preflush(nextTime);		// pre-flush to establish initial audio blockTime?
 						ctw.setTime(nextTime);		// establish start time of first audio block
+						oldTime = nextTime;
 						
 						while (running) {
-							int count = line.read(buffer, 0, buffer.length); // blocking call to read a buffer's worth of audio samples
+							int count = line.read(buffer, 0, bufferSize); // blocking call to read a buffer's worth of audio samples
+							count += line.read(buffer, count, line.available());		// slurp up any extra
 							// if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
 							// webscan not up to task of handling empty data in RT
 							// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
 							synchronized(cts.ctwLockObj) {
 								// long time = System.currentTimeMillis();
 								long time = cts.getNextTime();
-								/**
-								 * 
-								 * The following code adjusts the time to keep audio data
-								 * output at regular/periodic intervals.  However, we've
-								 * noticed 2 problems doing this:
-								 * 
-								 * 1. It makes sense to do this when the sound card is very
-								 *    steady/regular in its acquisition (and thus this type
-								 *    of adjustment should seldom occur).  We've noticed this
-								 *    isn't always the case, however, so there's no need to
-								 *    bother with this type of adjustment.
-								 * 
-								 * 2. With CTscreencap, we are coordinating CT writes between
-								 *    this audio channel and the image channel.  Making time
-								 *    adjustments here can screw up what block the image
-								 *    is written to.  Consider the following example; for
-								 *    simplicity we use relative times here; also, assume
-								 *    flushMillis for the audio channel is 1000 msec.
-								 *    a) WriteTask has an image to write to CT; it calls
-								 *       cts.getNextTime() and gets the time 1010; it sets
-								 *       this time and writes the image to CT.
-								 *    b) AudiocapTask has a new audio buffer to write to
-								 *       CT.  It calls cts.getNextTime(), which returns
-								 *       1030.  AudiocapTask adjusts this time back to
-								 *       1000.  It sets this time, puts the audio buffer
-								 *       data and flushes.
-								 *    The problem in this example is that the Block time
-								 *    should be from 0 - 1000 (corresponding to what
-								 *    AudiocapTask has specified) but WriteTask has already
-								 *    written an image at time 1010; this image will show up
-								 *    in this Block even though the Block time should only
-								 *    be 0 - 1000.  AudiocapTask has skootched back time
-								 *    and flushed the Block which now contains an image
-								 *    which is now technically in the future.
-								 *
-								 *	if(oldTime != 0) {		// consistent timing if close
-								 *		long dt = time - oldTime;
-								 *		if (Math.abs(flushMillis - dt) < (flushMillis/10)) {
-								 *			time = oldTime + flushMillis;
-								 *			// We've adjusted the time, save this time for everyone to reference
-								 *			cts.setLastCTtime(time);
-								 *		}
-								 *	}
-								 */
+
 								if (count > 0) {
+									// CTput images in timerange of current audio buffer
+									TimeValue tv;
+                                    while ((tv = cts.queue.poll()) != null) {
+                                        long imageTime = tv.time;
+                                        if (imageTime < oldTime) continue;  		// discard too-old
+                                        if (imageTime > time) break;       			// out of range (save one?)
+                                        ctw.setTime(imageTime);
+                                        ctw.putData(cts.channelName, tv.value);     
+                                    }
+
+                                    // CTput audio buffer
 									ctw.setTime(time);
-									ctw.putData(cts.audioChannelName, addWaveHeader(buffer));
+									ctw.putData(cts.audioChannelName, addWaveHeader(buffer,count));
 									ctw.flush(true);		// gapless
 								}
 
@@ -161,9 +130,9 @@ public class AudiocapTask {
 		return new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
 	}
 
-	private byte[] addWaveHeader(byte[] dataBuffer) throws IOException {
+	private byte[] addWaveHeader(byte[] dataBuffer, int totalAudioLen) throws IOException {
 		byte RECORDER_BPP = 16;
-		long totalAudioLen = dataBuffer.length;
+//		long totalAudioLen = dataBuffer.length;
 		long totalDataLen = totalAudioLen + 36;
 		long longSampleRate = frequency;
 		int channels = 1;
@@ -216,10 +185,10 @@ public class AudiocapTask {
 		header[42] = (byte) ((totalAudioLen >> 16) & 0xff);
 		header[43] = (byte) ((totalAudioLen >> 24) & 0xff);
 
-		byte[] waveBuffer = new byte[header.length + dataBuffer.length];
+		byte[] waveBuffer = new byte[header.length + totalAudioLen];
 		System.arraycopy(header, 0, waveBuffer, 0, header.length);	
 
-		System.arraycopy(dataBuffer, 0, waveBuffer, header.length, dataBuffer.length);
+		System.arraycopy(dataBuffer, 0, waveBuffer, header.length, totalAudioLen);
 
 		return waveBuffer;
 	}
