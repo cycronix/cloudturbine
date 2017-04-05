@@ -109,7 +109,7 @@ public class CTweb {
 	public static boolean Debug=false;					// debug local plus CT
 	private static boolean swapFlag = false;
 //    private static String resourceBase = "CTweb";
-    private static String resourceBase = "http://cloudturbine.net";		// default webscan files from net
+    private static String resourceBase = null;			// search for resource base
     private static String sourceFolder = null;
     private static int MaxDat = 10000000;				// max number data elements to return (was 65536)
     private static long queryCount=0;
@@ -151,6 +151,7 @@ public class CTweb {
  			System.exit(0);
      	}
 
+     	// set rootFolder
      	if(rootFolder == null && sourceFolder != null) {	// source is full path
      		rootFolder = new File(sourceFolder).getParent();
      		sourceFolder = new File(sourceFolder).getName();
@@ -171,6 +172,12 @@ public class CTweb {
      		}
      	}
 
+     	// set resourceBase
+     	if(resourceBase==null) {
+     		if(new File("CTweb").exists()) 	resourceBase = "CTweb";
+     		else							resourceBase = "http://cloudturbine.net";
+     	}
+     	
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
      	CTinfo.setDebug(Debug);
@@ -380,7 +387,7 @@ public class CTweb {
     				out.flush();
     			} 
     			catch(Exception e) {
-    				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
+    				System.err.println("Exception on welcome file read, pathInfo: "+resourceBase+pathInfo+", Exception: "+e);
 					formResponse(response, null);		// add CORS header even for error response
     				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     			}
