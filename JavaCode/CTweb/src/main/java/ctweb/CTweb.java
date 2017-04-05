@@ -56,6 +56,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -106,9 +107,9 @@ public class CTweb {
 	private static CTreader ctreader=null;
 	public static boolean debug=false;
 	public static boolean Debug=false;					// debug local plus CT
-	private static boolean logOut=false;
 	private static boolean swapFlag = false;
-    private static String resourceBase = "CTweb";
+//    private static String resourceBase = "CTweb";
+    private static String resourceBase = "http://cloudturbine.net";		// default webscan files from net
     private static String sourceFolder = null;
     private static int MaxDat = 10000000;				// max number data elements to return (was 65536)
     private static long queryCount=0;
@@ -132,7 +133,6 @@ public class CTweb {
      		if(args[dirArg].equals("-r")) 	swapFlag = true;
      		if(args[dirArg].equals("-x")) 	debug = true;
      		if(args[dirArg].equals("-X")) 	Debug=true; 
-     		if(args[dirArg].equals("-l")) 	logOut = true;
      		if(args[dirArg].equals("-p")) 	port = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-P")) 	sslport = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-f"))  	resourceBase = args[++dirArg]; 
@@ -342,33 +342,45 @@ public class CTweb {
     		queryCount++;
     		StringBuilder sbresp = new StringBuilder(8192);			// estimate initial size
 
-    		// system clock utility
-    		if(pathInfo.equals("/sysclock")) {
-    			response.setContentType("text/plain");
-    			response.getWriter().println(""+System.currentTimeMillis());
-    		}
-
     		// server resource files
     		if(!pathInfo.startsWith(servletRoot)  && !pathInfo.startsWith(rbnbRoot)) {
-    			try {
-    				if(pathInfo.equals("/")) {
-    					if(new File(resourceBase+"/index.htm").exists()) 		pathInfo = "/index.htm";
-    					else if(new File(resourceBase+"/index.html").exists()) 	pathInfo = "/index.html";
-    					else													pathInfo = "/webscan.htm";
+    			try {    	    		// system clock utility
+    				if(pathInfo.equals("/sysclock")) {
+    					response.setContentType("text/plain");
+    					response.getWriter().println(""+System.currentTimeMillis());
+    					return;
     				}
 
-        			response.setContentType(mimeType(pathInfo, "text/html"));	
-        			OutputStream out = response.getOutputStream();
-    				FileInputStream in = new FileInputStream(resourceBase+pathInfo);	// limit to resourceBase folder
+    				InputStream in;
+    				OutputStream out;
+
+					response.setContentType(mimeType(pathInfo, "text/html"));	
+    				if(resourceBase.startsWith("http")) {
+    					if(pathInfo.equals("/")) pathInfo = "/webscan.htm";
+    					in = new URL(resourceBase  + pathInfo).openStream();  
+    					out = response.getOutputStream();
+    				}
+    				else {
+    					if(pathInfo.equals("/")) {
+    						if(new File(resourceBase+"/index.htm").exists()) 		pathInfo = "/index.htm";
+    						else if(new File(resourceBase+"/index.html").exists()) 	pathInfo = "/index.html";
+    						else													pathInfo = "/webscan.htm";
+    					}
+    					out = response.getOutputStream();
+    					in = new FileInputStream(resourceBase+pathInfo);	// limit to resourceBase folder
+    				}
+
+    				// read/write response
     				byte[] buffer = new byte[4096];
     				int length;
     				while ((length = in.read(buffer)) > 0){
-    				    out.write(buffer, 0, length);
+    					out.write(buffer, 0, length);
     				}
     				in.close();
     				out.flush();
-    			} catch(Exception e) {
-//    				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
+    			} 
+    			catch(Exception e) {
+    				System.err.println("Exception on welcome file read, pathInfo: "+pathInfo+", Exception: "+e);
 					formResponse(response, null);		// add CORS header even for error response
     				response.sendError(HttpServletResponse.SC_NOT_FOUND);
     			}
