@@ -19,6 +19,32 @@ package erigo.ctscreencap;
 /**
  * WriteTask is a Runnable object which takes screen capture byte arrays off the
  * blocking queue (CTscreencap.queue) and writes them to CT.
+ * 
+ * POSSIBLE TO-DO:
+ * 
+ * This class could be extended to support a more general data management/coordination scheme
+ * to manage multiple streams of data, each stored as packets in separate queues. One queue
+ * is the "master" queue and the rest of the queues are "slave" queues.  The master queue
+ * defines the following:
+ * 
+ * 	o accepted time range
+ * 	o when to flush to CT
+ * 
+ * For CTscreencap we would have 2 queues:
+ * 	o master queue contains audio packets
+ * 	o slave queue contains images
+ * 
+ * Processing handled as follows (this logic mirrors what is currently implemented in AudiocapTask):
+ * 
+ * 	while(true)
+ * 		keep accumulating data (ie, images) in slave queue
+ * 		when packet shows up in the master (audio) queue
+ * 			determine [last time, current time] time range from the new audio packet
+ * 			filter through the packets in the image queue to determine which ones fall inside this [last time, current time] range
+ * 			call setTime/putData for each of the image packets that make it through the filter
+ * 			call setTime/putData for the audio packet from master queue
+ * 			call flush
+ *	end
  *
  * @author John P. Wilson
  * @version 02/06/2017
