@@ -175,7 +175,7 @@ public class CTweb {
      	// set resourceBase
      	if(resourceBase==null) {
      		if(new File("CTweb").exists()) 	resourceBase = "CTweb";
-     		else							resourceBase = "http://cloudturbine.net";
+     		else							resourceBase = "http://webscan.cycronix.com";
      	}
      	
      	// create CT reader 
