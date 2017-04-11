@@ -60,14 +60,23 @@ public class AudiocapTask {
 				public void run() {
 					running = true;
 					try {
-//						long nextTime = System.currentTimeMillis();
+						// long nextTime = System.currentTimeMillis();
 						long nextTime = cts.getNextTime();
 						ctw.setTime(nextTime);		// establish start time of first audio block
 						oldTime = nextTime;
 						
 						while (running) {
 							int count = line.read(buffer, 0, bufferSize); // blocking call to read a buffer's worth of audio samples
-							count += line.read(buffer, count, line.available());		// slurp up any extra
+							// Slurp up any extra; limit the number of bytes to slurp up so buffer doesn't overflow
+							int numExtraBytesToSlurpUp = line.available();
+							// System.err.println("\ngot " + count + " audio bytes; there are still " + numExtraBytesToSlurpUp + " bytes available; buffer size = " + buffer.length);
+							if (numExtraBytesToSlurpUp > (buffer.length - count)) {
+								numExtraBytesToSlurpUp = buffer.length - count;
+								// System.err.println("\tlimiting extra bytes to slurp up to " + numExtraBytesToSlurpUp);
+							}
+							if (numExtraBytesToSlurpUp > 0) {
+								count += line.read(buffer, count, numExtraBytesToSlurpUp);
+							}
 							// if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
 							// webscan not up to task of handling empty data in RT
 							// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTscreencap.ctwLockObj object
@@ -98,7 +107,8 @@ public class AudiocapTask {
 						System.err.println("Closing AudiocapTask");
 						line.close();
 					} catch (Exception e) {
-						System.err.println("I/O problems: " + e);
+						System.err.println("\nAudiocapTask I/O problem:");
+						e.printStackTrace();
 						System.exit(-1);
 					}
 				}
