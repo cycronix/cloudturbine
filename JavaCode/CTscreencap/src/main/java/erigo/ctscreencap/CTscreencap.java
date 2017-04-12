@@ -173,7 +173,7 @@ import cycronix.ctlib.CTreader;
  * maintain seamless video/audio capture.
  * 
  * @author John P. Wilson, Matt J. Miller
- * @version 04/4/2017
+ * @version 04/12/2017
  *
  */
 public class CTscreencap implements ActionListener,ChangeListener,MouseMotionListener {
@@ -327,9 +327,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// Boolean options (only the flag, no argument)
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption("nm", "no_mouse_cursor", false, "don't include mouse cursor in output screen capture images");
-		// JPW 2017-03-31: automatically use ZIP
-		//     only case where ZIP mode is turned off is if the user has selected "Max responsiveness" for the flush interval
-		// options.addOption("nz", "no_zipfiles", false, "don't use ZIP");
+		options.addOption("nz", "no_zip", false, "turn off ZIP output");
 		options.addOption("x", "debug", false, "use debug mode");
 		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")"); // MJM
 		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")"); // MJM
@@ -423,13 +421,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    	return;
 	    }
 	    // ZIP output files?
-		// JPW 2017-03-31: no longer a "no zip" command line flag
-		// only case where ZIP mode is turned off is if the user has selected the minimum flush interval
-	    // bZipMode = !line.hasOption("no_zipfiles");
-	    bZipMode = true;
-	    if (autoFlushMillis == CTsettings.flushIntervalLongs[0]) {
-	    	bZipMode = false;
-	    }
+		// Only way to turn off ZIP is using this command line flag
+	    bZipMode = !line.hasOption("no_zip");
 	    // Include cursor in output screen capture images?
 	    bIncludeMouseCursor = !line.hasOption("no_mouse_cursor");
 	    // Where to write the files to
