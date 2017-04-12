@@ -54,7 +54,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
     
 	private static final long serialVersionUID = 1L;
 	
-	private static final String[] flushIntervalStrings = { "0.lsec", "0.2s", "0.5s", "1s", "2s", "5s", "10s", "30s", "1min", "2min", "5min", "10min" };
+	private static final String[] flushIntervalStrings = { "0.1sec", "0.2s", "0.5s", "1s", "2s", "5s", "10s", "30s", "1min", "2min", "5min", "10min" };
 	public static final Long[] flushIntervalLongs = { new Long(100), new Long(200), new Long(500), new Long(1000), new Long(2000), new Long(5000), new Long(10000), new Long(30000), new Long(60000), new Long(120000), new Long(300000), new Long(600000) };
 	
 	private static final String[] numBlocksPerSegmentStrings = { "No segments", "10", "20", "60", "120", "300", "600", "1800", "3600" };
