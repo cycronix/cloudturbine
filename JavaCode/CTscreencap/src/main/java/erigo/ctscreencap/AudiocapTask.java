@@ -54,8 +54,8 @@ public class AudiocapTask {
 			Runnable runner = new Runnable() {
 				double flushInterval = flushMillis / 1000.;
 				long oldTime = 0;
-				int bufferSize = (int)Math.round(format.getSampleRate() * format.getFrameSize() * flushInterval);		// bytes per flushMillis
-				byte buffer[] = new byte[2*bufferSize];			// generous double-buffer size?
+				int bufferSize = (int)Math.round(format.getSampleRate() * format.getFrameSize() * Math.max(1., flushInterval));	// bytes per flushMillis, 1sec minimum
+				byte buffer[] = new byte[4*bufferSize];			// generous buffer size?
 				
 				public void run() {
 					running = true;
