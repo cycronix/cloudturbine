@@ -25,7 +25,7 @@
  * 
  */
 
-package ctpack;
+package ctadmin;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import org.apache.commons.cli.*;
 
 //---------------------------------------------------------------------------------	
 
-public class CTpack {
+public class CTpackOLD {
 	CTreader ctr;
 	CTwriter ctw;
 
@@ -59,17 +59,16 @@ public class CTpack {
 
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
-		new CTpack(arg);
+		new CTpackOLD(arg);
 	}
 
 	//--------------------------------------------------------------------------------------------------------
-	public CTpack(String[] args) {
+	public CTpackOLD(String[] args) {
 
 		if(!parseArgs(args)) return;
 
 		CTinfo.setDebug(debug);
-		if(singleFolder)	System.err.println("CTpack singleFolder output to "+packSource);
-		else				System.err.println("CTpack output to "+packSource+", zipMode: "+zipMode+", packMode: "+packMode+", timeperBlock: "+timePerBlock+", segBlocks: "+segBlocks);
+		System.err.println("CTpack output to "+packSource+", zipMode: "+zipMode+", packMode: "+packMode+", singleFolder: "+singleFolder+", timeperBlock: "+timePerBlock+", segBlocks: "+segBlocks);
 		if(!packMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
 
 		// setup CTreader

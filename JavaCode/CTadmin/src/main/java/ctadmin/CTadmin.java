@@ -43,6 +43,10 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.TreeMap;
 
+import cycronix.ctlib.CTinfo;
+import cycronix.ctlib.CTreader;
+import ctpack.CTpack;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -53,8 +57,6 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.Scene;
-import javafx.scene.control.TreeTableColumn;
-import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
@@ -63,9 +65,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
-import javafx.scene.control.TextInputDialog; 
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -75,8 +79,6 @@ import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-
-import cycronix.ctlib.*;
 
 //-----------------------------------------------------------------------------------------------------------------
 
@@ -388,8 +390,27 @@ public class CTadmin extends Application {
 									Warning("Cannot repack channel");
 									return;
 								}
-								Warning("Repack not yet implemented");
-								System.err.println("Repack: "+row.getItem().getName());
+
+								String thisSource = row.getItem().getName();
+								String thisFolderPath = row.getItem().getFolderPath();
+								String fullPath = new File(thisFolderPath + thisSource).getAbsolutePath();
+								String rootFolder = new File(fullPath).getParent();
+								String repackSource = thisSource + ".pack";
+
+								Alert alert = new Alert(AlertType.CONFIRMATION);
+								alert.setTitle("Repack Confirmation");
+								alert.setHeaderText(null);
+								alert.setContentText("Confirm Repack: "+fullPath+" to: "+repackSource);
+
+								Optional<ButtonType> result = alert.showAndWait();
+								if (result.get() == ButtonType.OK) {
+									new CTpack(new String[] {"-1","-o"+repackSource, "-r"+rootFolder, thisSource});
+									refreshTree();
+									System.err.println("Repack: source: "+thisSource+", dest: "+repackSource+", rootFolder: "+rootFolder);
+								}
+								else {
+									System.err.println("Cancel Repack");
+								}
 							}
 						});
 
