@@ -54,8 +54,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
     
 	private static final long serialVersionUID = 1L;
 	
-	private static final String[] flushIntervalStrings = { "Max responsiveness", "1sec", "2s", "5s", "10s", "30s", "1min", "2min", "5min", "10min" };
-	public static final Long[] flushIntervalLongs = { new Long(100), new Long(1000), new Long(2000), new Long(5000), new Long(10000), new Long(30000), new Long(60000), new Long(120000), new Long(300000), new Long(600000) };
+	private static final String[] flushIntervalStrings = { "0.lsec", "0.2s", "0.5s", "1s", "2s", "5s", "10s", "30s", "1min", "2min", "5min", "10min" };
+	public static final Long[] flushIntervalLongs = { new Long(100), new Long(200), new Long(500), new Long(1000), new Long(2000), new Long(5000), new Long(10000), new Long(30000), new Long(60000), new Long(120000), new Long(300000), new Long(600000) };
 	
 	private static final String[] numBlocksPerSegmentStrings = { "No segments", "10", "20", "60", "120", "300", "600", "1800", "3600" };
 	public static final Long[] numBlocksPerSegmentLongs = { new Long(0), new Long(10), new Long(20), new Long(60), new Long(120), new Long(300), new Long(600), new Long(1800), new Long(3600) };
@@ -72,7 +72,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private String orig_ftpHost;
 	private String orig_ftpUser;
 	private String orig_ftpPassword;
-	private boolean orig_bZipMode;
 	private long orig_autoFlushMillis;
 	private long orig_numBlocksPerSegment;
 	private boolean orig_bDebugMode;
@@ -429,7 +428,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_ftpHost = ctScreencap.ftpHost;
 		orig_ftpUser = ctScreencap.ftpUser;
 		orig_ftpPassword = ctScreencap.ftpPassword;
-		orig_bZipMode = ctScreencap.bZipMode;
 		orig_autoFlushMillis = ctScreencap.autoFlushMillis;
 		orig_numBlocksPerSegment = ctScreencap.numBlocksPerSegment;
 		orig_bDebugMode = ctScreencap.bDebugMode;
@@ -548,11 +546,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		char[] passwordCharArray = ftpPasswordTF.getPassword();
 		ctScreencap.ftpPassword = new String(passwordCharArray).trim();
 		ctScreencap.autoFlushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
-		if (ctScreencap.autoFlushMillis == flushIntervalLongs[0]) {
-			ctScreencap.bZipMode = false;
-		} else {
-			ctScreencap.bZipMode = true;
-		}
 		ctScreencap.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctScreencap.bDebugMode = bDebugModeCheckB.isSelected();
 		ctScreencap.bIncludeMouseCursor = bIncludeMouseCursorCheckB.isSelected();
@@ -590,7 +583,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctScreencap.ftpHost = orig_ftpHost;
 		ctScreencap.ftpUser = orig_ftpUser;
 		ctScreencap.ftpPassword = orig_ftpPassword;
-		ctScreencap.bZipMode = orig_bZipMode;
 		ctScreencap.autoFlushMillis = orig_autoFlushMillis;
 		ctScreencap.numBlocksPerSegment = orig_numBlocksPerSegment;
 		ctScreencap.bDebugMode = orig_bDebugMode;
