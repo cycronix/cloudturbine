@@ -217,19 +217,19 @@ public class CTpack {
 			return false;
 		}
 
+		if (line.hasOption("help")) {			// Display help message and quit
+			HelpFormatter formatter = new HelpFormatter();
+			formatter.setWidth(120);
+			formatter.printHelp( "CTpack [options] sourceFolder (no default), where [options] can be: ", options );
+			return false;
+		}
+		
 		// 3. Retrieve the command line values
 		String extraArgs[] = line.getArgs();
 		if(extraArgs!=null && extraArgs.length>0) sourceFolder = extraArgs[0];		// was rootFolder
 		else {
 			System.err.println("CTpack:  source must be specified!");
 			return false;				// source is required
-		}
-
-		if (line.hasOption("help")) {			// Display help message and quit
-			HelpFormatter formatter = new HelpFormatter();
-			formatter.setWidth(120);
-			formatter.printHelp( "CTpack [options] sourceFolder (no default), where [options] can be: ", options );
-			return false;
 		}
 
 		debug 		 = line.hasOption("debug");
