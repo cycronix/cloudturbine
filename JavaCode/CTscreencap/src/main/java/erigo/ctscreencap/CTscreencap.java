@@ -325,14 +325,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		//
 		Options options = new Options();
 		// Boolean options (only the flag, no argument)
-		options.addOption("h", "help", false, "Print this message");
-		options.addOption("nm", "no_mouse_cursor", false, "don't include mouse cursor in output screen capture images");
-		options.addOption("nz", "no_zip", false, "turn off ZIP output");
-		options.addOption("x", "debug", false, "use debug mode");
-		options.addOption("cd", "change_detect", false, "detect and record only changed images (default="+bChangeDetect+")"); // MJM
-		options.addOption("a", "audio_cap", false, "record audio (default="+bAudioCapture+")"); // MJM
-		options.addOption("fs", "full_screen", false, "automatically start capturing the full screen (default="+bFullScreen+")");
-		options.addOption("t", "UI_on_top", false, "CTscreencap UI will stay on top of all other windows (default=" + bStayOnTop + ")");
+		options.addOption("h", "help", false, "Print this message.");
+		options.addOption("nm", "no_mouse_cursor", false, "Don't include mouse cursor in output screen capture images.");
+		options.addOption("nz", "no_zip", false, "Turn off ZIP output.");
+		options.addOption("x", "debug", false, "Use debug mode.");
+		options.addOption("cd", "change_detect", false, "Detect and record only changed images (default="+bChangeDetect+").");
+		options.addOption("a", "audio_cap", false, "Record audio (default="+bAudioCapture+").");
+		options.addOption("fs", "full_screen", false, "Automatically start capturing the full screen (default="+bFullScreen+").");
+		options.addOption("t", "UI_on_top", false, "CTscreencap UI will stay on top of all other windows (default=" + bStayOnTop + ").");
 
 		// Command line options that include a flag
 		// For example, the following will be for "-outputfolder <folder>   (Location of output files...)"
@@ -340,37 +340,37 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
                 .longOpt("outputfolder")
 				.argName("folder")
                 .hasArg()
-                .desc("Location of output files (source is created under this folder); default = \"" + outputFolder + "\"")
+                .desc("Location of output files (source is created under this folder); default = \"" + outputFolder + "\".")
                 .build();
 		options.addOption(outputFolderOption);
 		Option filesPerSecOption = Option.builder("fps")
                 .argName("framespersec")
                 .hasArg()
-                .desc("Desired frame rate (frames/sec); default = " + DEFAULT_FPS + "; accepted values = " + FPS_VALUES_STR)
+                .desc("Desired frame rate (frames/sec); default = " + DEFAULT_FPS + "; accepted values = " + FPS_VALUES_STR + ".")
                 .build();
 		options.addOption(filesPerSecOption);
 		Option autoFlushOption = Option.builder("f")
 				.argName("autoFlush")
 				.hasArg()
-				.desc("flush interval (sec); amount of data per block; default = " + Double.toString(AUTO_FLUSH_DEFAULT) + "; accepted values = " + FLUSH_VALUES_STR)
+				.desc("Flush interval (sec); amount of data per block; default = " + Double.toString(AUTO_FLUSH_DEFAULT) + "; accepted values = " + FLUSH_VALUES_STR + ".")
 				.build();
 		options.addOption(autoFlushOption);
 		Option sourceNameOption = Option.builder("s")
 				.argName("source name")
 				.hasArg()
-				.desc("name of output source; default = \"" + sourceName + "\"")
+				.desc("Name of output source; default = \"" + sourceName + "\".")
 				.build();
 		options.addOption(sourceNameOption);
 		Option chanNameOption = Option.builder("c")
 				.argName("channelname")
 				.hasArg()
-				.desc("name of output image channel; must end in \".jpg\" or \".jpeg\"; default = \"" + channelName + "\"")
+				.desc("Name of output image channel; must end in \".jpg\" or \".jpeg\"; default = \"" + channelName + "\".")
 				.build();
 		options.addOption(chanNameOption);
 		Option imgQualityOption = Option.builder("q")
 				.argName("imagequality")
 				.hasArg()
-				.desc("image quality, 0.00 - 1.00 (higher numbers are better quality/less compression); default = " + Float.toString(imageQuality))
+				.desc("Image quality, 0.00 - 1.00 (higher numbers are better quality/less compression); default = " + Float.toString(imageQuality) + ".")
 				.build();
 		options.addOption(imgQualityOption);
 		
@@ -395,6 +395,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    	// Display help message and quit
 	    	bJustDisplayUsage = true;
 	    	HelpFormatter formatter = new HelpFormatter();
+	    	formatter.setWidth(160);
 	    	formatter.printHelp( "CTscreencap", options );
 	    	return;
 	    }
@@ -802,7 +803,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		try {
 			// Wait for the audioTask thread to finish
 			Thread audioTaskThread = audioTask.captureThread;
-			audioTaskThread.join(autoFlushMillis);		// was 1000, but an audio buffer might take longer - MJM
+			audioTaskThread.join(2*autoFlushMillis); // audio capture isn't necessarily precise, so wait up to 2*autoFlushMillis
 			if (audioTaskThread.isAlive()) {
     			// AudiocapTask must be held up; interrupt it
 				audioTaskThread.interrupt();
