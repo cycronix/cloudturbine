@@ -213,15 +213,15 @@ public class FileWatch {
 		//
 		Options options = new Options();
 		// Boolean options (only the flag, no argument)
-		options.addOption("h", "help", false, "print this message");
-		options.addOption("a", "adjust_latency", false, "divide latency results by 2 because test data files are from a recaster (round-trip)");
-		options.addOption("d", "display_results_in_recaster_mode", false, "display results when operating in recaster mode");
+		options.addOption("h", "help", false, "Print this message.");
+		options.addOption("a", "adjust_latency", false, "Divide latency results by 2 because test data files are from a recaster (round-trip).");
+		options.addOption("d", "disp_recaster", false, "Display results when operating in recaster mode.");
 		// Command line options that include a flag
-		Option nextOption = Option.builder("i").argName("watchdir").hasArg().desc("directory to watch for incoming test data files (must be an existing directory); default = \"" + DEFAULT_WATCH_DIR + "\"").build();
+		Option nextOption = Option.builder("i").argName("watchdir").hasArg().desc("Directory to watch for incoming test data files (must be an existing directory); default = \"" + DEFAULT_WATCH_DIR + "\".").build();
 		options.addOption(nextOption);
-		nextOption = Option.builder("o").argName("outfilename").hasArg().desc("name of the output metrics data file; must be a new file").build();
+		nextOption = Option.builder("o").argName("outfilename").hasArg().desc("Name of the output metrics data file; must be a new file.").build();
 		options.addOption(nextOption);
-		nextOption = Option.builder("r").argName("recasterdir").hasArg().desc("recast test data files to the specified output directory (must be an existing directory)").build();
+		nextOption = Option.builder("r").argName("recasterdir").hasArg().desc("Recast test data files to the specified output directory (must be an existing directory).").build();
 		options.addOption(nextOption);
 		
 		//
@@ -244,6 +244,7 @@ public class FileWatch {
 	    if (line.hasOption("h")) {
 	    	// Display help message and quit
 	    	HelpFormatter formatter = new HelpFormatter();
+	    	formatter.setWidth(100);
 	    	formatter.printHelp( "FileWatch", options );
 	    	return;
 	    }

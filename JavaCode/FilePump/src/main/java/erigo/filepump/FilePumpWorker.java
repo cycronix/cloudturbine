@@ -285,6 +285,9 @@ public class FilePumpWorker implements Runnable {
         
         timer.cancel();
         
+        // Make sure the final file count is displayed in the GUI
+        pumpGUI.updateNumFiles_nonEDT(file_index);
+        
         // If we are exiting because the requested number of files have been
         // reached (ie, exiting of our own volition as opposed to someone else
         // canceling the run), then reset the user interface
