@@ -423,6 +423,7 @@ public class CTreader {
 	
 	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) {
 		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
+//		long startTime = System.nanoTime();
 		try {
 			// get updated list of folders
 			CTFile[] listOfFolders;
@@ -434,14 +435,13 @@ public class CTreader {
 			}
 			else {
 //				System.err.println("listOfFolders cache MISS, rootFolder.equals: "+rootfolder.equals(lastRootFolder)+", dt: "+(thisCallTime-lastCallTime));
-//				listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only
-				listOfFolders = rootfolder.listFolders();	// don't prune by channels up-front (expensive), defer to gatherFiles()
+				// following logic: on top-level, get all base-time folders, presume any channel of interest is in each.  then filter by channel.  filtering basetime (all data) is expensive
+				if(recurse) listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only (expensive but necessary for "sparse" channels in zip files!?)
+				else		listOfFolders = rootfolder.listFolders();		// don't prune by channels up-front (expensive), defer to gatherFiles()
 				lastCallTime = thisCallTime;				// reset on MISS-only, force a check every max-interval
 			}
 //			long endTime = System.nanoTime();
-//			System.err.println("getDataMap listFolders("+rootfolder.getName()+") time: "+((endTime-startTime)/1000000.)+" ms, length: "+listOfFolders.length);
-
-//			lastCallTime = thisCallTime;
+//			System.err.println("getDataMap listFolders("+rootfolder.getName()+") time: "+((endTime-startTime)/1000000.)+" ms, length: "+((listOfFolders==null)?0:listOfFolders.length)+", recurse: "+recurse);
 			lastListOfFolders = listOfFolders;
 			lastRootFolder = rootfolder;	
 			
@@ -485,6 +485,8 @@ public class CTreader {
 				}
 
 				int ichk = i+2;		// was i+1, but may need data from prior frame for both "prev" and duration=0:at-or-before MJM 2/16/17	
+//				int ichk = i+5;		// was i+2, but may need data from prior frames in multi-channel case with missing channels some frames (bleh!)
+
 				//					if(rmode.equals("prev")) ichk = i+2;	// include prior frame for "prev" request
 				if(ichk<listOfFolders.length) {								// before start check
 					if(listOfFolders[ichk].fileTime() < getftime) {
