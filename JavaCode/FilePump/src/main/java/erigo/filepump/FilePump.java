@@ -74,6 +74,7 @@ public class FilePump implements ActionListener {
 	private JLabel totNumFilesLabel = null;
 	private JLabel modeLabel = null;
 	private JLabel fileCountLabel = null;
+	private JButton endButton = null;
 	private JButton actionButton = null;
 	
 	public FilePumpSettings pumpSettings = null;
@@ -106,51 +107,51 @@ public class FilePump implements ActionListener {
 		//
 		Options options = new Options();
 		// Example of a Boolean option (i.e., only the flag, no argument goes with it)
-		options.addOption("h", "help", false, "Print this message");
+		options.addOption("h", "help", false, "Print this message.");
 		// The following example is for: -outputfolder <folder>    Location of output files
 		Option outputFolderOption = Option.builder("outputfolder")
                 .argName("folder")
                 .hasArg()
-                .desc("Location of output files; this folder must exist (it will not be created); default = \"" + initial_outputFolder + "\"")
+                .desc("Location of output files; this folder must exist (it will not be created); default = \"" + initial_outputFolder + "\".")
                 .build();
 		options.addOption(outputFolderOption);
 		Option filesPerSecOption = Option.builder("fps")
                 .argName("filespersec")
                 .hasArg()
-                .desc("Desired file rate, files/sec; default = " + initial_filesPerSec)
+                .desc("Desired file rate, files/sec; default = " + initial_filesPerSec + ".")
                 .build();
 		options.addOption(filesPerSecOption);
 		Option totNumFilesOption = Option.builder("totnum")
                 .argName("num")
                 .hasArg()
-                .desc("Total number of output files; use -1 for unlimited number; default = " + initial_totNumFiles)
+                .desc("Total number of output files; use -1 for unlimited number; default = " + initial_totNumFiles + ".")
                 .build();
 		options.addOption(totNumFilesOption);
 		Option outputModeOption = Option.builder("mode")
                 .argName("mode")
                 .hasArg()
-                .desc("Specifies output interface, one of <local|ftp|sftp>; default = " + initial_mode_str)
+                .desc("Specifies output interface, one of <local|ftp|sftp>; default = " + initial_mode_str + ".")
                 .build();
 		options.addOption(outputModeOption);
 		Option ftpHostOption = Option.builder("ftphost")
                 .argName("host")
                 .hasArg()
-                .desc("Host name, for FTP or SFTP")
+                .desc("Host name, for FTP or SFTP.")
                 .build();
 		options.addOption(ftpHostOption);
 		Option ftpUsernameOption = Option.builder("ftpuser")
                 .argName("user")
                 .hasArg()
-                .desc("Username, for FTP or SFTP")
+                .desc("Username, for FTP or SFTP.")
                 .build();
 		options.addOption(ftpUsernameOption);
 		Option ftpPasswordOption = Option.builder("ftppass")
                 .argName("password")
                 .hasArg()
-                .desc("Password, for FTP or SFTP")
+                .desc("Password, for FTP or SFTP.")
                 .build();
 		options.addOption(ftpPasswordOption);
-		Option autoRunOption = new Option("x", "Automatically run at startup");
+		Option autoRunOption = new Option("x", "Automatically run at startup.");
 		options.addOption(autoRunOption);
 		//
 		// 2. Parse command line options
@@ -295,7 +296,9 @@ public class FilePump implements ActionListener {
 		totNumFilesLabel = new JLabel("unlimited");
 		modeLabel = new JLabel("file system folder");
 		fileCountLabel = new JLabel("0");
-		actionButton = new JButton("Start");
+		endButton = new JButton("Finish test");
+		endButton.addActionListener(this);
+		actionButton = new JButton("Start pump");
 		actionButton.setBackground(Color.GREEN);
 		actionButton.addActionListener(this);
 
@@ -380,10 +383,13 @@ public class FilePump implements ActionListener {
 		gbc.weighty = 0;
 		++row;
 
-		// ROW 6: command button
+		// ROW 6: command buttons
+		JPanel buttonPanel = new JPanel();
+		buttonPanel.add(actionButton);
+		buttonPanel.add(endButton);
 		gbc.insets = new Insets(15, 15, 15, 15);
 		gbc.anchor = GridBagConstraints.CENTER;
-		Utility.add(guiPanel, actionButton, gbl, gbc, 0, row, 2, 1);
+		Utility.add(guiPanel, buttonPanel, gbl, gbc, 0, row, 2, 1);
 		gbc.anchor = GridBagConstraints.WEST;
 		++row;
 
@@ -425,9 +431,6 @@ public class FilePump implements ActionListener {
 		JMenu menu = new JMenu("File");
 		menuBar.add(menu);
 		JMenuItem menuItem = new JMenuItem("Settings...");
-		menu.add(menuItem);
-		menuItem.addActionListener(this);
-		menuItem = new JMenuItem("Create \"end.txt\" file");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("Exit");
@@ -487,7 +490,9 @@ public class FilePump implements ActionListener {
 				// Update the main frame with the new settings
 				updateMainFrame();
 			}
-		} else if (eventI.getActionCommand().equals("Create \"end.txt\" file")) {
+		} else if (eventI.getActionCommand().equals("Exit")) {
+			exit();
+		} else if (source == endButton) {
 			// Turn off pump if it is currently running
 			resetGUI_EDT();
 			stopFilePumpWorkerThread();
@@ -501,11 +506,9 @@ public class FilePump implements ActionListener {
 			filePumpWorker = new FilePumpWorker(this, pumpSettings,true);
 			filePumpThread = new Thread(filePumpWorker);
 			filePumpThread.start();
-		} else if (eventI.getActionCommand().equals("Exit")) {
-			exit();
 		} else if (source == actionButton) {
 			// Turn on or off streaming data
-			if (actionButton.getText().equals("Start")) {
+			if (actionButton.getText().equals("Start pump")) {
 				// User wants to start outputting files; make sure we can do this
 				String errStr = pumpSettings.canPumpRun();
 				if (!errStr.isEmpty()) {
@@ -513,8 +516,8 @@ public class FilePump implements ActionListener {
 					return;
 				}
 				bPumpRunning = true;
-				// Change label to "Stop"
-				actionButton.setText("Stop");
+				// Change label to "Stop pump"
+				actionButton.setText("Stop pump");
 				actionButton.setBackground(Color.RED);
 				// Start pump
 				filePumpWorker = new FilePumpWorker(this, pumpSettings,false);
@@ -588,9 +591,10 @@ public class FilePump implements ActionListener {
 			// Signal FilePumpWorker to turn off
 			bPumpRunning = false;
 			fileCount = 0;
-			updateNumFiles_EDT();
-			// Change label back to "Start"
-			actionButton.setText("Start");
+			// Leave the final file count displayed
+			// updateNumFiles_EDT();
+			// Change label back to "Start pump"
+			actionButton.setText("Start pump");
 			actionButton.setBackground(Color.GREEN);
 		}
 	}
