@@ -59,6 +59,7 @@ public class AudiocapTask {
 				byte buffer[] = new byte[4*bufferAlloc];															// generous buffer to avoid overflow?
 				
 				public void run() {
+					int numFlushes = 0;
 					running = true;
 					try {
 						// long nextTime = System.currentTimeMillis();
@@ -84,7 +85,7 @@ public class AudiocapTask {
 							synchronized(cts.ctwLockObj) {
 								// long time = System.currentTimeMillis();
 								long time = cts.getNextTime();
-
+								
 								if (count > 0) {
 									// CTput images in timerange of current audio buffer
 									TimeValue tv;
@@ -93,9 +94,14 @@ public class AudiocapTask {
                                         if (imageTime < oldTime) continue;  		// discard too-old
                                         if (imageTime > time) break;       			// out of range (save one?)
                                         ctw.setTime(imageTime);
-                                        ctw.putData(cts.channelName, tv.value);     
+                                        ctw.putData(cts.channelName, tv.value);
+                                        System.out.print("x");
+    									numFlushes += 1;
+    									if ((numFlushes % 40) == 0) {
+    										System.err.print("\n");
+    									}
                                     }
-
+                                    
                                     // CTput audio buffer
 									ctw.setTime(time);
 									ctw.putData(cts.audioChannelName, addWaveHeader(buffer,count));
