@@ -161,6 +161,10 @@ public class FileWatch {
     
     private final WatchService watcher = FileSystems.getDefault().newWatchService();
     
+    // User can set this value using the "-p" command line flag
+    // If value is > 0, we will use polling instead of the WatchService to check for new files
+    private int pollInterval = 0;
+    
     // Use a LinkedHashMap because it will maintain insertion order
     private final LinkedHashMap<Double,String> fileData = new LinkedHashMap<Double,String>();
     
@@ -216,10 +220,12 @@ public class FileWatch {
 		options.addOption("h", "help", false, "Print this message.");
 		options.addOption("a", "adjust_latency", false, "Divide latency results by 2 because test data files are from a recaster (round-trip).");
 		options.addOption("d", "disp_recaster", false, "Display results when operating in recaster mode.");
-		// Command line options that include a flag
+		// Command line options that include an argument
 		Option nextOption = Option.builder("i").argName("watchdir").hasArg().desc("Directory to watch for incoming test data files (must be an existing directory); default = \"" + DEFAULT_WATCH_DIR + "\".").build();
 		options.addOption(nextOption);
 		nextOption = Option.builder("o").argName("outfilename").hasArg().desc("Name of the output metrics data file; must be a new file.").build();
+		options.addOption(nextOption);
+		nextOption = Option.builder("p").argName("pollinterval").hasArg().desc("Watch for new files by polling (don't use Java WatchService); sleep for <pollinterval> (milliseconds) between scans.").build();
 		options.addOption(nextOption);
 		nextOption = Option.builder("r").argName("recasterdir").hasArg().desc("Recast test data files to the specified output directory (must be an existing directory).").build();
 		options.addOption(nextOption);
@@ -290,6 +296,20 @@ public class FileWatch {
             	System.exit(-1);
             }
         }
+        // Use polling to check for new files?
+        String pollIntervalStr = line.getOptionValue("p");
+        if (pollIntervalStr != null) {
+        	try {
+        		pollInterval = Integer.parseInt(pollIntervalStr);
+        		if ( (pollInterval <= 0) || (pollInterval > 1000) ) {
+        			throw new NumberFormatException("Illegal value");
+        		}
+        	} catch (NumberFormatException nfe) {
+        		System.err.println("\nPoll interval must be an integer in the range 0 < x <= 1000");
+        		System.exit(-1);
+        	}
+        }
+        
         // Make sure "end.txt" doesn't already exist in the directory; this file is our signal
         // that we're done processing
         File endFile = new File(watchDir.toFile(),"end.txt");
