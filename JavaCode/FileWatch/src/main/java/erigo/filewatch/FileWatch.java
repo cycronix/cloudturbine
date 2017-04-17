@@ -240,7 +240,7 @@ public class FileWatch {
 		options.addOption(nextOption);
 		nextOption = Option.builder("o").argName("outfilename").hasArg().desc("Name of the output metrics data file; must be a new file.").build();
 		options.addOption(nextOption);
-		nextOption = Option.builder("p").argName("pollinterval").hasArg().desc("Watch for new files by polling (don't use Java WatchService); sleep for <pollinterval> (milliseconds) between scans.").build();
+		nextOption = Option.builder("p").argName("pollinterval_msec").hasArg().desc("Watch for new files by polling (don't use Java WatchService); sleep for <pollinterval_msec> (milliseconds) between scans.").build();
 		options.addOption(nextOption);
 		nextOption = Option.builder("r").argName("recasterdir").hasArg().desc("Recast test data files to the specified output directory (must be an existing directory).").build();
 		options.addOption(nextOption);
