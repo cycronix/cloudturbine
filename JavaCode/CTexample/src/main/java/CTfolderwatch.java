@@ -21,6 +21,7 @@
 
 import java.io.File;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 
 public class CTfolderwatch {
 
@@ -33,19 +34,34 @@ public class CTfolderwatch {
 		if(args.length>2) sleepMsec = Integer.parseInt(args[2]);
 		
 		HashSet<String> hset = new HashSet();
+		LinkedHashMap<Double,String> fileData = new LinkedHashMap<Double,String>();
 		
 		System.err.println("monitoring folder: "+foldertest+", nmax: "+nmax);
 		File folder = new File(foldertest);
 		
 		long t1 = System.nanoTime();
 		File[] files=null;
-		for(int i=0; i<nmax; i++) {
+		double uniqueKey = 0;
+		for(int i=0; i<nmax; i++) {  // Repeatedly check for new files, nmax times total
 			long lastTime = System.nanoTime();
 			files = folder.listFiles();
 			for(File f:files) {
-				if(hset.add(f.getName())) {
-					if(i!=0 && files.length>1)		// skip initial filescan
-						System.err.println("new file: "+f.getName()+", nfiles: "+files.length+", dt(msec): "+(System.nanoTime()-lastTime)/1000000.);
+				if (false) {  // select Method 1 or Method 2 by setting this true or false
+					// Method 1: original method; use HashSet
+					if(hset.add(f.getName())) {
+						if(i!=0 && files.length>1)		// skip initial filescan
+							System.err.println("new file: "+f.getName()+", nfiles: "+files.length+", dt(msec): "+(System.nanoTime()-lastTime)/1000000.);
+					}
+				} else {
+					// Method 2: use HashSet to filter through whether we've seen this file yet; store file/time data in LinkedHashMap
+					//    NOTE: we use HashSet.add() to see if we've already added this file becasue it is much quicker than LinkedHashMap.containsValue()
+					if(hset.add(f.getName())) {
+						// This is a new file!
+						uniqueKey = uniqueKey + 1.0;
+						fileData.put(new Double(uniqueKey), f.getName());
+						if(i!=0 && files.length>1)		// skip initial filescan
+							System.err.println("** new file: "+f.getName()+", nfiles: "+files.length+", dt(msec): "+(System.nanoTime()-lastTime)/1000000.);
+					}
 				}
 			}
 			try{ Thread.sleep(sleepMsec); } catch(Exception e){};
@@ -54,3 +70,4 @@ public class CTfolderwatch {
 		System.err.println("Folder size: "+files.length+", avg time/list (msec): "+((t2-t1)/nmax)/1000000.);
 	}
 }
+
