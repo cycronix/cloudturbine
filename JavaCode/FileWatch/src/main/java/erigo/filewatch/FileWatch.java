@@ -16,19 +16,24 @@ limitations under the License.
 
 /**
  * FileWatch
- * Watch a directory for new files; report on timing.
+ * Watch a directory for new files; report throughput and latency metrics based on arrival time.
  * <p>
  * @author John P. Wilson (JPW), Erigo Technologies
- * @version 01/16/2017
+ * @version 04/17/2017
  * 
 */
 
 package erigo.filewatch;
 
 /*
- * This code is based on the WatchDir example program from Oracle:
+ * Portions of this code which use the Java WatchService are based on the
+ * WatchDir example program from Oracle:
  * 
  *     http://docs.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
+ * 
+ * The WatchDir sample program is more involved than FileWatch because it watches
+ * a specified directory and recursively all sub-directories under the directory.
+ * Even if a new directory is created, it will watch that directory.
  * 
  * Per the Oracle copyright, their copyright notice follows.
  * 
@@ -79,16 +84,6 @@ package erigo.filewatch;
  * the test (ie, the system where FilePump is running and the system where
  * FileWatch is running) should be synchronized.
  * 
- * FileWatch is based on Oracle's WatchDir sample program, which is more
- * involved than the current program because it watches a specified directory
- * and recursively all sub-directories under the directory. Even if a new
- * directory is created, it will watch that directory.
- * 
- * FileWatch uses the Java WatchService to detect when files are created in
- * a directory.  A good tutorial on WatchService can be found at:
- * 
- *    https://docs.oracle.com/javase/tutorial/essential/io/notification.html
- * 
  * FileWatch was specifically developed as a timing test utility for the
  * NASA SBIR CloudTurbine project, where data is streamed via third-party
  * file sharing services (such as Dropbox).  To test the third-party services,
@@ -104,20 +99,40 @@ package erigo.filewatch;
  * in the file name) to specify the file order.
  * 
  * In FileWatch, we record the time that the file appears in the watched folder
- * (the code registers for the "ENTRY_CREATE" events) as well as the name of the
- * file. Registering for ENTRY_CREATE appears to be the cleanest option. We
- * could also register for ENTRY_MODIFY events, but even if a file is simply
- * copied into a directory, several ENTRY_MODIFY events will be triggered
- * because the file's content and its parameters (such as timestamp) are
- * independently set.
+ * as well as the name of the file.  One of two methods are employed to detect
+ * new files in the watched folder:
+ * 
+ * 1. Use Java WatchService; good tutorial on WatchService can be found at:
+ * 
+ *    https://docs.oracle.com/javase/tutorial/essential/io/notification.html
+ *    
+ *    We can register for different types of events with the WatchService.
+ *    Registering for ENTRY_CREATE appears to be the cleanest option. We could
+ *    also register for ENTRY_MODIFY events, but even if a file is simply
+ *    copied into a directory, several ENTRY_MODIFY events will be triggered
+ *    because the file's content and its parameters (such as timestamp) are
+ *    independently set.
+ * 
+ * 2. Periodically poll the content of the watched directory.  This method is
+ *    activated by specifying a poll interval using the "-p" command line
+ *    flag.  This is a manual method, not event driven as is the case with
+ *    WatchService.  We get list of files in the watched directory and scan
+ *    through the list for new files.
  * 
  * After receiving a file named "end.txt", we perform post-processing on this
- * data and write the following to an output file:
+ * data and write the output file, which contains raw and processed data.  The
+ * data written to file includes latency and throughput metrics and the
+ * following:
  * 
- *    Create time at source (msec)    Create time at sink (msec)   Filename   Index from file
- * 
- * From this data, we can calculate latency, arrival order, and check for
- * missing files.
+ *     - Filename
+ *     - Create time at source (msec)
+ *     - Create time at source, normalized (sec)
+ *     - Create time at sink (msec)
+ *     - Create time at sink, normalized (sec)
+ *     - Latency (sec)
+ *     - Cumulative number of files at sink
+ *     - Index from file
+ *     - Out of order or missing?
  * 
  * The user may specify an optional "recaster" output directory.  When
  * specified, FileWatch in "recaster" mode can be used to conduct a round-trip
@@ -325,20 +340,21 @@ public class FileWatch {
             	System.exit(-1);
             }
         }
-    	
-        // Register the directory with the WatchService
-        // dirI.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-        // Only collect data for ENTRY_CREATE events.  Even if a file is just
-    	// copied into a directory, several ENTRY_MODIFY events can be
-    	// triggered because the file's content and its parameters (such as
-    	// timestamp) are independently set.
-        // dirI.register(watcher, ENTRY_CREATE);
-        watchDir.register(watcher, new WatchEvent.Kind[]{StandardWatchEventKinds.ENTRY_CREATE}, SensitivityWatchEventModifier.HIGH);
         
-        System.err.println("\nWatching directory \"" + watchDir + "\" for incoming files...");
-        processEvents();
-        
-        watcher.close();
+        if (pollInterval > 0) {
+        	System.err.println("\nWatching directory \"" + watchDir + "\" for incoming files; using polling method");
+        	processEvents_polling(watchDir.toFile());
+        } else {
+            // Register the directory with the WatchService
+            // Only collect data for ENTRY_CREATE events.  Even if a file is just
+        	// copied into a directory, several ENTRY_MODIFY events can be
+        	// triggered because the file's content and its parameters (such as
+        	// timestamp) are independently set.
+            watchDir.register(watcher, new WatchEvent.Kind[]{StandardWatchEventKinds.ENTRY_CREATE}, SensitivityWatchEventModifier.HIGH);
+        	System.err.println("\nWatching directory \"" + watchDir + "\" for incoming files; using WatchService events");
+        	processEvents_watchservice();
+        	watcher.close();
+        }
         
         if ( !bRecast || bOutputResultsInRecastMode ) {
         	System.err.println("\nWrite data to file \"" + outputFilename + "\"...");
@@ -355,9 +371,45 @@ public class FileWatch {
     }
     
     /**
-     * Process events from the watcher; stop when we see a file called "end.txt"
+     * Detect new files by repeatedly polling the input folder; stop when we see a file called "end.txt".
+     *
      */
-    void processEvents() throws IOException {
+    void processEvents_polling(File watchDir) throws IOException {
+    	File[] files=null;
+    	HashSet<String> hset = new HashSet<String>();
+    	Boolean bDone = false;
+        for (;;) {
+        	// base time for all files currently in the queue
+            double eventTime = (double)(System.currentTimeMillis());
+        	files = watchDir.listFiles();
+			for(File f:files) {
+				// The HashSet (hset) is used as a file filter, indicating if we have already added this file.
+				// We use that rather than LinkedHashMap's ".containsValue()" method because it is much quicker.
+				String filenameStr = f.getName();
+				if(hset.add(filenameStr)) {
+					// This is a new file!
+					bDone = processNewFile(filenameStr, eventTime);
+	                if (bDone) {
+	                	break;
+	                }
+				}
+			}
+			if (bDone) {
+	        	// Directory must have gone away or we have received the "end.txt" file
+	        	// we're done
+	        	break;
+	        }
+			try { Thread.sleep(pollInterval); } catch(Exception e){};
+        }
+        
+    }
+    
+    /**
+     * Process new file events from the Java WatchService; stop when we see a file called "end.txt".
+     *
+     * This method uses Java WatchService, i.e. this is an event-driven method to get file updates.
+     */
+    void processEvents_watchservice() throws IOException {
         for (;;) {
             
             // wait for key to be signaled
@@ -387,75 +439,9 @@ public class FileWatch {
                 WatchEvent<Path> ev = cast(event);
                 Path name = ev.context();
                 String filenameStr = name.toString();
-                if (filenameStr.equals("end.txt")) {
-                	// this is the signal that we're done
-                	bDone = true;
-                	// If we are doing recasting, put "end.txt" in output directory also
-                	if (bRecast) {
-                		// create end.txt in the output directory
-                    	File endFile = new File(outputDir,filenameStr);
-                    	new FileOutputStream(endFile).close();
-                	}
-                } else {
-                	System.err.print(".");
-                	
-                	// Make sure we are using a unique key
-                	String testValue = fileData.get(new Double(eventTime));
-                	if (testValue != null) {
-                		// This key is already in use; create a unique key by adding a small artificial time increment
-                		while (true) {
-                			// Add a microsecond onto the event time
-                        	eventTime = eventTime + 0.001;
-                        	testValue = fileData.get(new Double(eventTime));
-                        	if (testValue == null) {
-                        		// We now have a unique key!
-                        		break;
-                        	}
-                		}
-                	}
-                    // System.out.format("%d  %s %s\n", eventTime, event.kind().name(), name);
-                    fileData.put(new Double(eventTime), filenameStr);
-                    ++num_received_files;
-                    if (num_received_files % 20 == 0) {
-                    	System.err.println(" " + String.format("%4d",num_received_files));
-                    }
-                    
-                    // When doing recasting, put new file in the output directory;
-                    // it must be different from the received file in order to avoid
-                    // deduplication.
-                    if (bRecast) {
-                    	// Do a quick check to make sure this is a valid filename before passing it on
-                    	boolean bFilenameErr = false;
-                    	// 1. name must start with a number
-                    	char firstChar = filenameStr.charAt(0);
-                    	bFilenameErr = !(firstChar >= '0' && firstChar <= '9');
-                    	// 2. name must end with ".txt"
-                    	if ( (!bFilenameErr) && (!filenameStr.endsWith(".txt")) ) {
-                    		bFilenameErr = true;
-                    	}
-                    	if (!bFilenameErr) {
-                    		//
-                    		// Write a random number in the new outgoing file
-                    		//
-                    		//   *******************************************
-                    		//   **                                       **
-                    		//   **    NEED TO ADD FTP/SFTP CAPABILITY    **
-                    		//   **                                       **
-                    		//   *******************************************
-                    		//
-                    		int random_num = (int)((double)random_range * random_generator.nextDouble());
-                    		File newFullFile = new File(outputDir,filenameStr);
-                    		try {
-                    			FileWriter fw = new FileWriter(newFullFile,false);
-                    			PrintWriter pw = new PrintWriter(fw);
-                    			// Write out random number to the file
-                    			pw.format("%06d\n",random_num);
-                    			pw.close();
-                    		} catch (Exception e) {
-                    			System.err.println("Error writing to output file " + filenameStr);
-                    		}
-                    	}
-                    }
+                bDone = processNewFile(filenameStr, eventTime);
+                if (bDone) {
+                	break;
                 }
             }
             
@@ -467,6 +453,85 @@ public class FileWatch {
             }
             
         }
+    }
+    
+    /**
+     * Process a new file.  If we receive a file called "end.txt", that is
+     * a signal to stop the test; return true in this case.
+     */
+    boolean processNewFile(String filenameStr, double eventTime) throws IOException {
+    	boolean bDone = false;
+    	if (filenameStr.equals("end.txt")) {
+        	// this is the signal that we're done
+        	bDone = true;
+        	// If we are doing recasting, put "end.txt" in output directory also
+        	if (bRecast) {
+        		// create end.txt in the output directory
+            	File endFile = new File(outputDir,filenameStr);
+            	new FileOutputStream(endFile).close();
+        	}
+        } else {
+        	System.err.print(".");
+        	
+        	// Make sure we are using a unique key
+        	String testValue = fileData.get(new Double(eventTime));
+        	if (testValue != null) {
+        		// This key is already in use; create a unique key by adding a small artificial time increment
+        		while (true) {
+        			// Add a microsecond onto the event time
+                	eventTime = eventTime + 0.001;
+                	testValue = fileData.get(new Double(eventTime));
+                	if (testValue == null) {
+                		// We now have a unique key!
+                		break;
+                	}
+        		}
+        	}
+            // System.out.format("%d  %s %s\n", eventTime, event.kind().name(), name);
+            fileData.put(new Double(eventTime), filenameStr);
+            ++num_received_files;
+            if (num_received_files % 20 == 0) {
+            	System.err.println(" " + String.format("%4d",num_received_files));
+            }
+            
+            // When doing recasting, put new file in the output directory;
+            // it must be different from the received file in order to avoid
+            // deduplication.
+            if (bRecast) {
+            	// Do a quick check to make sure this is a valid filename before passing it on
+            	boolean bFilenameErr = false;
+            	// 1. name must start with a number
+            	char firstChar = filenameStr.charAt(0);
+            	bFilenameErr = !(firstChar >= '0' && firstChar <= '9');
+            	// 2. name must end with ".txt"
+            	if ( (!bFilenameErr) && (!filenameStr.endsWith(".txt")) ) {
+            		bFilenameErr = true;
+            	}
+            	if (!bFilenameErr) {
+            		//
+            		// Write a random number in the new outgoing file
+            		//
+            		//   *******************************************
+            		//   **                                       **
+            		//   **    NEED TO ADD FTP/SFTP CAPABILITY    **
+            		//   **                                       **
+            		//   *******************************************
+            		//
+            		int random_num = (int)((double)random_range * random_generator.nextDouble());
+            		File newFullFile = new File(outputDir,filenameStr);
+            		try {
+            			FileWriter fw = new FileWriter(newFullFile,false);
+            			PrintWriter pw = new PrintWriter(fw);
+            			// Write out random number to the file
+            			pw.format("%06d\n",random_num);
+            			pw.close();
+            		} catch (Exception e) {
+            			System.err.println("Error writing to output file " + filenameStr);
+            		}
+            	}
+            }
+        }
+    	return bDone;
     }
     
     /**
