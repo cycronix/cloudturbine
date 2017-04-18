@@ -199,11 +199,14 @@ public class FileWatch {
     
     // If this FileWatch is observing test data files which have come round-trip
     // (ie, gone from FilePump, to a recaster machine and then back to the
-    // FilePump machine) then set this flag try so that the output latency
-    // metrics are cut in half
+    // FilePump machine) then set this flag true so that the output latency
+    // metric results are cut in half
     private boolean bAdjustLatencyMetrics = false;
     
+    // Output plot titles
     private String latencyPlotTitle = "Latency";
+    private String throughputPlotTitle = "Throughput";
+    private String customPlotTitle = "";
     
     @SuppressWarnings("unchecked")
     static <T> WatchEvent<T> cast(WatchEvent<?> event) {
@@ -243,6 +246,8 @@ public class FileWatch {
 		nextOption = Option.builder("p").argName("pollinterval_msec").hasArg().desc("Watch for new files by polling (don't use Java WatchService); sleep for <pollinterval_msec> (milliseconds) between scans.").build();
 		options.addOption(nextOption);
 		nextOption = Option.builder("r").argName("recasterdir").hasArg().desc("Recast test data files to the specified output directory (must be an existing directory).").build();
+		options.addOption(nextOption);
+		nextOption = Option.builder("t").argName("plottitle").hasArg().desc("Custom title for throughput and latency plots.").build();
 		options.addOption(nextOption);
 		
 		//
@@ -324,6 +329,8 @@ public class FileWatch {
         		System.exit(-1);
         	}
         }
+        // Title for the throughput and latency plots
+        customPlotTitle = line.getOptionValue("t","");
         
         // Make sure "end.txt" doesn't already exist in the directory; this file is our signal
         // that we're done processing
@@ -701,10 +708,12 @@ public class FileWatch {
     	System.err.println("Metrics applicable to \"fast\" file tests:");
     	System.err.println("   Rku = " + String.format("%5g",Rku_reg.getSlope()) + " files/sec");
     	System.err.println("Metrics applicable to \"slow\" file tests:");
-    	double latencyMultiplier = 1.0;
+    	final double latencyMultiplier;
     	if (bAdjustLatencyMetrics) {
     		System.err.println("(NOTE: these latency metrics have been divided by 2 to represent the equivalent one-way metrics values)");
     		latencyMultiplier = 0.5;
+    	} else {
+    		latencyMultiplier = 1.0;
     	}
     	System.err.println("   Lav = " + String.format("%5g",Lav_reg.getIntercept()*latencyMultiplier) + " sec");
     	System.err.println("   Lmax observed = " + String.format("%.3f",latency_max*latencyMultiplier) + " sec");
@@ -781,17 +790,31 @@ public class FileWatch {
     	// Display plots
     	//
     	if (bAdjustLatencyMetrics) {
-    		latencyPlotTitle = "Round-trip Latency";
+    		latencyPlotTitle = "Latency (one-way)";
+    	}
+    	if ( (customPlotTitle != null) && (!customPlotTitle.isEmpty()) ) {
+    		latencyPlotTitle = new String(customPlotTitle + ", " + latencyPlotTitle);
+    		throughputPlotTitle = new String(customPlotTitle + ", " + throughputPlotTitle);
     	}
     	SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
+            	// For the plot, multiply latency data by latencyMultiplier, which will either leave the
+            	// latency data as-is or will divide it by 2 (if user wanted the adjusted, one-way equivalent data)
+            	List<Double> adjustedLatencyList = new ArrayList<Double>();
+            	for (int i=0; i<num_entries; ++i) {
+            		adjustedLatencyList.add(latencyList.get(i)*latencyMultiplier);
+            	}
+            	String yAxisTitle = "Latency (sec)";
+            	if (bAdjustLatencyMetrics) {
+            		yAxisTitle = "Latency, one-way equivalent (sec)";
+            	}
             	new DisplayPlot(
             		latencyPlotTitle,
             	    "Create time at source (sec)",
-            	    "Latency (sec)",
+            	    yAxisTitle,
             	    normalizedSourceCreationTimeList,
-            	    latencyList,
+            	    adjustedLatencyList,
             	    300,300)
             	.setVisible(true);
             	// Need to convert cumulativeNumFilesList to List<Double> to send it to the plot routine
@@ -800,7 +823,7 @@ public class FileWatch {
             		doubleList.add(new Double((double)cumulativeNumFilesList.get(i).intValue()));
             	}
             	new DisplayPlot(
-                	"Throughput",
+            		throughputPlotTitle,
                 	"Create time at sink (sec)",
                 	"Number of files at sink",
                 	normalizedSinkCreationTimeList,
