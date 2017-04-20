@@ -216,6 +216,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
+	public boolean bPreview = false;			// display live preview image in its own window? (MJM)
 	
 	// To control CT shutdown
 	public boolean bShutdown = false;
@@ -333,6 +334,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		options.addOption("a", "audio_cap", false, "Record audio (default="+bAudioCapture+").");
 		options.addOption("fs", "full_screen", false, "Automatically start capturing the full screen (default="+bFullScreen+").");
 		options.addOption("t", "UI_on_top", false, "CTscreencap UI will stay on top of all other windows (default=" + bStayOnTop + ").");
+		options.addOption("p", "preview", false, "Display live preview image");
 
 		// Command line options that include a flag
 		// For example, the following will be for "-outputfolder <folder>   (Location of output files...)"
@@ -399,6 +401,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    	formatter.printHelp( "CTscreencap", options );
 	    	return;
 	    }
+	    
+	    if(line.hasOption("preview")) bPreview = true;			// MJM
+	    
 	    // Source name
 	    sourceName = line.getOptionValue("s",sourceName);
 	    // Channel name

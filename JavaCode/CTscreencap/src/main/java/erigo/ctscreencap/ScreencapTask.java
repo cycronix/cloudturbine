@@ -21,6 +21,7 @@ import java.awt.MouseInfo;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.Iterator;
 import java.util.TimerTask;
@@ -56,6 +57,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 	static long oldScreenCapTime=0;			// MJM
 	static long skipChangeDetectDelay = 1000;	// MJM don't drop images for longer than this delay
 	
+	static DisplayImage display = null;	// MJM: local display image
+
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
 		cts = ctsI;
@@ -124,6 +127,11 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			// cts.queue.put(jpegByteArray);
 //			cts.queue.put(new TimeValue(System.currentTimeMillis(), jpegByteArray));
 			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// MJM 4/3/17: queue "nextTime" for continue mode
+			
+			if(cts.bPreview) {		// MJM: local display image
+				if(display==null) display = new DisplayImage("CTscreencap Live Image");
+				display.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),screenCap.getWidth(),screenCap.getHeight()); 
+			}
 		} catch (Exception e) {
 			if (!cts.bShutdown) {
 				// Only print out error messages if we know we aren't in shutdown mode
