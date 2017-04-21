@@ -16,10 +16,7 @@ limitations under the License.
 
 package erigo.ctscreencap;
 
-import java.awt.Graphics2D;
-import java.awt.MouseInfo;
-import java.awt.Rectangle;
-import java.awt.Robot;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +29,7 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
+import javax.swing.*;
 
 /**
  * Generate a screen capture.
@@ -136,8 +134,28 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// MJM 4/3/17: queue "nextTime" for continue mode
 			
 			if(cts.bPreview) {		// MJM: local display image
-				if(display==null) display = new DisplayImage("CTscreencap Live Image");
-				display.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),screenCap.getWidth(),screenCap.getHeight()); 
+				if(display==null) {
+					Dimension previewSize = new Dimension(400,400);
+					if (cts.bWebCam) {
+						previewSize = cts.webcam.getViewSize();
+						// previewSize is the size of the image; add some extra padding so the window fits properly around this image
+						// without needing the scrollbars
+						previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
+					}
+					display = new DisplayImage("CTscreencap Live Image",previewSize);
+				}
+				// NOTE: In order to display the image with the correct JPEG compression, need to send DisplayImage
+				//       a new BufferedImage based on jpegByteArray; can't just send screenCap because that image
+				//       hasn't been compressed yet.
+				display.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),screenCap.getWidth(),screenCap.getHeight());
+			} else if (!cts.bPreview && (display != null)) {
+				// For thread safety: Schedule a job for the event-dispatching thread to bring down the existing preview window
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {
+						display.frame.setVisible(false);
+						display = null;
+					}
+				});
 			}
 		} catch (Exception e) {
 			if (!cts.bShutdown) {

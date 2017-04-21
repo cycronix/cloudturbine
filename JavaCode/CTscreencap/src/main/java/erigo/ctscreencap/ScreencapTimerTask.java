@@ -60,7 +60,7 @@ public class ScreencapTimerTask extends TimerTask {
 		if (cts.bShutdown) {
 			return;
 		}
-		if (!cts.bFullScreen) {
+		if (!cts.bFullScreen  && !cts.bWebCam) {
 			// User will specify the region to capture via the JFame
 			// If the JFrame is not yet up, just return
 			if ( (cts.guiFrame == null) || (!cts.guiFrame.isShowing()) ) {
