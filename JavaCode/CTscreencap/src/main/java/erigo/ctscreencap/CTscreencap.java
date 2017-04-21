@@ -80,6 +80,9 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import com.github.sarxos.webcam.Webcam;					// webcam option (MJM)
+import com.github.sarxos.webcam.WebcamResolution;
+
 import cycronix.ctlib.CTwriter;
 import cycronix.ctlib.CTftp;
 import cycronix.ctlib.CTinfo;
@@ -217,6 +220,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
 	public boolean bPreview = false;			// display live preview image in its own window? (MJM)
+
+	public boolean bWebCam = false;				// webcam (vs screencap) option (MJM)
+	public Webcam webcam = null;
 	
 	// To control CT shutdown
 	public boolean bShutdown = false;
@@ -335,6 +341,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		options.addOption("fs", "full_screen", false, "Automatically start capturing the full screen (default="+bFullScreen+").");
 		options.addOption("t", "UI_on_top", false, "CTscreencap UI will stay on top of all other windows (default=" + bStayOnTop + ").");
 		options.addOption("p", "preview", false, "Display live preview image");
+		options.addOption("w", "webcam", false, "Capture WebCam (vs screencap)");
 
 		// Command line options that include a flag
 		// For example, the following will be for "-outputfolder <folder>   (Location of output files...)"
@@ -403,7 +410,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    }
 	    
 	    if(line.hasOption("preview")) bPreview = true;			// MJM
-	    
+	    if(line.hasOption("webcam")) bWebCam = true;			// MJM
+
 	    // Source name
 	    sourceName = line.getOptionValue("s",sourceName);
 	    // Channel name
@@ -528,7 +536,15 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    //       (see https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html)
 	    // Otherwise, pop up a frame where the user dynamically specifies what to capture.
 	    //
-	    if (bFullScreen) {
+	 	
+	 	if(bWebCam) {
+			webcam = Webcam.getDefault();
+			webcam.setViewSize(WebcamResolution.VGA.getSize());
+//			webcam.setDriver(new JmfDriver());
+			webcam.open();
+	 	}
+	 	
+	 	if (bFullScreen) {
 	    	regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 	    	System.err.println("Capturing the entire screen; click Ctrl+c when finished\n");
 	    } else {

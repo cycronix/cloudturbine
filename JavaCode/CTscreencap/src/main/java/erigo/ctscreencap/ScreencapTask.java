@@ -84,15 +84,22 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
 			int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
 			// Get screen image
-			Robot robot = new Robot();
-			BufferedImage screenCap = robot.createScreenCapture(captureRect);
-			if (cts.bIncludeMouseCursor) {
-				int cursor_x = mouse_x - captureRect.x;
-				int cursor_y = mouse_y - captureRect.y;
-				Graphics2D graphics2D = screenCap.createGraphics();
-				graphics2D.drawImage(cts.cursor_img, cursor_x, cursor_y, null);
+			BufferedImage screenCap;
+			if(cts.bWebCam) {				// MJM webcam option
+				screenCap = cts.webcam.getImage();
 			}
-			
+			else {
+				Robot robot = new Robot();
+				screenCap = robot.createScreenCapture(captureRect);
+
+				if (cts.bIncludeMouseCursor) {
+					int cursor_x = mouse_x - captureRect.x;
+					int cursor_y = mouse_y - captureRect.y;
+					Graphics2D graphics2D = screenCap.createGraphics();
+					graphics2D.drawImage(cts.cursor_img, cursor_x, cursor_y, null);
+				}
+			}
+
 			if(cts.bChangeDetect && !cts.bChangeDetected && startTime < (oldScreenCapTime+skipChangeDetectDelay)) {		// detect identical images...  MJM
 				if(imageSame(screenCap,oldScreenCap)) return;				// notta
 			}
