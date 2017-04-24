@@ -472,7 +472,9 @@ public class CTdata {
 	public byte[] getDataAsByteArray() {
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
 		try {
-			for(byte[] b:datalist) outputStream.write(b);
+			for(byte[] b:datalist) {
+				if(b!=null) outputStream.write(b);
+			}
 		} catch(Exception e) {
 			System.err.println("getDataAsByteArray Exception: "+e);
 		}
