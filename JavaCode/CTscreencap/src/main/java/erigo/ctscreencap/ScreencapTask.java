@@ -55,7 +55,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 	static long oldScreenCapTime=0;			// MJM
 	static long skipChangeDetectDelay = 1000;	// MJM don't drop images for longer than this delay
 	
-	static DisplayImage display = null;	// MJM: local display image
+	static PreviewWindow previewWindow = null;	// MJM: local preview window
 
 	// Constructor
 	public ScreencapTask(CTscreencap ctsI) {
@@ -83,7 +83,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
 			// Get screen image
 			BufferedImage screenCap;
-			if(cts.bWebCam) {				// MJM webcam option
+			if ( cts.bWebCam && (cts.webcam != null) && (cts.webcam.isOpen()) ) {				// MJM webcam option
 				screenCap = cts.webcam.getImage();
 			}
 			else {
@@ -133,8 +133,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 //			cts.queue.put(new TimeValue(System.currentTimeMillis(), jpegByteArray));
 			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// MJM 4/3/17: queue "nextTime" for continue mode
 			
-			if(cts.bPreview) {		// MJM: local display image
-				if(display==null) {
+			if(cts.bPreview) {		// MJM: local previewWindow image
+				if(previewWindow ==null) {
 					Dimension previewSize = new Dimension(400,400);
 					if (cts.bWebCam) {
 						previewSize = cts.webcam.getViewSize();
@@ -142,18 +142,18 @@ public class ScreencapTask extends TimerTask implements Runnable {
 						// without needing the scrollbars
 						previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
 					}
-					display = new DisplayImage("CTscreencap Live Image",previewSize);
+					previewWindow = new PreviewWindow("CTscreencap Live Image",previewSize);
 				}
-				// NOTE: In order to display the image with the correct JPEG compression, need to send DisplayImage
+				// NOTE: In order to previewWindow the image with the correct JPEG compression, need to send PreviewWindow
 				//       a new BufferedImage based on jpegByteArray; can't just send screenCap because that image
 				//       hasn't been compressed yet.
-				display.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),screenCap.getWidth(),screenCap.getHeight());
-			} else if (!cts.bPreview && (display != null)) {
+				previewWindow.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),screenCap.getWidth(),screenCap.getHeight());
+			} else if (!cts.bPreview && (previewWindow != null)) {
 				// For thread safety: Schedule a job for the event-dispatching thread to bring down the existing preview window
 				SwingUtilities.invokeLater(new Runnable() {
 					public void run() {
-						display.frame.setVisible(false);
-						display = null;
+						previewWindow.frame.setVisible(false);
+						previewWindow = null;
 					}
 				});
 			}

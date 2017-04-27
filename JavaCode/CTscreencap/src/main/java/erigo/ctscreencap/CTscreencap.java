@@ -56,19 +56,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -219,10 +207,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public BufferedImage cursor_img = null;		// cursor to add to the screen captures
 	public boolean bChangeDetected = false;		// flag to force image capture on event (MJM)
 	public boolean bJustDisplayUsage = false;	// Are we only displaying usage information and then quitting?
-	public boolean bPreview = false;			// display live preview image in its own window? (MJM)
+	public boolean bPreview = false;			// previewWindow live preview image in its own window? (MJM)
 
 	public boolean bWebCam = false;				// webcam (vs screencap) option (MJM)
-	public boolean bWebCamEnabled=false;		// initialize/enable webcam (MJM)
 	
 	public Webcam webcam = null;
 	
@@ -261,6 +248,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox audioCheck = null;		// checkbox to turn on/off audio capture
 	private JCheckBox previewCheck = null;		// checkbox to turn on/off the preview window
+	private JRadioButton screenRB = null;		// radio button to capture image from screen
+	private JRadioButton cameraRB = null;		// radio button to capture image from camera
+	private ButtonGroup captureButtonGroup = null;	// radio button group which defines the source of the capture: screen or camera
 	public JButton startStopButton = null;		// One button to Start and then Stop screen captures
 	public JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
 												// just where we left off; kind of like a seamless "pause"
@@ -413,7 +403,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    }
 	    
 	    if(line.hasOption("preview")) bPreview = true;			// MJM
-	    if(line.hasOption("webcam")) bWebCamEnabled = true;			// MJM
+	    if(line.hasOption("webcam")) bWebCam = true;			// MJM
 
 	    // Source name
 	    sourceName = line.getOptionValue("s",sourceName);
@@ -539,15 +529,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    //       (see https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html)
 	    // Otherwise, pop up a frame where the user dynamically specifies what to capture.
 	    //
-
-		// JPW Moved to startCapture()
-	 	// if(bWebCam) {
-		// 	webcam = Webcam.getDefault();
-		// 	webcam.setViewSize(WebcamResolution.VGA.getSize());
-		// 	// webcam.setDriver(new JmfDriver());
-		// 	webcam.open();
-	 	// }
-	 	
 	 	if (bFullScreen) {
 	    	regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 	    	System.err.println("Capturing the entire screen; click Ctrl+c when finished\n");
@@ -710,12 +691,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// queue = new LinkedBlockingQueue<byte[]>();
 		queue = new LinkedBlockingQueue<TimeValue>();
 
-		if(bWebCamEnabled) {
+		if(bWebCam) {
 			// Instead of capturing the screen, capture image from webcamera
-			webcam = Webcam.getDefault();
-			webcam.setViewSize(WebcamResolution.VGA.getSize());
-			// webcam.setDriver(new JmfDriver());
-			webcam.open();
+			startWebCamera();
 		}
 
 		// Setup periodic screen captures
@@ -774,11 +752,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
     		writeTask = null;
     	}
 
-		if( bWebCamEnabled && (webcam != null) ) {
-			System.err.println("Close web camera");
-    		webcam.close();
-    		webcam = null;
-		}
+    	// Make sure the web camera is shut down
+		stopWebCamera();
     	
 		// shut down audio
     	stopAudiocapTask();
@@ -857,6 +832,27 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
     	}
 		audioTask = null;
 	}
+
+	/**
+	 * Start the web camera
+	 */
+	private void startWebCamera() {
+		webcam = Webcam.getDefault();
+		webcam.setViewSize(WebcamResolution.VGA.getSize());
+		// webcam.setDriver(new JmfDriver());
+		webcam.open();
+	}
+
+	/**
+	 * Stop the web camera
+	 */
+	private void stopWebCamera() {
+		if (webcam != null) {
+			System.err.println("Close web camera");
+			webcam.close();
+			webcam = null;
+		}
+	}
 	
 	/**
 	 * Pop up the GUI
@@ -925,8 +921,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
 		fpsCB.setSelectedIndex(tempIndex);
 		fpsCB.addActionListener(this);
-		// The popup doesn't display over the transparent region;
-		// therefore, just display a few rows to keep it within controlsPanel
+		// The popup doesn't previewWindow over the transparent region;
+		// therefore, just previewWindow a few rows to keep it within controlsPanel
 		fpsCB.setMaximumRowCount(3);
 		JLabel imgQualLabel = new JLabel("image qual",SwingConstants.LEFT);
 		// The slider will use range 0 - 1000
@@ -946,6 +942,17 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// labelTable.put( new Integer(900), new JLabel("High") );
 		// imgQualSlider.setLabelTable( labelTable );
 		// imgQualSlider.setPaintLabels(true);
+		// radio buttons to specify what to capture - image from screen or camera
+		screenRB = new JRadioButton("screen", !bWebCam);
+		screenRB.setBackground(controlsPanel.getBackground());
+		screenRB.addActionListener(this);
+		cameraRB = new JRadioButton("camera", bWebCam);
+		cameraRB.setBackground(controlsPanel.getBackground());
+		cameraRB.addActionListener(this);
+		captureButtonGroup = new ButtonGroup();
+		captureButtonGroup.add(screenRB);
+		captureButtonGroup.add(cameraRB);
+		// A variety of check boxes to select options
 		changeDetectCheck = new JCheckBox("Change detect",bChangeDetect);
 		changeDetectCheck.setBackground(controlsPanel.getBackground());
 		changeDetectCheck.addActionListener(this);
@@ -972,19 +979,10 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
 			bMacOS = true;
 		}
-		/**
-		 * 
-		 * Only have the CTscreencap UI stay on top of all other windows
-		 * if bStayOnTop is true (set by command line flag).
-		 * 
-		 *	if (!bMacOS) {
-		 *		// On Mac, we haven't found a way to allow the user to "reach through"
-		 *		// capturePanel to interact with windows beneath the GUI; on
-		 *		// Windows and Linux this seems to work OK, so in those cases we
-		 *		// will always keep guiFrame on top
-		 *		guiFrame.setAlwaysOnTop(true);
-		 *	}
-		 */
+		// Only have the CTscreencap UI stay on top of all other windows
+		// if bStayOnTop is true (set by command line flag).  This is needed
+		// for the Mac, because on that platform the user can't "reach through"
+		// the capture frame to windows behind it.
 		if (bStayOnTop) {
 			guiFrame.setAlwaysOnTop(true);
 		}
@@ -1007,13 +1005,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		//  Add some extra horizontal padding around controlsPanel so the panel has some extra room
 		// if we are running in web camera mode.
 		gbc.insets = new Insets(0, 0, 0, 0);
-		if (bWebCam) {
-			// We are running in webcam mode; give the controlsPanel some more
-			// space and (so the red background doesn't show) make guiPanel background
-			// the same color as controlsPanel background
-			gbc.insets = new Insets(0, 30, 0, 30);
-			guiPanel.setBackground(controlsPanel.getBackground());
-		}
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.weightx = 100;
 		gbc.weighty = 0;
@@ -1086,7 +1077,24 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		gbc.anchor = GridBagConstraints.CENTER;
 		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
 		++panelrow;
-		// (iv) Change detect / Full screen / Audio checkboxes
+		// (iv) screen/camera radio buttons
+		panelgbl = new GridBagLayout();
+		subPanel = new JPanel(panelgbl);
+		panelgbc = new GridBagConstraints();
+		panelgbc.anchor = GridBagConstraints.WEST;
+		panelgbc.fill = GridBagConstraints.NONE;
+		panelgbc.weightx = 0;
+		panelgbc.weighty = 0;
+		subPanel.setBackground(controlsPanel.getBackground());
+		panelgbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(subPanel, screenRB, panelgbl, panelgbc, 0, 0, 1, 1);
+		Utility.add(subPanel, cameraRB, panelgbl, panelgbc, 1, 0, 1, 1);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.insets = new Insets(-5, 0, 3, 0);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		++panelrow;
+		// (v) Change detect / Full screen / Audio checkboxes
 		panelgbl = new GridBagLayout();
 		subPanel = new JPanel(panelgbl);
 		panelgbc = new GridBagConstraints();
@@ -1108,8 +1116,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		//
 		// Second row: the translucent/transparent capture panel
 		//
-		// Only add capturePanel to guiPanel if we are NOT using the web camera
-		//
 		if (bShapedWindowSupportedI) {
 			// Doing the Shaped window; set capturePanel inside guiPanel
 			// a bit so the red from guiPanel shows at the edges
@@ -1126,9 +1132,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		++row;
-		if (bWebCam) {
-			capturePanel.setVisible(false);
-		}
 
 		//
 		// Add guiPanel to guiFrame
@@ -1266,13 +1269,13 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		if (source == null) {
 			return;
 		} else if (source instanceof JComboBox) {
-			JComboBox<?> fpsCB = (JComboBox<?>)source;
-			double framesPerSecNew = ((Double)fpsCB.getSelectedItem()).doubleValue();
+			JComboBox<?> fpsCB = (JComboBox<?>) source;
+			double framesPerSecNew = ((Double) fpsCB.getSelectedItem()).doubleValue();
 			if (ctw == null) {
 				// No screen capture currently taking place;
 				// just save the new value
 				framesPerSec = framesPerSecNew;
-			} else if ( (ctw != null) && (framesPerSecNew != framesPerSec) ) {
+			} else if ((ctw != null) && (framesPerSecNew != framesPerSec)) {
 				// Start new periodic screen captures using the new rate
 				framesPerSec = framesPerSecNew;
 				System.err.println("\nRestarting screen captures at new rate: " + framesPerSec + " frames/sec");
@@ -1292,6 +1295,22 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				changeDetectCheck.setEnabled(true);
 				changeDetectCheck.setSelected(bChangeDetect);
 			}
+		} else if ((source instanceof JRadioButton) && (((JRadioButton)source) == screenRB)) {
+			if (!bWebCam) {
+				// We are already in screen capture mode, just return
+				return;
+			}
+			bWebCam = false;
+		} else if ((source instanceof JRadioButton) && (((JRadioButton)source) == cameraRB)) {
+			if (bWebCam) {
+				// We are already in camera mode, just return
+				return;
+			}
+			if ( (ctw != null) && (webcam == null) ) {
+				// Capture is running but the webcam hasn't been started; open the web camera
+				startWebCamera();
+			}
+			bWebCam = true;
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == changeDetectCheck)) {
 			if (changeDetectCheck.isSelected()) {
 				bChangeDetect = true;
@@ -1305,13 +1324,13 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 				// Save the original height
 				guiFrameOrigHeight = guiFrame.getHeight();
-				// Shrink the GUI down to just display controlsPanel
+				// Shrink the GUI down to just previewWindow controlsPanel
 				Rectangle guiFrameBounds = guiFrame.getBounds();
 				Rectangle updatedGUIFrameBounds = new Rectangle(guiFrameBounds.x,guiFrameBounds.y,guiFrameBounds.width,controlsPanel.getHeight()+22);
 				guiFrame.setBounds(updatedGUIFrameBounds);
 			} else {
 				bFullScreen = false;
-				// Expand the GUI to display capturePanel
+				// Expand the GUI to previewWindow capturePanel
 				Rectangle guiFrameBounds = guiFrame.getBounds();
 				int updatedHeight = guiFrameOrigHeight;
 				if (guiFrameOrigHeight == -1) {
@@ -1347,9 +1366,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == previewCheck)) {
 			if (previewCheck.isSelected()) {
-				bPreview = true;  	if(bWebCamEnabled) bWebCam=true;		// tie webcam to preview for now (MJM)
+				bPreview = true;
 			} else {
-				bPreview = false;	bWebCam=false;
+				bPreview = false;
 			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
@@ -1423,7 +1442,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		//    }
         float currentVal = (float)source.getValue();
         imageQuality = currentVal/1000.0f;
-        bChangeDetected = true; // force image display even if unchanged (MJM)
+        bChangeDetected = true; // force image previewWindow even if unchanged (MJM)
         // System.err.println("\nimageQuality = " + imageQuality);
 	}
 	
@@ -1541,10 +1560,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Point updatedGUIFrameLoc = new Point(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY);
 			guiFrame.setLocation(updatedGUIFrameLoc);
 		} else if (mouseCommandMode == RESIZE_FRAME_NW) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width-deltaX;
 			int newFrameHeight = frameStartingBounds.height-deltaY;
 			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
@@ -1553,10 +1568,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y+deltaY,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_N) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width;
 			int newFrameHeight = frameStartingBounds.height-deltaY;
 			if (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) {
@@ -1565,10 +1576,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_NE) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width+deltaX;
 			int newFrameHeight = frameStartingBounds.height-deltaY;
 			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
@@ -1577,10 +1584,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y+deltaY,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_E) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width+deltaX;
 			int newFrameHeight = frameStartingBounds.height;
 			if (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) {
@@ -1589,10 +1592,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_SE) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width+deltaX;
 			int newFrameHeight = frameStartingBounds.height+deltaY;
 			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
@@ -1601,10 +1600,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_S) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width;
 			int newFrameHeight = frameStartingBounds.height+deltaY;
 			if (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) {
@@ -1613,10 +1608,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_SW) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width-deltaX;
 			int newFrameHeight = frameStartingBounds.height+deltaY;
 			if ( (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) || (bDontMakeShorter && (newFrameHeight < oldFrameHeight)) ) {
@@ -1625,10 +1616,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			Rectangle updatedGUIFrameBounds = new Rectangle(frameStartingBounds.x+deltaX,frameStartingBounds.y,newFrameWidth,newFrameHeight);
 			guiFrame.setBounds(updatedGUIFrameBounds);
 		} else if (mouseCommandMode == RESIZE_FRAME_W) {
-			if (bWebCam) {
-				// only support moving the frame (not resizing it) when in webcam mode
-				return;
-			}
 			int newFrameWidth = frameStartingBounds.width-deltaX;
 			int newFrameHeight = frameStartingBounds.height;
 			if (bDontMakeThinner && (newFrameWidth < oldFrameWidth)) {
@@ -1673,11 +1660,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		mouseCommandMode = NO_COMMAND;
 		// Set mouse Cursor based on the current mouse position
 		int commandMode = getGUIFrameCommandMode(mouseEventI.getPoint());
-		if (bWebCam) {
-			// if we're in webcam mode, keep default cursor
-			guiFrame.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-			return;
-		}
 		switch (commandMode) {
 			case NO_COMMAND:		guiFrame.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
 									break;
