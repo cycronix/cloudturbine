@@ -222,6 +222,8 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	public boolean bPreview = false;			// display live preview image in its own window? (MJM)
 
 	public boolean bWebCam = false;				// webcam (vs screencap) option (MJM)
+	public boolean bWebCamEnabled=false;		// initialize/enable webcam (MJM)
+	
 	public Webcam webcam = null;
 	
 	// To control CT shutdown
@@ -411,7 +413,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	    }
 	    
 	    if(line.hasOption("preview")) bPreview = true;			// MJM
-	    if(line.hasOption("webcam")) bWebCam = true;			// MJM
+	    if(line.hasOption("webcam")) bWebCamEnabled = true;			// MJM
 
 	    // Source name
 	    sourceName = line.getOptionValue("s",sourceName);
@@ -708,7 +710,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// queue = new LinkedBlockingQueue<byte[]>();
 		queue = new LinkedBlockingQueue<TimeValue>();
 
-		if(bWebCam) {
+		if(bWebCamEnabled) {
 			// Instead of capturing the screen, capture image from webcamera
 			webcam = Webcam.getDefault();
 			webcam.setViewSize(WebcamResolution.VGA.getSize());
@@ -772,7 +774,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
     		writeTask = null;
     	}
 
-		if( bWebCam && (webcam != null) ) {
+		if( bWebCamEnabled && (webcam != null) ) {
 			System.err.println("Close web camera");
     		webcam.close();
     		webcam = null;
@@ -1345,9 +1347,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == previewCheck)) {
 			if (previewCheck.isSelected()) {
-				bPreview = true;
+				bPreview = true;  	if(bWebCamEnabled) bWebCam=true;		// tie webcam to preview for now (MJM)
 			} else {
-				bPreview = false;
+				bPreview = false;	bWebCam=false;
 			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
