@@ -95,7 +95,7 @@ public class AudiocapTask {
                                         if (imageTime > time) break;       			// out of range (save one?)
                                         ctw.setTime(imageTime);
                                         ctw.putData(cts.channelName, tv.value);
-                                        System.out.print("x");
+                                        System.out.print("Ax");
     									numFlushes += 1;
     									if ((numFlushes % 40) == 0) {
     										System.err.print("\n");
