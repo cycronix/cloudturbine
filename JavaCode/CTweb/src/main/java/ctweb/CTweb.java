@@ -520,33 +520,37 @@ public class CTweb {
     					if(debug) System.err.println("--------CTweb getData: "+chan+", numData: "+numData+", fetch: "+fetch+", ftype: "+ftype+", pathInfo: "+pathInfo);
 
         				// check for If-None-Match and skip duplicates.
-        				if(duration==0 && fetch=='b' && reference.equals("absolute")) {		// only works for single-object requests
-        					String ifnonematch = request.getHeader("If-None-Match");
-        					if(ifnonematch != null) {
-        						String[] matchparts = ifnonematch.split(":");
-        						if(matchparts.length == 2) {
-        							String matchchan = matchparts[0];
-        							long matchtime = Long.parseLong(matchparts[1]);		// int-msec
-        							long gottime = (long)(1000.* time[0]);				// int-msec for compare
-        							String reqchan = source + "/" + chan;				// reconstruct full path
-        							
-        							if((matchtime == gottime) && matchchan.equals(reqchan)) {
-        								if(debug) System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference);
+//        				if(duration==0 && fetch=='b' && reference.equals("absolute")) {		// only works for single-object requests
+    					if(numData>0) {
+    						String ifnonematch = request.getHeader("If-None-Match");
+    						if(ifnonematch != null) {
+    							String[] matchparts = ifnonematch.split(":");
+    							if(matchparts.length == 2) {
+    								String matchchan = matchparts[0];
+    								long matchtime = Long.parseLong(matchparts[1]);		// int-msec
+    								//        							long gottime = (long)(1000.* time[0]);				// int-msec for compare
+    								long gottime = (long)(1000.* time[time.length-1]);	// int-msec for compare to last (most recent) got-time
+    								String reqchan = source + "/" + chan;				// reconstruct full path
+    								if(reqchan.startsWith("/")) reqchan = reqchan.substring(1);		// strip leading '/' if present
+    								if(debug) System.err.println("ifnonematch, gottime: "+gottime+", matchtime: "+matchtime+", matchchan: "+matchchan+", reqchan: "+reqchan);
 
-        	   							// add header info about time limits
-        								// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
-            							double oldTime = ctreader.oldTime(source,chan);
-            							double newTime = ctreader.newTime(source,chan);
-            							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-        								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
-        								
-        								formResponse(response,null);
-        								response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
-        								return;
-        							}
-        						}
-        					}
-        				}
+    								if(Math.abs(matchtime-gottime)<=1 && matchchan.equals(reqchan)) {		// account for msec round off error
+    									// add header info about time limits
+    									// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
+    									double oldTime = ctreader.oldTime(source,chan);
+    									double newTime = ctreader.newTime(source,chan);
+    									double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    									formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
+
+    									formResponse(response,null);
+    									response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
+
+    									if(debug) System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference+", newTime: "+newTime);
+    									return;
+    								}
+    							}
+    						}
+    					}
         					
     					if(numData > MaxDat && ftype != 'b') {		// unlimited binary fetch
     						System.err.println("CTweb: limiting output points to: "+MaxDat);
@@ -694,6 +698,8 @@ public class CTweb {
     //---------------------------------------------------------------------------------	
     private static void formHeader(HttpServletResponse response, double startTime, double endTime, double oldTime, double newTime, double lagTime) {
     	response.addHeader("time", formatTime(startTime));								// sec
+//    	response.addHeader("time", formatTime(endTime));								// sec
+
 		response.addHeader("Last-Modified", ""+new Date((long)(1000*endTime)).toGMTString());			// msec
 		
 		double duration = endTime - startTime;
