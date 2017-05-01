@@ -1344,11 +1344,11 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				// We are already in camera mode, just return
 				return;
 			}
+			bWebCam = true;
 			if ( (ctw != null) && (webcam == null) ) {
 				// Capture is running but the webcam hasn't been started; open the web camera
 				startWebCamera();
 			}
-			bWebCam = true;
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == changeDetectCheck)) {
 			if (changeDetectCheck.isSelected()) {
 				bChangeDetect = true;

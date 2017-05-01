@@ -83,7 +83,11 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
 			// Get screen image
 			BufferedImage screenCap;
-			if ( cts.bWebCam && (cts.webcam != null) && (cts.webcam.isOpen()) ) {				// MJM webcam option
+			if (cts.bWebCam) {
+				if ( (cts.webcam == null) || !cts.webcam.isOpen() ) {
+					// Web camera hasn't been opened yet; just return
+					return;
+				}
 				screenCap = cts.webcam.getImage();
 			}
 			else {
@@ -129,14 +133,12 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			baos.close();
 			System.out.print(".");
 			// Add baos to the asynchronous event queue of to-be-processed objects
-			// cts.queue.put(jpegByteArray);
-//			cts.queue.put(new TimeValue(System.currentTimeMillis(), jpegByteArray));
-			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// MJM 4/3/17: queue "nextTime" for continue mode
+			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// Use getNextTime() to support continue mode
 			
 			if(cts.bPreview) {		// MJM: local previewWindow image
 				if(previewWindow ==null) {
 					Dimension previewSize = new Dimension(400,400);
-					if (cts.bWebCam) {
+					if ( cts.bWebCam && (cts.webcam != null) && cts.webcam.isOpen() ) {
 						previewSize = cts.webcam.getViewSize();
 						// previewSize is the size of the image; add some extra padding so the window fits properly around this image
 						// without needing the scrollbars
