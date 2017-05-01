@@ -54,6 +54,8 @@ package erigo.ctscreencap;
 public class WriteTask implements Runnable {
 	
 	public CTscreencap cts = null;
+
+	private boolean bRunning = true;
 	
 	/**
 	 * 
@@ -63,6 +65,13 @@ public class WriteTask implements Runnable {
 	 */
 	public WriteTask(CTscreencap ctsI) {
 		cts = ctsI;
+	}
+
+	/**
+	 * Signal to shut down this WriteTask
+	 */
+	public void shutDown() {
+		bRunning = false;
 	}
 	
 	/**
@@ -78,7 +87,7 @@ public class WriteTask implements Runnable {
 		int numScreenCaps = 0;
 		
 		while (true) {
-			if (cts.bShutdown) {
+			if (cts.bShutdown || !bRunning) {
 				break;
 			}
 			byte[] jpegByteArray = null;
@@ -92,7 +101,7 @@ public class WriteTask implements Runnable {
 				currentTime = tv.time;
 				jpegByteArray = tv.value;
 			} catch (InterruptedException e) {
-				if (cts.bShutdown) {
+				if (cts.bShutdown || !bRunning) {
 					break;
 				} else {
 					System.err.println("Caught exception working with the LinkedBlockingQueue:\n" + e);
@@ -108,13 +117,13 @@ public class WriteTask implements Runnable {
 						cts.ctw.putData(cts.channelName,jpegByteArray);
 					}
 				} catch (Exception e) {
-					if (cts.bShutdown) {
+					if (cts.bShutdown || !bRunning) {
 						break;
 					} else {
 						System.err.println("Caught CTwriter exception:\n" + e);
 					}
 				}
-				System.out.print("x");
+				System.out.print("Wx");
 				numScreenCaps += 1;
 				if ((numScreenCaps % 40) == 0) {
 					System.err.print("\n");

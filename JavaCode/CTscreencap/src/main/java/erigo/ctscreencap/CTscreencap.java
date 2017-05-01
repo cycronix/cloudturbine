@@ -164,7 +164,7 @@ import cycronix.ctlib.CTreader;
  * maintain seamless video/audio capture.
  * 
  * @author John P. Wilson, Matt J. Miller
- * @version 04/12/2017
+ * @version 05/01/2017
  *
  */
 public class CTscreencap implements ActionListener,ChangeListener,MouseMotionListener {
@@ -676,10 +676,6 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 					return;
 				}
 			}
-			if (!bAudioCapture) {
-				// if no audio, auto-flush on video
-				ctw.autoFlush(autoFlushMillis);
-			}
 			ctw.setZipMode(bZipMode);
 			ctw.autoSegment(numBlocksPerSegment);
 		} catch (IOException ioe) {
@@ -691,31 +687,25 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 		// queue = new LinkedBlockingQueue<byte[]>();
 		queue = new LinkedBlockingQueue<TimeValue>();
 
-		if(bWebCam) {
-			// Instead of capturing the screen, capture image from webcamera
-			startWebCamera();
-		}
+		//
+		// If needed, start the web camera
+		//
+		startWebCamera();
 
-		// Setup periodic screen captures
+		//
+		// Setup periodic image captures (either from web camera or screen)
+		//
 		startScreencapTimer();
 		
 		//
 		// Start audio capture (if requested by the user)
 		//
-		if (bAudioCapture) {
-			// start audio capture (MJM)
-			audioTask = new AudiocapTask(this, ctw, autoFlushMillis);
-		}
+		startAudiocapTask();
 		
 		//
 		// Create a new WriteTask which continually grabs images off the queue and writes them to CT
-		// Run this in a new thread
 		//
-		if(!bAudioCapture) {				// if audioCapture, images written out in AudiocapTask thread
-			writeTask = new WriteTask(this);
-			writeTaskThread = new Thread(writeTask);
-			writeTaskThread.start();
-		}
+		startWriteTask();
 	}
 	
 	/**
@@ -732,25 +722,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
     	bShutdown = true;
     	
     	// shut down WriteTask
-    	if (writeTaskThread != null) {
-    		try {
-    			System.err.println("Wait for WriteTask to stop");
-    			writeTaskThread.join(500);
-    			if (writeTaskThread.isAlive()) {
-    				// WriteTask must be waiting to take another screencap off the queue;
-    				// interrupt it
-    				writeTaskThread.interrupt();
-    				writeTaskThread.join(500);
-    			}
-    			if (!writeTaskThread.isAlive()) {
-    				System.err.println("WriteTask has stopped");
-    			}
-    		} catch (InterruptedException ie) {
-    			System.err.println("Caught exception trying to stop WriteTask:\n" + ie);
-    		}
-    		writeTaskThread = null;
-    		writeTask = null;
-    	}
+		stopWriteTask();
 
     	// Make sure the web camera is shut down
 		stopWebCamera();
@@ -802,6 +774,71 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 			screencapTimerTask = null;
 		}
 	}
+
+	/**
+	 * startWriteTask
+	 *
+	 * Create a new WriteTask which continually grabs images off the queue and writes them to CT.
+	 * Run this in a new thread.
+	 * Note that we only start a new WriteTask if there is no audio capture; if there is audio capture,
+	 * images are written out in AudiocapTask thread.
+	 */
+	private void startWriteTask() {
+		if(!bAudioCapture) {
+			writeTask = new WriteTask(this);
+			writeTaskThread = new Thread(writeTask);
+			writeTaskThread.start();
+			// Turn autoFlush on (since we won't be flushing in AudiocapTask)
+			ctw.autoFlush(autoFlushMillis);
+		}
+	}
+
+	/**
+	 * stopWriteTask
+	 *
+	 * Terminate the task which writes images to CT
+	 */
+	private void stopWriteTask() {
+		if (writeTaskThread == null) {
+			return;
+		}
+		try {
+			System.err.println("\nWait for WriteTask to stop");
+			writeTask.shutDown();
+			writeTaskThread.join(500);
+			if (writeTaskThread.isAlive()) {
+				// WriteTask must be waiting to take another screencap off the queue;
+				// interrupt it
+				writeTaskThread.interrupt();
+				writeTaskThread.join(500);
+			}
+			if (!writeTaskThread.isAlive()) {
+				System.err.println("WriteTask has stopped");
+			}
+		} catch (InterruptedException ie) {
+			System.err.println("Caught exception trying to stop WriteTask:\n" + ie);
+		}
+		writeTaskThread = null;
+		writeTask = null;
+	}
+
+	/**
+	 * startAudiocapTask
+	 *
+	 * Start audio capture
+	 */
+	private void startAudiocapTask() {
+		if (audioTask != null) {
+			// Appears that it is already running
+			System.err.println("ERROR: audio is already running?");
+			return;
+		}
+		if (bAudioCapture) {
+			audioTask = new AudiocapTask(this, ctw, autoFlushMillis);
+			// Turn autoFlush off (by making it huge)
+			ctw.autoFlush(Long.MAX_VALUE);
+		}
+	}
 	
 	/**
 	 * stopAudiocapTask
@@ -810,15 +847,14 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	 */
 	private void stopAudiocapTask() {
 		if (audioTask == null) {
-			System.err.println("AudiocapTask is already stopped");
 			return;
 		}
-		System.err.println("Wait for AudiocapTask to stop");
+		System.err.println("\nWait for AudiocapTask to stop");
 		audioTask.shutDown();
 		try {
 			// Wait for the audioTask thread to finish
 			Thread audioTaskThread = audioTask.captureThread;
-			audioTaskThread.join(2*autoFlushMillis); // audio capture isn't necessarily precise, so wait up to 2*autoFlushMillis
+			audioTaskThread.join(4*autoFlushMillis); // audio capture isn't necessarily precise, so wait up to 4*autoFlushMillis
 			if (audioTaskThread.isAlive()) {
     			// AudiocapTask must be held up; interrupt it
 				audioTaskThread.interrupt();
@@ -834,13 +870,15 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 	}
 
 	/**
-	 * Start the web camera
+	 * Start the web camera (if the user has requested to use it)
 	 */
 	private void startWebCamera() {
-		webcam = Webcam.getDefault();
-		webcam.setViewSize(WebcamResolution.VGA.getSize());
-		// webcam.setDriver(new JmfDriver());
-		webcam.open();
+		if(bWebCam) {
+			webcam = Webcam.getDefault();
+			webcam.setViewSize(WebcamResolution.VGA.getSize());
+			// webcam.setDriver(new JmfDriver());
+			webcam.open();
+		}
 	}
 
 	/**
@@ -1344,15 +1382,9 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				// Start audio capture
 				bAudioCapture = true;
 				if (ctw != null) {
+					stopWriteTask();
 					System.err.println("\nStart audio capture");
-					if (audioTask != null) {
-						// Appears that it is already running
-						System.err.println("ERROR: audio is already running?");
-					} else {
-						audioTask = new AudiocapTask(this, ctw, autoFlushMillis);
-					}
-					// Turn autoFlush off (by making it huge)
-					ctw.autoFlush(Long.MAX_VALUE);
+					startAudiocapTask();
 				}
 			} else {
 				// Shut down audio capture
@@ -1360,8 +1392,7 @@ public class CTscreencap implements ActionListener,ChangeListener,MouseMotionLis
 				if (ctw != null) {
 					System.err.println("\nShut down audio capture");
 					stopAudiocapTask();
-					// Turn autoFlush on (since we won't be flushing in AudiocapTask)
-					ctw.autoFlush(autoFlushMillis);
+					startWriteTask();
 				}
 			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == previewCheck)) {
