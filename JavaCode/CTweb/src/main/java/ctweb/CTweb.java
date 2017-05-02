@@ -527,9 +527,9 @@ public class CTweb {
     							String[] matchparts = ifnonematch.split(":");
     							if(matchparts.length == 2) {
     								String matchchan = matchparts[0];
-    								long matchtime = Long.parseLong(matchparts[1]);		// int-msec
+    								double matchtime = Double.parseDouble(matchparts[1]);		// int-msec
     								//        							long gottime = (long)(1000.* time[0]);				// int-msec for compare
-    								long gottime = (long)(1000.* time[time.length-1]);	// int-msec for compare to last (most recent) got-time
+    								double gottime = 1000.* time[time.length-1];	// int-msec for compare to last (most recent) got-time
     								String reqchan = source + "/" + chan;				// reconstruct full path
     								if(reqchan.startsWith("/")) reqchan = reqchan.substring(1);		// strip leading '/' if present
     								if(debug) System.err.println("ifnonematch, gottime: "+gottime+", matchtime: "+matchtime+", matchchan: "+matchchan+", reqchan: "+reqchan);
