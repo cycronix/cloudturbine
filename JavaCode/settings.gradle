@@ -1,2 +1,2 @@
-include 'CT2CSV','CTadmin','CTarchive','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTscreencap','CTserial','CTsync','CTtext','CTudp','CTweb','FilePump','FileWatch','CTaudio'
+include 'CT2CSV','CTadmin','CTarchive','CTaudio','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTscreencap','CTserial','CTstream','CTsync','CTtext','CTudp','CTweb','FilePump','FileWatch'
 
