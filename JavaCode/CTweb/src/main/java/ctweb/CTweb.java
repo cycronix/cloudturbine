@@ -72,23 +72,17 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.HashLoginService;
-import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
-import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
+
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.security.Constraint;
-import org.eclipse.jetty.util.security.Credential;
-import org.eclipse.jetty.util.security.Password;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.server.Connector;
 
@@ -575,7 +569,7 @@ public class CTweb {
     							double oldTime = ctreader.oldTime(source,chan);
     							double newTime = ctreader.newTime(source,chan);
     							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
+//								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
     						
     							if(chan.toLowerCase().endsWith(".jpg")) 		response.setContentType("image/jpeg");
     							else if(chan.toLowerCase().endsWith(".wav")) 	response.setContentType("audio/wav");
@@ -583,11 +577,15 @@ public class CTweb {
 
     							if(bdata == null || bdata.length==0) {
     								if(debug) System.err.println("No data for request: "+pathInfo);
+    								formHeader(response, 0., 0., oldTime, newTime, lagTime);
     								formResponse(response, null);		// add CORS header even for error response
     								response.sendError(HttpServletResponse.SC_NOT_FOUND);
     								return;
     							}
-    							else	formResponse(response,null);
+    							else {
+    								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
+    								formResponse(response,null);
+    							}
 
     							// down-size large images
     							if(chan.endsWith(".jpg") && (scaleImage>1) && bdata.length>100000) {	
@@ -677,7 +675,7 @@ public class CTweb {
     						double oldTime = ctreader.oldTime(source,chan);
     						double newTime = ctreader.newTime(source,chan);
     						double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    						formHeader(response, start, duration, oldTime, newTime, lagTime);
+    						formHeader(response, start, start+duration, oldTime, newTime, lagTime);
         					formResponse(response, null);		// add CORS header even for error response
             				response.sendError(HttpServletResponse.SC_NOT_FOUND);
             				return;
@@ -712,7 +710,7 @@ public class CTweb {
 
 		response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
 		
-		if(debug) System.err.println("+++CTweb: time: "+startTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
+		if(debug) System.err.println("+++CTweb: time: "+startTime+", endTime: "+endTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
     }
     
     //---------------------------------------------------------------------------------	
