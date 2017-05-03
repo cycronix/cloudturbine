@@ -167,7 +167,8 @@ public class DefineCaptureRegion extends JDialog {
                 public void keyTyped(KeyEvent e) {
                 	if ( (selectionBounds != null) && (e.getKeyChar() == KeyEvent.VK_ENTER) ) {
                 		// We're ready to start capturing the screen
-                		parentDialog.cts.regionToCapture = selectionBounds;
+                        // Following line is commented out because we no longer store regionToCapture in the parent class
+                		// parentDialog.cts.regionToCapture = selectionBounds;
                 		parentDialog.setVisible(false);
                 	}
                 }

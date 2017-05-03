@@ -19,6 +19,7 @@ package erigo.ctstream;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.util.TimerTask;
 
 /**
@@ -38,16 +39,18 @@ import java.util.TimerTask;
 
 public class ScreencapTimerTask extends TimerTask {
 	
-	public CTstream cts = null;
+	private CTstream cts = null;
+	private ScreencapStream screencapStream = null;
 	
 	/**
-	 * 
 	 * Constructor
 	 * 
-	 * @param  ctsI  The CTstream object.
+	 * @param  ctsI  CTstream object
+	 * @param  screencapStreamI  ScreencapStream object
 	 */
-	public ScreencapTimerTask(CTstream ctsI) {
+	public ScreencapTimerTask(CTstream ctsI, ScreencapStream screencapStreamI) {
 		cts = ctsI;
+		screencapStream = screencapStreamI;
 	}
 	
 	/**
@@ -60,30 +63,33 @@ public class ScreencapTimerTask extends TimerTask {
 		if (cts.bShutdown) {
 			return;
 		}
-		if (!cts.bFullScreen  && !cts.bWebCam) {
-			// User will specify the region to capture via the JFame
-			// If the JFrame is not yet up, just return
-			if ( (cts.guiFrame == null) || (!cts.guiFrame.isShowing()) ) {
-				return;
+		if (!cts.bWebCam) {
+			if (cts.bFullScreen) {
+				screencapStream.regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+			} else {
+				// User will specify the region to capture via the JFame
+				// If the JFrame is not yet up, just return
+				if ((cts.guiFrame == null) || (!cts.guiFrame.isShowing())) {
+					return;
+				}
+				// Update capture region (this is used by ScreencapTask)
+				// Trim off a couple pixels from the edges to avoid getting
+				// part of the red frame in the screen capture.
+				Point loc = cts.capturePanel.getLocationOnScreen();
+				loc.x = loc.x + 2;
+				loc.y = loc.y + 2;
+				Dimension dim = cts.capturePanel.getSize();
+				if ((dim.width <= 0) || (dim.height <= 0)) {
+					// Don't try to do a screen capture with a non-existent capture area
+					return;
+				}
+				dim.width = dim.width - 4;
+				dim.height = dim.height - 4;
+				screencapStream.regionToCapture = new Rectangle(loc, dim);
 			}
-			// Update capture region (this is used by ScreencapTask)
-			// Trim off a couple pixels from the edges to avoid getting
-			// part of the red frame in the screen capture.
-			Point loc = cts.capturePanel.getLocationOnScreen();
-			loc.x = loc.x + 2;
-			loc.y = loc.y + 2;
-			Dimension dim = cts.capturePanel.getSize();
-			if ( (dim.width <= 0) || (dim.height <= 0) ) {
-				// Don't try to do a screen capture with a non-existent capture area
-				return;
-			}
-			dim.width = dim.width - 4;
-			dim.height = dim.height - 4;
-			Rectangle tempRegionToCapture = new Rectangle(loc,dim);
-			cts.regionToCapture = tempRegionToCapture;
 		}
 		// Create a new ScreencapTask and run it in a new thread
-		ScreencapTask screencapTask = new ScreencapTask(cts);
+		ScreencapTask screencapTask = new ScreencapTask(cts,screencapStream);
         Thread threadObj = new Thread(screencapTask);
         threadObj.start();
 	}

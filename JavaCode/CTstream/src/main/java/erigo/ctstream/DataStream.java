@@ -17,7 +17,6 @@ limitations under the License.
 package erigo.ctstream;
 
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Abstract class to act as the parent of all data stream classes which send data to CloudTurbine.
@@ -32,7 +31,7 @@ public abstract class DataStream {
 
     public BlockingQueue<TimeValue> queue = null;
 
-    private CTstream cts = null;
+    public CTstream cts = null;
 
     // At most 1 DataStream class can specify manual flush;
     // if there is 1 DataStream with manual flush, then all other DataStreams will coordinate flush with that one;
@@ -43,8 +42,21 @@ public abstract class DataStream {
 
     public PreviewWindow previewWindow = null;
 
+    // Is this stream currently running?
+    public boolean bIsRunning = false;
+
+    /**
+     * Start the stream
+     */
     public abstract void start();
 
+    /**
+     * Stop the stream
+     */
     public abstract void stop();
 
+    /**
+     * User has changed real-time settings; update the stream to use these new settings
+     */
+    public abstract void update();
 }
