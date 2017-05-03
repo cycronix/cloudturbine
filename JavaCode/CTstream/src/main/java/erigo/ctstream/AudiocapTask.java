@@ -89,7 +89,7 @@ public class AudiocapTask {
 								if (count > 0) {
 									// CTput images in timerange of current audio buffer
 									TimeValue tv;
-                                    while ((tv = cts.queue.poll()) != null) {
+                                    while ((tv = cts.screencapStream.queue.poll()) != null) {
                                         long imageTime = tv.time;
                                         if (imageTime < oldTime) continue;  		// discard too-old
                                         if (imageTime > time) break;       			// out of range (save one?)

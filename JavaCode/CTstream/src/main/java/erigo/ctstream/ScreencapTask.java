@@ -47,20 +47,23 @@ import javax.swing.*;
 
 public class ScreencapTask extends TimerTask implements Runnable {
 	
-	public CTstream cts = null;
-	public JPEGImageWriteParam jpegParams = null; // to specify image quality
-	public Rectangle captureRect = null;          // the rectangular region to capture
-	
-	static BufferedImage oldScreenCap=null;	// MJM
-	static long oldScreenCapTime=0;			// MJM
-	static long skipChangeDetectDelay = 1000;	// MJM don't drop images for longer than this delay
+	private CTstream cts = null;
+	private ScreencapStream screencapStream = null;
+	private JPEGImageWriteParam jpegParams = null; // to specify image quality
+	private Rectangle captureRect = null;          // the rectangular region to capture
+
+	// (MJM) static variables used to implement the "change detect" feature
+	static BufferedImage oldScreenCap=null;
+	static long oldScreenCapTime=0;
+	static long skipChangeDetectDelay = 1000; // don't drop images for longer than this delay
 	
 	static PreviewWindow previewWindow = null;	// MJM: local preview window
 
 	// Constructor
-	public ScreencapTask(CTstream ctsI) {
+	public ScreencapTask(CTstream ctsI, ScreencapStream screencapStreamI) {
 		cts = ctsI;
-		captureRect = cts.regionToCapture;
+		screencapStream = screencapStreamI;
+		captureRect = screencapStream.regionToCapture;
 		// Setup image quality
 		jpegParams = new JPEGImageWriteParam(null);
 		jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
@@ -98,7 +101,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 					int cursor_x = mouse_x - captureRect.x;
 					int cursor_y = mouse_y - captureRect.y;
 					Graphics2D graphics2D = screenCap.createGraphics();
-					graphics2D.drawImage(cts.cursor_img, cursor_x, cursor_y, null);
+					graphics2D.drawImage(screencapStream.cursor_img, cursor_x, cursor_y, null);
 				}
 			}
 
@@ -133,7 +136,7 @@ public class ScreencapTask extends TimerTask implements Runnable {
 			baos.close();
 			System.out.print(".");
 			// Add baos to the asynchronous event queue of to-be-processed objects
-			cts.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// Use getNextTime() to support continue mode
+			screencapStream.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// Use getNextTime() to support continue mode
 			
 			if(cts.bPreview) {		// MJM: local previewWindow image
 				if(previewWindow ==null) {
@@ -169,8 +172,8 @@ public class ScreencapTask extends TimerTask implements Runnable {
 		}
 		
 		long capTime = System.currentTimeMillis() - startTime;
-		if (capTime > cts.capturePeriodMillis) {
-			System.err.println("\nWARNING: screen capture takes " + capTime + " msec, which is longer than the desired period of " + cts.capturePeriodMillis + " msec");
+		if (capTime > screencapStream.capturePeriodMillis) {
+			System.err.println("\nWARNING: screen capture takes " + capTime + " msec, which is longer than the desired period of " + screencapStream.capturePeriodMillis + " msec");
 		}
 		
 	}

@@ -97,7 +97,7 @@ public class WriteTask implements Runnable {
 				// but now queue TimeValue objects which is a combo
 				// of the JPG and time
 				// jpegByteArray = queue.take();
-				TimeValue tv = cts.queue.take();
+				TimeValue tv = cts.screencapStream.queue.take();
 				currentTime = tv.time;
 				jpegByteArray = tv.value;
 			} catch (InterruptedException e) {
