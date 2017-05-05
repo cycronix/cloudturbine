@@ -29,151 +29,154 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
-import javax.swing.*;
 
 /**
- * Generate a screen capture.
+ * Generate an image for a DataStream and put it in the DataStream's queue.
  *
- * The run() method in this class generates a screen capture and puts it
- * in the blocking queue managed by CTstream.
- *
- * Initial code based on the example found at:
+ * Screen capture code based on the example found at:
  * http://www.codejava.net/java-se/graphics/how-to-capture-screenshot-programmatically-in-java
  *
  * @author John P. Wilson
- * @version 01/26/2017
+ * @version 05/03/2017
  *
  */
 
-public class ScreencapTask extends TimerTask implements Runnable {
+public class ImageTask extends TimerTask implements Runnable {
 	
 	private CTstream cts = null;
-	private ScreencapStream screencapStream = null;
+	private DataStream dataStream = null;
 	private JPEGImageWriteParam jpegParams = null; // to specify image quality
-	private Rectangle captureRect = null;          // the rectangular region to capture
 
 	// (MJM) static variables used to implement the "change detect" feature
-	static BufferedImage oldScreenCap=null;
-	static long oldScreenCapTime=0;
+	static BufferedImage oldImage = null;
+	static long oldImageTime = 0;
 	static long skipChangeDetectDelay = 1000; // don't drop images for longer than this delay
 	
-	static PreviewWindow previewWindow = null;	// MJM: local preview window
-
 	// Constructor
-	public ScreencapTask(CTstream ctsI, ScreencapStream screencapStreamI) {
+	public ImageTask(CTstream ctsI, DataStream dataStreamI) {
 		cts = ctsI;
-		screencapStream = screencapStreamI;
-		captureRect = screencapStream.regionToCapture;
+		dataStream = dataStreamI;
 		// Setup image quality
 		jpegParams = new JPEGImageWriteParam(null);
 		jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
 		jpegParams.setCompressionQuality(cts.imageQuality);
 	}
-	
-	// Perform the work of the screen capture
+
+	//
+	// Perform the work of generating the image.
+	//
 	public void run() {
 		
-		// Do a check on the amount of time it takes to perform this capture
+		// Check how much time it actually takes to perform the image capture
 		long startTime = System.currentTimeMillis();
+
+		// The max amount of time we'd want the image capture to take
+		long capturePeriodMillis = 0;
 		
-		if (cts.bShutdown) {
+		if (!dataStream.bIsRunning) {
 			return;
 		}
 		
 		try {
-			// Need to add the mouse cursor to the image
-			int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
-			int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
-			// Get screen image
-			BufferedImage screenCap;
-			if (cts.bWebCam) {
-				if ( (cts.webcam == null) || !cts.webcam.isOpen() ) {
+			BufferedImage bufferedImage = null;
+			if (dataStream instanceof WebcamStream) {
+				capturePeriodMillis = ((WebcamStream)dataStream).capturePeriodMillis;
+				if ( (WebcamStream.webcam == null) || !WebcamStream.webcam.isOpen() ) {
 					// Web camera hasn't been opened yet; just return
 					return;
 				}
-				screenCap = cts.webcam.getImage();
+				bufferedImage = WebcamStream.webcam.getImage();
 			}
-			else {
+			else if (dataStream instanceof ScreencapStream) {
+				capturePeriodMillis = ((ScreencapStream)dataStream).capturePeriodMillis;
+				// the rectangular region to capture
+				Rectangle captureRect = ((ScreencapStream)dataStream).regionToCapture;
 				Robot robot = new Robot();
-				screenCap = robot.createScreenCapture(captureRect);
-
+				bufferedImage = robot.createScreenCapture(captureRect);
 				if (cts.bIncludeMouseCursor) {
+					// Need to add the mouse cursor to the image
+					int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
+					int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
 					int cursor_x = mouse_x - captureRect.x;
 					int cursor_y = mouse_y - captureRect.y;
-					Graphics2D graphics2D = screenCap.createGraphics();
-					graphics2D.drawImage(screencapStream.cursor_img, cursor_x, cursor_y, null);
+					Graphics2D graphics2D = bufferedImage.createGraphics();
+					graphics2D.drawImage(((ScreencapStream)dataStream).cursor_img, cursor_x, cursor_y, null);
 				}
 			}
 
-			if(cts.bChangeDetect && !cts.bChangeDetected && startTime < (oldScreenCapTime+skipChangeDetectDelay)) {		// detect identical images...  MJM
-				if(imageSame(screenCap,oldScreenCap)) return;				// notta
+			// Implement "change detect" logic where we only save images that have changed
+			// Check for changes if all of the following are true
+			// 1. User has indicated they want to use "Change detect"
+			// 2. CTstream isn't forcing us to save the image, ie bForceImageCapture is false
+			// 3. We are within skipChangeDetectDelay milliseconds of the last image being saved
+			if(cts.bChangeDetect && !cts.bForceImageCapture && startTime < (oldImageTime+skipChangeDetectDelay)) {
+				// check to see if the image has changed
+				if (imageSame(bufferedImage, oldImage)) {
+					// no change, just return
+					return;
+				}
 			}
-			if(cts.bChangeDetected) System.err.println("\nforcing image on change UI");
-			oldScreenCap = screenCap;
-			oldScreenCapTime = startTime;
-			cts.bChangeDetected = false;
-			
-			// Write the image to CloudTurbine file
+			// if (cts.bForceImageCapture) System.err.println("\nforcing image on change UI");
+			oldImage = bufferedImage;
+			oldImageTime = startTime;
+			cts.bForceImageCapture = false; // make sure CTstream's "force save" flag is reset
+
+			//
+			// Convert image to byte array and save it in the DataStream's queue
+			//
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			//
-			// Method 1: To write out an image using the default compression
-			//
-			// ImageIO.write(screenCap, "jpg", baos);
-			//
-			// Method 2: To change the default image compression
+			// Write out the image using default compression
+			// ImageIO.write(bufferedImage, "jpg", baos);
+			// Write out the image using a custom compression
 			//   See the following websites for where I got this code:
 			//   http://stackoverflow.com/questions/13204432/java-how-to-set-jpg-quality
 			//   http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java
-			//
 			ImageOutputStream  ios =  ImageIO.createImageOutputStream(baos);
 		    Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName("jpg");
 		    ImageWriter writer = iter.next();
 		    writer.setOutput(ios);
-		    writer.write(null, new IIOImage(screenCap,null,null),jpegParams);
+		    writer.write(null, new IIOImage(bufferedImage,null,null),jpegParams);
 		    writer.dispose();
 			baos.flush();
 			byte[] jpegByteArray = baos.toByteArray();
+			if ( (jpegByteArray == null) || (jpegByteArray.length == 0) ) {
+				return;
+			}
 			baos.close();
-			System.out.print(".");
-			// Add baos to the asynchronous event queue of to-be-processed objects
-			screencapStream.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));		// Use getNextTime() to support continue mode
-			
-			if(cts.bPreview) {		// MJM: local previewWindow image
-				if(previewWindow ==null) {
-					Dimension previewSize = new Dimension(400,400);
-					if ( cts.bWebCam && (cts.webcam != null) && cts.webcam.isOpen() ) {
-						previewSize = cts.webcam.getViewSize();
-						// previewSize is the size of the image; add some extra padding so the window fits properly around this image
-						// without needing the scrollbars
-						previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
-					}
-					previewWindow = new PreviewWindow("CTstream Preview",previewSize);
+			// Add baos to the queue of yet-to-be-sent-to-CT images
+			// NOTE: we use getNextTime() here to support continue mode
+			try {
+				dataStream.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));
+				System.out.print(".");
+			} catch (Exception e) {
+				if (dataStream.bIsRunning) {
+					System.err.println("\nImageTask: exception thrown adding image to queue:\n" + e);
+					e.printStackTrace();
 				}
+				return;
+			}
+
+			//
+			// Display preview image
+			//
+			if(dataStream.bPreview && (dataStream.previewWindow != null)) {
 				// NOTE: In order to previewWindow the image with the correct JPEG compression, need to send PreviewWindow
-				//       a new BufferedImage based on jpegByteArray; can't just send screenCap because that image
+				//       a new BufferedImage based on jpegByteArray; can't just send bufferedImage because that image
 				//       hasn't been compressed yet.
-				previewWindow.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),screenCap.getWidth(),screenCap.getHeight());
-			} else if (!cts.bPreview && (previewWindow != null)) {
-				// For thread safety: Schedule a job for the event-dispatching thread to bring down the existing preview window
-				SwingUtilities.invokeLater(new Runnable() {
-					public void run() {
-						previewWindow.frame.setVisible(false);
-						previewWindow = null;
-					}
-				});
+				dataStream.previewWindow.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),bufferedImage.getWidth(),bufferedImage.getHeight());
 			}
 		} catch (Exception e) {
-			if (!cts.bShutdown) {
-				// Only print out error messages if we know we aren't in shutdown mode
-			    System.err.println("\nError processing screen capture:\n" + e);
+			if (dataStream.bIsRunning) {
+				// Only print out error messages if we know we should still be running
+			    System.err.println("\nError generating image:\n" + e);
 			    e.printStackTrace();
 			}
 			return;
 		}
 		
 		long capTime = System.currentTimeMillis() - startTime;
-		if (capTime > screencapStream.capturePeriodMillis) {
-			System.err.println("\nWARNING: screen capture takes " + capTime + " msec, which is longer than the desired period of " + screencapStream.capturePeriodMillis + " msec");
+		if (capTime > capturePeriodMillis) {
+			System.err.println("\nWARNING: image generation took  " + capTime + " msec, which is longer than the desired period of " + capturePeriodMillis + " msec");
 		}
 		
 	}

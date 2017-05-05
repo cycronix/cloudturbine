@@ -16,26 +16,24 @@ limitations under the License.
 
 package erigo.ctstream;
 
+import java.io.IOException;
+
 /**
- * WriteTask is a Runnable object which takes screen capture byte arrays off the
- * blocking queue (CTstream.queue) and writes them to CT.
- * 
- * POSSIBLE TO-DO:
- * 
- * This class could be extended to support a more general data management/coordination scheme
- * to manage multiple streams of data, each stored as packets in separate queues. One queue
- * is the "master" queue and the rest of the queues are "slave" queues.  The master queue
- * defines the following:
- * 
- * 	o accepted time range
- * 	o when to flush to CT
- * 
- * For CTstream we would have 2 queues:
- * 	o master queue contains audio packets
- * 	o slave queue contains images
- * 
- * Processing handled as follows (this logic mirrors what is currently implemented in AudiocapTask):
- * 
+ * WriteTask is a Runnable object which takes byte arrays from the queues of the various
+ * DataStream objects and writes them to CT.
+ *
+ * Need to make sure that data is sent to CT in time order.  This avoids the problem, for instance,
+ * where auto-flush seals off a block and then the next setTime/putData calls are for a time that
+ * would have been in that block.
+ *
+ * Flushing data is handled one of two ways:
+ *
+ * 1. If there is no "master" DataStream: use auto flush; just keep sending packets to CT in time sequence order;
+ *    let CT handle flushing.
+ *
+ * 2. If one DataStream is the "master": keep sending packets to CT in time sequence order; every time we send
+ *    data from the "master" DataStream to CT, finish it with a call to CTwriter.flush().
+ *
  * 	while(true)
  * 		keep accumulating data (ie, images) in slave queue
  * 		when packet shows up in the master (audio) queue
@@ -47,7 +45,7 @@ package erigo.ctstream;
  *	end
  *
  * @author John P. Wilson
- * @version 02/06/2017
+ * @version 05/05/2017
  *
  */
 
@@ -75,64 +73,106 @@ public class WriteTask implements Runnable {
 	}
 	
 	/**
-	 * 
 	 * run()
 	 * 
-	 * This method performs the work of writing screen captures to CloudTurbine.
-	 * A while loop takes screen capture byte arrays off the blocking queue and
-	 * send them to CT.
+	 * Write data to CloudTurbine.
+	 *
 	 */
 	public void run() {
-		
-		int numScreenCaps = 0;
-		
-		while (true) {
-			if (cts.bShutdown || !bRunning) {
-				break;
+		int numPuts = 0;
+		long timeOfLastFlushMillis = System.currentTimeMillis();
+		boolean bDataToBeFlushed = false;
+		long nextScreencapTime = Long.MAX_VALUE;
+		byte[] nextScreencapValue = null;
+		long nextWebcamTime = Long.MAX_VALUE;
+		byte[] nextWebcamValue = null;
+		while (bRunning) {
+			// Make sure we have the next data from each DataStream
+			if ( (nextScreencapValue == null) && (cts.screencapStream != null) && (cts.screencapStream.queue != null) ) {
+				TimeValue tv = cts.screencapStream.queue.poll();
+				if ( (tv != null) && (tv.value != null) ) {
+					nextScreencapTime = tv.time;
+					nextScreencapValue = tv.value;
+				}
 			}
-			byte[] jpegByteArray = null;
-			long currentTime=0;  
+			if ( (nextWebcamValue == null) && (cts.webcamStream != null) && (cts.webcamStream.queue != null) ) {
+				TimeValue tv = cts.webcamStream.queue.poll();
+				if ( (tv != null) && (tv.value != null) ) {
+					nextWebcamTime = tv.time;
+					nextWebcamValue = tv.value;
+				}
+			}
+			if ( (nextScreencapValue == null) && (nextWebcamValue == null) ) {
+				// Nothing to send to CT
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			// See if there's data to send to CT
 			try {
-				// We used to queue just the byte array of the JPG,
-				// but now queue TimeValue objects which is a combo
-				// of the JPG and time
-				// jpegByteArray = queue.take();
-				TimeValue tv = cts.screencapStream.queue.take();
-				currentTime = tv.time;
-				jpegByteArray = tv.value;
-			} catch (InterruptedException e) {
-				if (cts.bShutdown || !bRunning) {
+				boolean bPutData = false;
+				if ( (nextScreencapTime <= nextWebcamTime) && (nextScreencapValue != null) ) {
+					cts.ctw.setTime(nextScreencapTime);
+					cts.ctw.putData(cts.screencapStream.name,nextScreencapValue);
+					bPutData = true;
+					bDataToBeFlushed = true;
+					if (cts.screencapStream.bManualFlush) {
+						bDataToBeFlushed = false;
+						timeOfLastFlushMillis = System.currentTimeMillis();
+						cts.ctw.flush(true); // gapless
+					}
+					nextScreencapTime = Long.MAX_VALUE;
+					nextScreencapValue = null;
+				} else if (nextWebcamValue != null) {
+					cts.ctw.setTime(nextWebcamTime);
+					cts.ctw.putData(cts.webcamStream.name,nextWebcamValue);
+					bPutData = true;
+					bDataToBeFlushed = true;
+					if (cts.webcamStream.bManualFlush) {
+						bDataToBeFlushed = false;
+						timeOfLastFlushMillis = System.currentTimeMillis();
+						cts.ctw.flush(true); // gapless
+					}
+					nextWebcamTime = Long.MAX_VALUE;
+					nextWebcamValue = null;
+				}
+				if (bPutData) {
+					System.out.print("x");
+					numPuts += 1;
+					if ((numPuts % 40) == 0) {
+						System.err.print("\n");
+					}
+				}
+			} catch (Exception e) {
+				if (!bRunning) {
 					break;
 				} else {
-					System.err.println("Caught exception working with the LinkedBlockingQueue:\n" + e);
+					System.err.println("CTwriter exception:\n" + e);
 				}
 			}
-			if (jpegByteArray != null) {
-				try {
-					// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTstream.ctwLockObj object
-					synchronized(cts.ctwLockObj) {
-//						long nextTime = cts.getNextTime();
-						long nextTime = currentTime;				// MJM 4/3/17:  use queued time
-						cts.ctw.setTime(nextTime);
-						cts.ctw.putData(cts.channelName,jpegByteArray);
+			// Handle flushing
+			// This isn't auto flushing, but pretty close - even if no DataStreams are currently open,
+			// if there is still data to be flushed (ie, bDataToBeFlushed is true) then we'll check
+			// if it is time to flush.
+			if (bDataToBeFlushed) {
+				// there must not be any DataStreams that are set for manual flush; see if it is time to do a flush
+				long timeMillis = System.currentTimeMillis();
+				if (cts.flushMillis <= (timeMillis-timeOfLastFlushMillis)) {
+					try {
+						// System.err.println("Flush data: cts.flushMillis=" + cts.flushMillis + ", timeOfLastFlushMillis=" + timeOfLastFlushMillis + ", current time=" + timeMillis);
+						cts.ctw.flush();
+						bDataToBeFlushed = false;
+					} catch (IOException e) {
+						System.err.println("WriteTask: caught exception on flush:\n" + e);
+						e.printStackTrace();
 					}
-				} catch (Exception e) {
-					if (cts.bShutdown || !bRunning) {
-						break;
-					} else {
-						System.err.println("Caught CTwriter exception:\n" + e);
-					}
-				}
-				System.out.print("Wx");
-				numScreenCaps += 1;
-				if ((numScreenCaps % 40) == 0) {
-					System.err.print("\n");
+					timeOfLastFlushMillis = timeMillis;
 				}
 			}
 		}
-		
 		System.err.println("WriteTask is exiting");
-		
 	}
 	
 }
