@@ -72,7 +72,7 @@ public class ScreencapTimerTask extends TimerTask {
 				if ((cts.guiFrame == null) || (!cts.guiFrame.isShowing())) {
 					return;
 				}
-				// Update capture region (this is used by ScreencapTask)
+				// Update capture region (this is used by ImageTask)
 				// Trim off a couple pixels from the edges to avoid getting
 				// part of the red frame in the screen capture.
 				Point loc = cts.capturePanel.getLocationOnScreen();
@@ -88,9 +88,8 @@ public class ScreencapTimerTask extends TimerTask {
 				screencapStream.regionToCapture = new Rectangle(loc, dim);
 			}
 		}
-		// Create a new ScreencapTask and run it in a new thread
-		ScreencapTask screencapTask = new ScreencapTask(cts,screencapStream);
-        Thread threadObj = new Thread(screencapTask);
+		// Run an instance of ImageTask in a new thread
+        Thread threadObj = new Thread(new ImageTask(cts,screencapStream));
         threadObj.start();
 	}
 	

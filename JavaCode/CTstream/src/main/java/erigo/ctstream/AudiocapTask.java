@@ -81,35 +81,32 @@ public class AudiocapTask {
 							}
 							// if(!audioThreshold(buffer, 100)) continue;		// drop whole buffer if below threshold?
 							// webscan not up to task of handling empty data in RT
-							// JPW 2017-02-10 synchronize calls to the common CTwriter object using a common CTstream.ctwLockObj object
-							synchronized(cts.ctwLockObj) {
-								// long time = System.currentTimeMillis();
-								long time = cts.getNextTime();
-								
-								if (count > 0) {
-									// CTput images in timerange of current audio buffer
-									TimeValue tv;
-                                    while ((tv = cts.screencapStream.queue.poll()) != null) {
-                                        long imageTime = tv.time;
-                                        if (imageTime < oldTime) continue;  		// discard too-old
-                                        if (imageTime > time) break;       			// out of range (save one?)
-                                        ctw.setTime(imageTime);
-                                        ctw.putData(cts.channelName, tv.value);
-                                        System.out.print("Ax");
-    									numFlushes += 1;
-    									if ((numFlushes % 40) == 0) {
-    										System.err.print("\n");
-    									}
-                                    }
-                                    
-                                    // CTput audio buffer
-									ctw.setTime(time);
-									ctw.putData(cts.audioChannelName, addWaveHeader(buffer,count));
-									ctw.flush(true);		// gapless
+							// long time = System.currentTimeMillis();
+							long time = cts.getNextTime();
+
+							if (count > 0) {
+								// CTput images in timerange of current audio buffer
+								TimeValue tv;
+								while ((tv = cts.screencapStream.queue.poll()) != null) {
+									long imageTime = tv.time;
+									if (imageTime < oldTime) continue;        // discard too-old
+									if (imageTime > time) break;                // out of range (save one?)
+									ctw.setTime(imageTime);
+									ctw.putData(cts.channelName, tv.value);
+									System.out.print("Ax");
+									numFlushes += 1;
+									if ((numFlushes % 40) == 0) {
+										System.err.print("\n");
+									}
 								}
 
-								oldTime = time;
+								// CTput audio buffer
+								ctw.setTime(time);
+								ctw.putData(cts.audioChannelName, addWaveHeader(buffer, count));
+								ctw.flush(true);        // gapless
 							}
+
+							oldTime = time;
 						}
 						System.err.println("Closing AudiocapTask");
 						line.close();

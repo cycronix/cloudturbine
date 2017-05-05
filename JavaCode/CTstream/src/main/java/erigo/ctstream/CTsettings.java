@@ -410,7 +410,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 			}
 		}
 		
-		if (ctStream.autoFlushMillis < flushIntervalLongs[0]) {
+		if (ctStream.flushMillis < flushIntervalLongs[0]) {
 			return new String("Flush interval must be greater than or equal to " + flushIntervalLongs[0]);
 		}
 		
@@ -428,7 +428,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_ftpHost = ctStream.ftpHost;
 		orig_ftpUser = ctStream.ftpUser;
 		orig_ftpPassword = ctStream.ftpPassword;
-		orig_autoFlushMillis = ctStream.autoFlushMillis;
+		orig_autoFlushMillis = ctStream.flushMillis;
 		orig_numBlocksPerSegment = ctStream.numBlocksPerSegment;
 		orig_bDebugMode = ctStream.bDebugMode;
 		orig_bIncludeMouseCursor = ctStream.bIncludeMouseCursor;
@@ -449,7 +449,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ftpUserTF.setEnabled(ctStream.bFTP);
 		ftpPasswordLabel.setEnabled(ctStream.bFTP);
 		ftpPasswordTF.setEnabled(ctStream.bFTP);
-		int selectedIdx = Arrays.asList(flushIntervalLongs).indexOf(ctStream.autoFlushMillis);
+		int selectedIdx = Arrays.asList(flushIntervalLongs).indexOf(ctStream.flushMillis);
 		if (selectedIdx == -1) {
 			selectedIdx = 1;
 		}
@@ -545,7 +545,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.ftpUser = ftpUserTF.getText().trim();
 		char[] passwordCharArray = ftpPasswordTF.getPassword();
 		ctStream.ftpPassword = new String(passwordCharArray).trim();
-		ctStream.autoFlushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
+		ctStream.flushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
 		ctStream.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctStream.bDebugMode = bDebugModeCheckB.isSelected();
 		ctStream.bIncludeMouseCursor = bIncludeMouseCursorCheckB.isSelected();
@@ -583,7 +583,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.ftpHost = orig_ftpHost;
 		ctStream.ftpUser = orig_ftpUser;
 		ctStream.ftpPassword = orig_ftpPassword;
-		ctStream.autoFlushMillis = orig_autoFlushMillis;
+		ctStream.flushMillis = orig_autoFlushMillis;
 		ctStream.numBlocksPerSegment = orig_numBlocksPerSegment;
 		ctStream.bDebugMode = orig_bDebugMode;
 		ctStream.bIncludeMouseCursor = orig_bIncludeMouseCursor;

@@ -46,7 +46,7 @@ public class PreviewWindow {
 				scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 				frame.add(scrollPane,BorderLayout.CENTER);
 				frame.setVisible(true);
-				frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+				frame.setDefaultCloseOperation(JFrame. DO_NOTHING_ON_CLOSE);
 				frame.setSize(initSize);
 			}
 		});
@@ -59,6 +59,15 @@ public class PreviewWindow {
 				lbl.setSize(width, height);
 				lbl.setIcon(new ImageIcon(img));
 				lbl.repaint();
+			}
+		});
+	}
+
+	public void close() {
+		// For thread safety: Schedule a job for the event-dispatching thread to bring down the existing preview window
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				frame.setVisible(false);
 			}
 		});
 	}
