@@ -16,6 +16,7 @@ limitations under the License.
 
 package erigo.ctstream;
 
+import java.awt.*;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -33,12 +34,15 @@ public abstract class DataStream {
 
     public CTstream cts = null;
 
-    // At most 1 DataStream class can specify manual flush;
-    // if there is 1 DataStream with manual flush, then all other DataStreams will coordinate flush with that one;
-    // if no DataStream has manual flush, then WriteTask will use auto flush (ie, no CTwriter.flush() call will be made)
+    // If bManualFlush is true, CTwriter.flush() will be called after data from this DataStream is sent to CT;
+    // if no DataStream has manual flush, then WriteTask will call flush at the period indicated by the user in the Settings dialog
     public boolean bManualFlush = false;
 
+    // Can this DataStream display a preview window?
     public boolean bCanPreview = false;
+
+    // If this DataStream can display a preview window, should it
+    public boolean bPreview = false;
 
     public PreviewWindow previewWindow = null;
 
@@ -48,15 +52,53 @@ public abstract class DataStream {
     /**
      * Start the stream
      */
-    public abstract void start();
+    public abstract void start() throws IllegalStateException;
 
     /**
      * Stop the stream
      */
-    public abstract void stop();
+    public void stop() {
+        bIsRunning = false;
+        // Clear the queue
+        if (queue != null) {
+            queue.clear();
+            queue = null;
+        }
+        updatePreview();
+    }
 
     /**
      * User has changed real-time settings; update the stream to use these new settings
      */
-    public abstract void update();
+    public void update() {
+        if (!bIsRunning) {
+            // Not currently running; just return
+            return;
+        }
+        updatePreview();
+    }
+
+    /**
+     * Manage popping up or down the preview window
+     */
+    public void updatePreview() {
+        if (bIsRunning && cts.bPreview && bCanPreview && !bPreview) {
+            // open preview window
+            previewWindow = new PreviewWindow(name + " preview", new Dimension(400,400));
+            // In case we want set the initial size of the WebcamStream preview winddow:
+            // if ( (WebcamStream.webcam != null) && WebcamStream.webcam.isOpen() ) {
+            //     previewSize = WebcamStream.webcam.getViewSize();
+            //     // previewSize is the size of the image; add extra padding for the window so scrollbars aren't needed
+            //     previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
+            // }
+            bPreview = true;
+        } else if (!cts.bPreview || !bIsRunning) {
+            bPreview = false;
+            if (previewWindow != null) {
+                previewWindow.close();
+                previewWindow = null;
+            }
+        }
+    }
+
 }

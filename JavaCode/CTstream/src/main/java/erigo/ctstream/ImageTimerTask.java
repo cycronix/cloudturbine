@@ -23,56 +23,54 @@ import java.awt.Toolkit;
 import java.util.TimerTask;
 
 /**
- * ScreencapTimerTask is a Runnable class called by the periodic Timer
- * to take a screen capture.  The work of taking the screen capture is
- * handled in a separate Thread so that ScreencapTimerTask.run() can
- * exit very quickly and not hold up the periodic Timer.
+ * ImageTimerTask is a Runnable class whose run() method is called by
+ * a periodic Timer to generate an image for a DataStream.  The run()
+ * method in turn creates an instance of ImageTask to run in a separate
+ * thread so that ImageTimerTask can exit quickly and not miss the next
+ * periodic event.
  * 
  * An alternative to using Timer and TimerTask would be to use
  * ScheduledThreadPoolExecutor, which has more powerful capabilities;
  * not really needed now since we only need to schedule 1 task.
  *
  * @author John P. Wilson
- * @version 02/07/2017
+ * @version 05/03/2017
  *
  */
 
-public class ScreencapTimerTask extends TimerTask {
+public class ImageTimerTask extends TimerTask {
 	
 	private CTstream cts = null;
-	private ScreencapStream screencapStream = null;
+	private DataStream dataStream = null;
 	
 	/**
 	 * Constructor
 	 * 
 	 * @param  ctsI  CTstream object
-	 * @param  screencapStreamI  ScreencapStream object
+	 * @param  dataStreamI  DataStream object
 	 */
-	public ScreencapTimerTask(CTstream ctsI, ScreencapStream screencapStreamI) {
+	public ImageTimerTask(CTstream ctsI, DataStream dataStreamI) {
 		cts = ctsI;
-		screencapStream = screencapStreamI;
+		dataStream = dataStreamI;
 	}
 	
 	/**
-	 * Method called by the periodic timer (CTstream.screencapTimer);
-	 * spawn a new thread to perform the screen capture.
-	 *
-	 * Possibly using a thread pool would save some thread management overhead?
+	 * Method called by a periodic Timer; spawn a new thread to generate an image.
 	 */
 	public void run() {
-		if (cts.bShutdown) {
+		if (!dataStream.bIsRunning) {
 			return;
 		}
-		if (!cts.bWebCam) {
+		if (dataStream instanceof ScreencapStream) {
 			if (cts.bFullScreen) {
-				screencapStream.regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+				((ScreencapStream)dataStream).regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 			} else {
 				// User will specify the region to capture via the JFame
 				// If the JFrame is not yet up, just return
 				if ((cts.guiFrame == null) || (!cts.guiFrame.isShowing())) {
 					return;
 				}
-				// Update capture region (this is used by ScreencapTask)
+				// Update capture region (this is used by ImageTask)
 				// Trim off a couple pixels from the edges to avoid getting
 				// part of the red frame in the screen capture.
 				Point loc = cts.capturePanel.getLocationOnScreen();
@@ -85,12 +83,11 @@ public class ScreencapTimerTask extends TimerTask {
 				}
 				dim.width = dim.width - 4;
 				dim.height = dim.height - 4;
-				screencapStream.regionToCapture = new Rectangle(loc, dim);
+				((ScreencapStream)dataStream).regionToCapture = new Rectangle(loc, dim);
 			}
 		}
-		// Create a new ScreencapTask and run it in a new thread
-		ScreencapTask screencapTask = new ScreencapTask(cts,screencapStream);
-        Thread threadObj = new Thread(screencapTask);
+		// Run an instance of ImageTask in a new thread
+        Thread threadObj = new Thread(new ImageTask(cts,dataStream));
         threadObj.start();
 	}
 	

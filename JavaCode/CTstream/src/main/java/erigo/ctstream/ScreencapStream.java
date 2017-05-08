@@ -32,13 +32,13 @@ import java.util.concurrent.LinkedBlockingQueue;
  *
  * This class uses the following helper classes to generate screen captures:
  *
- * ScreencapTimerTask: The run() method in this class (which is called by a periodic Timer)
+ * ImageTimerTask: The run() method in this class (which is called by a periodic Timer)
  *       determines the region of the screen to capture, stores this in a variable in
- *       ScreencapStream, creates an instance of ScreencapTask and executes it in a
- *       separate Thread (which prevents the periodic ScreencapTimerTask.run() task from
+ *       ScreencapStream, creates an instance of ImageTask and executes it in a
+ *       separate Thread (which prevents the periodic ImageTimerTask.run() task from
  *       bogging down).
  *
- * ScreencapTask: Generates a screen capture and puts it on ScreencapStream's queue.
+ * ImageTask: Generates a screen capture and puts it on ScreencapStream's queue.
  *
  * @author John P. Wilson
  * @version 2017-05-02
@@ -51,17 +51,18 @@ public class ScreencapStream extends DataStream {
 
     public BufferedImage cursor_img = null;                 // cursor to add to the screen captures
     private Timer screencapTimer = null;			        // Periodic Timer object
-    private ScreencapTimerTask screencapTimerTask = null;	// TimerTask executed each time the periodic Timer expires
+    private ImageTimerTask screencapTimerTask = null;	// TimerTask executed each time the periodic Timer expires
     public long capturePeriodMillis;                        // capture period in milliseconds
     public Rectangle regionToCapture = null;                // Region of the screen to capture
 
     /**
      * ScreencapStream constructor
      *
-     * @param ctsI  CTstream object
+     * @param ctsI   CTstream object
+     * @param nameI  Channel name
      */
-    public ScreencapStream(CTstream ctsI) {
-        name = "screen capture";
+    public ScreencapStream(CTstream ctsI, String nameI) {
+        name = nameI;
         cts = ctsI;
         bCanPreview = true;
         // Decode the String corresponding to binary cursor data; produce a BufferedImage with it
@@ -78,29 +79,24 @@ public class ScreencapStream extends DataStream {
     /**
      * Implementation of the abstract start() method from DataStream
      */
-    public void start() {
-        if (screencapTimer != null)		{ System.err.println("ERROR in startCapture(): Timer object is not null; returning"); return; }
-        if (screencapTimerTask != null)	{ System.err.println("ERROR in startCapture(): ScreencapTimerTask object is not null; returning"); return; }
-        if (queue != null)				{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
+    public void start() throws IllegalStateException {
+        if (screencapTimer != null)		{ throw new IllegalStateException("ERROR in ScreencapStream.start(): Timer object is not null"); }
+        if (screencapTimerTask != null)	{ throw new IllegalStateException("ERROR in ScreencapStream.start(): ImageTimerTask object is not null"); }
+        if (queue != null)				{ throw new IllegalStateException("ERROR in ScreencapStream.start(): LinkedBlockingQueue object is not null"); }
+        bIsRunning = true;
         queue = new LinkedBlockingQueue<TimeValue>();
         // Setup periodic image captures (either from web camera or screen)
         startScreencapTimer();
-        bIsRunning = true;
+        updatePreview();
     }
 
     /**
      * Implementation of the abstract stop() method from DataStream
      */
     public void stop() {
+        super.stop();
         // shut down the periodic Timer
         stopScreencapTimer();
-        // Clear the queue
-        if (queue != null) {
-            queue.clear();
-            queue = null;
-        }
-        // Note that we are no longer running
-        bIsRunning = false;
     }
 
     /**
@@ -109,11 +105,12 @@ public class ScreencapStream extends DataStream {
      * This method is called when there has been some real-time change to the UI settings that may affect this class
      */
     public void update() {
+        super.update();
         if (!bIsRunning) {
             // Not currently running; just return
             return;
         }
-        // Only update we need to check is the frame rate; if this has changed, we'll start a new Timer
+        // Check the frame rate; if this has changed, start a new Timer
         long updatedCapturePeriodMillis = (long)(1000.0 / cts.framesPerSec);
         if (updatedCapturePeriodMillis != capturePeriodMillis) {
             System.err.println("\nRestarting screen captures at new rate: " + cts.framesPerSec + " frames/sec");
@@ -124,7 +121,7 @@ public class ScreencapStream extends DataStream {
     /**
      * Convenience method to start a new screencapTimer
      *
-     * Setup a Timer to periodically call ScreencapTimerTask.run().  See the
+     * Setup a Timer to periodically call ImageTimerTask.run().  See the
      * notes in the top header for how this fits into the overall program.
      */
     private void startScreencapTimer() {
@@ -133,7 +130,7 @@ public class ScreencapStream extends DataStream {
         // Now start the new Timer
         capturePeriodMillis = (long)(1000.0 / cts.framesPerSec);
         screencapTimer = new Timer();
-        screencapTimerTask = new ScreencapTimerTask(cts,this);
+        screencapTimerTask = new ImageTimerTask(cts,this);
         screencapTimer.schedule(screencapTimerTask, 0, capturePeriodMillis);
     }
 
@@ -171,7 +168,7 @@ public class ScreencapStream extends DataStream {
      *     System.err.println("Error creating BufferedImage from cursor data:\n" + ioe);
      * }
      *
-     * ScreencapTask includes code to draw this BufferedImage into the screencapture image
+     * ImageTask includes code to draw this BufferedImage into the screencapture image
      * using Graphics2D (the reason we do this is because the screencapture doesn't include
      * the cursor).
      *
