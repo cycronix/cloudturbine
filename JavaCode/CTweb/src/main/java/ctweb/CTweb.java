@@ -603,9 +603,12 @@ public class CTweb {
     								InputStream input = new ByteArrayInputStream(bdata);		// only return 1st image?
     								byte[] buffer = new byte[16384];
     								int length;
+    								long totRead = 0;
     								while ((length = input.read(buffer)) > 0){
+    									totRead += length;
     									out.write(buffer, 0, length);
     								}
+    								if(debug) System.err.println("chunked transfer for: "+chan+", totalBytes: "+totRead);
     								input.close();
     								out.flush();
     							}
