@@ -147,7 +147,11 @@ public class ImageTask extends TimerTask implements Runnable {
 			// NOTE: we use getNextTime() here to support continue mode
 			try {
 				dataStream.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));
-				System.out.print(".");
+				if (dataStream instanceof ScreencapStream) {
+					System.out.print("s");
+				} else if (dataStream instanceof WebcamStream) {
+					System.out.print("w");
+				}
 			} catch (Exception e) {
 				if (dataStream.bIsRunning) {
 					System.err.println("\nImageTask: exception thrown adding image to queue:\n" + e);

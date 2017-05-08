@@ -48,6 +48,8 @@ import javax.swing.SwingConstants;
  *
  * Dialog so the user can edit CTstream settings.
  *
+ * Some of these settings are specific to certain DataStream classes, others are CTwriter settings.
+ *
  */
 
 public class CTsettings extends JDialog implements ActionListener,ItemListener {
@@ -66,7 +68,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	// Backup copy of the settings
 	private String orig_outputFolder;
 	private String orig_sourceName;
-	private String orig_channelName;
+	private String orig_screencapChannelName;
+	private String orig_webcamChannelName;
 	private String orig_audioChannelName;
 	private boolean orig_bFTP;
 	private String orig_ftpHost;
@@ -81,7 +84,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	// Dialog components
 	private JTextField outputFolderTF = null;
 	private JTextField sourceNameTF = null;
-	private JTextField channelNameTF = null;
+	private JTextField screencapChannelNameTF = null;
+	private JTextField webcamChannelNameTF = null;
 	private JTextField audioChannelNameTF = null;
 	private JCheckBox bFTPCheckB = null;
 	private JLabel ftpHostLabel = null;
@@ -124,7 +128,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Create GUI components
 		outputFolderTF = new JTextField(25);
 		sourceNameTF = new JTextField(25);
-		channelNameTF = new JTextField(10);
+		screencapChannelNameTF = new JTextField(10);
+		webcamChannelNameTF = new JTextField(10);
 		audioChannelNameTF = new JTextField(10);
 		bFTPCheckB = new JCheckBox("Use FTP");
 		bFTPCheckB.addItemListener(this);
@@ -178,21 +183,35 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,sourceNameTF,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 3 - channel name
+		// ROW 3 - screencap channel name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		tempLabel = new JLabel("Image channel name",SwingConstants.LEFT);
+		tempLabel = new JLabel("Screencap channel name",SwingConstants.LEFT);
 		gbc.insets = new Insets(10,15,0,10);
 		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
 		gbc.insets = new Insets(10,0,0,15);
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		Utility.add(guiPanel,channelNameTF,gbl,gbc,1,row,1,1);
+		Utility.add(guiPanel,screencapChannelNameTF,gbl,gbc,1,row,1,1);
+		row++;
+
+		// ROW 4 - webcam channel name
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		tempLabel = new JLabel("Webcam channel name",SwingConstants.LEFT);
+		gbc.insets = new Insets(10,15,0,10);
+		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
+		gbc.insets = new Insets(10,0,0,15);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		Utility.add(guiPanel,webcamChannelNameTF,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 4 - audio channel name
+		// ROW 5 - audio channel name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -206,7 +225,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,audioChannelNameTF,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 5 - FTP checkbox
+		// ROW 6 - FTP checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -214,7 +233,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bFTPCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 6 - panel containing the FTP parameters (host, username, password)
+		// ROW 7 - panel containing the FTP parameters (host, username, password)
 		GridBagLayout panel_gbl = new GridBagLayout();
 		JPanel ftpPanel = new JPanel(panel_gbl);
 		GridBagConstraints panel_gbc = new GridBagConstraints();
@@ -248,7 +267,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,ftpPanel,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 7 - flush interval
+		// ROW 8 - flush interval
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -262,7 +281,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,flushIntervalComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 8 - num blocks per segment
+		// ROW 9 - num blocks per segment
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -276,7 +295,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,numBlocksPerSegmentComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 9 - debug checkbox
+		// ROW 10 - debug checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -284,7 +303,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 10 - include mouse cursor checkbox
+		// ROW 11 - include mouse cursor checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -292,7 +311,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 11 - stay on top checkbox
+		// ROW 12 - stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -300,7 +319,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bStayOnTopCheckB,gbl,gbc,0,row,2,1);
 		row++;
 		
-		// ROW 12 - OK/Cancel command buttons
+		// ROW 13 - OK/Cancel command buttons
 		// Put the command buttons in a JPanel so they are all the same size
         JPanel buttonPanel = new JPanel(new GridLayout(1,2,15,0));
         buttonPanel.add(okButton);
@@ -356,37 +375,60 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		if ( (ctStream.sourceName == null) || (ctStream.sourceName.length() == 0) ) {
 			return "You must specify a source name.";
 		}
-		
-		// Check image channelName
-		if ( (ctStream.channelName == null) || (ctStream.channelName.length() == 0) ) {
-			return "You must specify an image channel name";
+
+		//
+		// Check screencapStreamName
+		//
+		if ( (ctStream.screencapStreamName == null) || (ctStream.screencapStreamName.length() == 0) ) {
+			return "You must specify a screencap channel name";
 		}
-		if (ctStream.channelName.contains(" ")) {
-			return "You must specify an image channel name that does not contain embedded spaces";
+		if (ctStream.screencapStreamName.contains(" ")) {
+			return "You must specify a screencap channel name that does not contain embedded spaces";
 		}
-		// Check the filename extension on the image channel name; should be .jpg or .jpeg
-		int dotIdx = ctStream.channelName.lastIndexOf('.');
-		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.channelName.length()-1)) ) {
-			return "The image channel name must end in \".jpg\" or \".jpeg\"";
+		// Check the filename extension on the screencap channel name; should be .jpg or .jpeg
+		int dotIdx = ctStream.screencapStreamName.lastIndexOf('.');
+		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.screencapStreamName.length()-1)) ) {
+			return "The screencap channel name must end in \".jpg\" or \".jpeg\"";
 		}
-		String filenameExt = ctStream.channelName.substring(dotIdx).toLowerCase();
+		String filenameExt = ctStream.screencapStreamName.substring(dotIdx).toLowerCase();
 		if ( !filenameExt.equals(".jpg") && !filenameExt.equals(".jpeg") ) {
-			return "The image channel name must end in \".jpg\" or \".jpeg\"";
+			return "The screencap channel name must end in \".jpg\" or \".jpeg\"";
 		}
-		
-		// Check audio channelName
-		if ( (ctStream.audioChannelName == null) || (ctStream.audioChannelName.length() == 0) ) {
+
+		//
+		// Check webcamStreamName
+		//
+		if ( (ctStream.webcamStreamName == null) || (ctStream.webcamStreamName.length() == 0) ) {
+			return "You must specify a web camera channel name";
+		}
+		if (ctStream.webcamStreamName.contains(" ")) {
+			return "You must specify a web camera channel name that does not contain embedded spaces";
+		}
+		// Check the filename extension on the web camera channel name; should be .jpg or .jpeg
+		dotIdx = ctStream.webcamStreamName.lastIndexOf('.');
+		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.webcamStreamName.length()-1)) ) {
+			return "The web camera channel name must end in \".jpg\" or \".jpeg\"";
+		}
+		filenameExt = ctStream.webcamStreamName.substring(dotIdx).toLowerCase();
+		if ( !filenameExt.equals(".jpg") && !filenameExt.equals(".jpeg") ) {
+			return "The web camera channel name must end in \".jpg\" or \".jpeg\"";
+		}
+
+		//
+		// Check audioStreamName
+		//
+		if ( (ctStream.audioStreamName == null) || (ctStream.audioStreamName.length() == 0) ) {
 			return "You must specify an audio channel name";
 		}
-		if (ctStream.audioChannelName.contains(" ")) {
+		if (ctStream.audioStreamName.contains(" ")) {
 			return "You must specify an audio channel name that does not contain embedded spaces";
 		}
 		// Check the filename extension on the audio channel name; should be .wav
-		dotIdx = ctStream.audioChannelName.lastIndexOf('.');
-		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.audioChannelName.length()-1)) ) {
+		dotIdx = ctStream.audioStreamName.lastIndexOf('.');
+		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.audioStreamName.length()-1)) ) {
 			return "The audio channel name must end in \".wav\"";
 		}
-		filenameExt = ctStream.audioChannelName.substring(dotIdx).toLowerCase();
+		filenameExt = ctStream.audioStreamName.substring(dotIdx).toLowerCase();
 		if (!filenameExt.equals(".wav")) {
 			return "The audio channel name must end in \".wav\"";
 		}
@@ -422,8 +464,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Squirrel away copies of the current data
 		orig_outputFolder = ctStream.outputFolder;
 		orig_sourceName = ctStream.sourceName;
-		orig_channelName = ctStream.channelName;
-		orig_audioChannelName = ctStream.audioChannelName;
+		orig_screencapChannelName = ctStream.screencapStreamName;
+		orig_webcamChannelName = ctStream.webcamStreamName;
+		orig_audioChannelName = ctStream.audioStreamName;
 		orig_bFTP = ctStream.bFTP;
 		orig_ftpHost = ctStream.ftpHost;
 		orig_ftpUser = ctStream.ftpUser;
@@ -437,8 +480,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Initialize data in the dialog
 		outputFolderTF.setText(ctStream.outputFolder);
 		sourceNameTF.setText(ctStream.sourceName);
-		channelNameTF.setText(ctStream.channelName);
-		audioChannelNameTF.setText(ctStream.audioChannelName);
+		screencapChannelNameTF.setText(ctStream.screencapStreamName);
+		webcamChannelNameTF.setText(ctStream.webcamStreamName);
+		audioChannelNameTF.setText(ctStream.audioStreamName);
 		bFTPCheckB.setSelected(ctStream.bFTP);
 		ftpHostTF.setText(ctStream.ftpHost);
 		ftpUserTF.setText(ctStream.ftpUser);
@@ -538,8 +582,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Save data from the dialog
 		ctStream.outputFolder = outputFolderTF.getText().trim();
 		ctStream.sourceName = sourceNameTF.getText().trim();
-		ctStream.channelName = channelNameTF.getText().trim();
-		ctStream.audioChannelName = audioChannelNameTF.getText().trim();
+		ctStream.screencapStreamName = screencapChannelNameTF.getText().trim();
+		ctStream.webcamStreamName = webcamChannelNameTF.getText().trim();
+		ctStream.audioStreamName = audioChannelNameTF.getText().trim();
 		ctStream.bFTP = bFTPCheckB.isSelected();
 		ctStream.ftpHost = ftpHostTF.getText().trim();
 		ctStream.ftpUser = ftpUserTF.getText().trim();
@@ -577,8 +622,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Restore original values
 		ctStream.outputFolder = orig_outputFolder;
 		ctStream.sourceName = orig_sourceName;
-		ctStream.channelName = orig_channelName;
-		ctStream.audioChannelName = orig_audioChannelName;
+		ctStream.screencapStreamName = orig_screencapChannelName;
+		ctStream.webcamStreamName = orig_webcamChannelName;
+		ctStream.audioStreamName = orig_audioChannelName;
 		ctStream.bFTP = orig_bFTP;
 		ctStream.ftpHost = orig_ftpHost;
 		ctStream.ftpUser = orig_ftpUser;

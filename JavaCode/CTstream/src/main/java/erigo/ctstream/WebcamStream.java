@@ -51,10 +51,11 @@ public class WebcamStream extends DataStream {
     /**
      * WebcamStream constructor
      *
-     * @param ctsI  CTstream object
+     * @param ctsI   CTstream object
+     * @param nameI  Channel name
      */
-    public WebcamStream(CTstream ctsI) {
-        name = "webcam.jpg";
+    public WebcamStream(CTstream ctsI, String nameI) {
+        name = nameI;
         cts = ctsI;
         bCanPreview = true;
     }
@@ -62,10 +63,10 @@ public class WebcamStream extends DataStream {
     /**
      * Implementation of the abstract start() method from DataStream
      */
-    public void start() {
-        if (webcamTimer != null)		{ System.err.println("ERROR in startCapture(): Timer object is not null; returning"); return; }
-        if (webcamTimerTask != null)	{ System.err.println("ERROR in startCapture(): ImageTimerTask object is not null; returning"); return; }
-        if (queue != null)				{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
+    public void start() throws IllegalStateException {
+        if (webcamTimer != null)		{ throw new IllegalStateException("ERROR in WebcamStream.start(): Timer object is not null"); }
+        if (webcamTimerTask != null)	{ throw new IllegalStateException("ERROR in WebcamStream.start(): ImageTimerTask object is not null"); }
+        if (queue != null)				{ throw new IllegalStateException("ERROR in WebcamStream.start(): LinkedBlockingQueue object is not null"); }
         bIsRunning = true;
         openWebCamera();
         queue = new LinkedBlockingQueue<TimeValue>();
@@ -138,7 +139,7 @@ public class WebcamStream extends DataStream {
      */
     public static void openWebCamera() {
         if (webcam == null) {
-            System.err.println("Open web camera");
+            System.err.println("\nOpen web camera");
             webcam = Webcam.getDefault();
             webcam.setViewSize(WebcamResolution.VGA.getSize());
             // webcam.setDriver(new JmfDriver());
@@ -151,7 +152,7 @@ public class WebcamStream extends DataStream {
      */
     public static void closeWebCamera() {
         if (webcam != null) {
-            System.err.println("Close web camera");
+            System.err.println("\nClose web camera");
             webcam.close();
             webcam = null;
         }

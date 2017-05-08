@@ -58,10 +58,11 @@ public class ScreencapStream extends DataStream {
     /**
      * ScreencapStream constructor
      *
-     * @param ctsI  CTstream object
+     * @param ctsI   CTstream object
+     * @param nameI  Channel name
      */
-    public ScreencapStream(CTstream ctsI) {
-        name = "screencap.jpg";
+    public ScreencapStream(CTstream ctsI, String nameI) {
+        name = nameI;
         cts = ctsI;
         bCanPreview = true;
         // Decode the String corresponding to binary cursor data; produce a BufferedImage with it
@@ -78,10 +79,10 @@ public class ScreencapStream extends DataStream {
     /**
      * Implementation of the abstract start() method from DataStream
      */
-    public void start() {
-        if (screencapTimer != null)		{ System.err.println("ERROR in startCapture(): Timer object is not null; returning"); return; }
-        if (screencapTimerTask != null)	{ System.err.println("ERROR in startCapture(): ImageTimerTask object is not null; returning"); return; }
-        if (queue != null)				{ System.err.println("ERROR in startCapture(): LinkedBlockingQueue object is not null; returning"); return; }
+    public void start() throws IllegalStateException {
+        if (screencapTimer != null)		{ throw new IllegalStateException("ERROR in ScreencapStream.start(): Timer object is not null"); }
+        if (screencapTimerTask != null)	{ throw new IllegalStateException("ERROR in ScreencapStream.start(): ImageTimerTask object is not null"); }
+        if (queue != null)				{ throw new IllegalStateException("ERROR in ScreencapStream.start(): LinkedBlockingQueue object is not null"); }
         bIsRunning = true;
         queue = new LinkedBlockingQueue<TimeValue>();
         // Setup periodic image captures (either from web camera or screen)
