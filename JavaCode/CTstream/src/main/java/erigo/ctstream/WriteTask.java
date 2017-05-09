@@ -190,7 +190,7 @@ public class WriteTask implements Runnable {
 				long oldestTime = timeVals[0];
 				if ( (nextScreencapTime != Long.MAX_VALUE) && (nextScreencapTime == oldestTime) && (nextScreencapValue != null) ) {
 					ctw.setTime(nextScreencapTime);
-					ctw.putData(cts.screencapStream.name,nextScreencapValue);
+					ctw.putData(cts.screencapStream.channelName,nextScreencapValue);
 					System.out.print("P");
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {
@@ -207,7 +207,7 @@ public class WriteTask implements Runnable {
 					nextScreencapValue = null;
 				} else if ( (nextWebcamTime != Long.MAX_VALUE) && (nextWebcamTime == oldestTime) && (nextWebcamValue != null) ) {
 					ctw.setTime(nextWebcamTime);
-					ctw.putData(cts.webcamStream.name,nextWebcamValue);
+					ctw.putData(cts.webcamStream.channelName,nextWebcamValue);
 					System.out.print("P");
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {
@@ -224,7 +224,7 @@ public class WriteTask implements Runnable {
 					nextWebcamValue = null;
 				} else if ( (nextAudioTime != Long.MAX_VALUE) && (nextAudioTime == oldestTime) && (nextAudioValue != null) ) {
 					ctw.setTime(nextAudioTime);
-					ctw.putData(cts.audioStream.name,nextAudioValue);
+					ctw.putData(cts.audioStream.channelName,nextAudioValue);
 					System.out.print("P");
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {

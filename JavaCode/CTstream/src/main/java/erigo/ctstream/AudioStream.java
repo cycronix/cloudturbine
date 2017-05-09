@@ -43,12 +43,12 @@ public class AudioStream extends DataStream implements Runnable {
 	/**
 	 * AudioStream constructor
 	 *
-	 * @param ctsI   CTstream object
-	 * @param nameI  Channel name
+	 * @param ctsI          CTstream object
+	 * @param channelNameI  Channel name
 	 */
 	// constructor
-	public AudioStream(CTstream ctsI, String nameI) {
-		name = nameI;
+	public AudioStream(CTstream ctsI, String channelNameI) {
+		channelName = channelNameI;
 		cts = ctsI;
 		bCanPreview = false;
 		bManualFlush = true;

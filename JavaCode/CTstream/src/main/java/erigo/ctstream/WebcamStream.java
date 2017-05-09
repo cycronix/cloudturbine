@@ -51,11 +51,11 @@ public class WebcamStream extends DataStream {
     /**
      * WebcamStream constructor
      *
-     * @param ctsI   CTstream object
-     * @param nameI  Channel name
+     * @param ctsI          CTstream object
+     * @param channelNameI  Channel name
      */
-    public WebcamStream(CTstream ctsI, String nameI) {
-        name = nameI;
+    public WebcamStream(CTstream ctsI, String channelNameI) {
+        channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;
     }

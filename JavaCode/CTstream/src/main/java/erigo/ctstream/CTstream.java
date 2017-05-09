@@ -43,10 +43,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -140,7 +137,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private final static double DEFAULT_FPS = 5.0;         // default frames/sec
 	private final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	private final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
-	
+
 	//
 	// Settings
 	//
@@ -178,6 +175,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private boolean bCallExitFromShutdownHook = true;
 	
 	// DataStream classes
+	public Vector<DataStream> dataStreams = new Vector<DataStream>(); // to store active DataStreams
+	public Object dataStreamsLock = new Object();	// To provide synchronized access to Vector dataStreams
 	public ScreencapStream screencapStream = null;	// DataStream for taking periodic screen captures
 	public WebcamStream webcamStream = null;		// DataStream for saving images from a web camera
 	public AudioStream audioStream = null;			// DataStream for saving audio data
@@ -661,6 +660,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				stopCapture();
 				return;
 			}
+			addDataStream(screencapStream);
 		}
 
 		// start WebcamStream
@@ -674,6 +674,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				stopCapture();
 				return;
 			}
+			addDataStream(webcamStream);
 		}
 
 		// start AudioStream
@@ -687,6 +688,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				stopCapture();
 				return;
 			}
+			addDataStream(audioStream);
 		}
 
 		// Now that all the DataStreams have been started, start WriteTask
@@ -712,11 +714,21 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 
 		if (screencapStream != null) {
 			screencapStream.stop();
+			try {
+				removeDataStream(screencapStream);
+			} catch (Exception e) {
+				System.err.println(e);
+			}
 			screencapStream = null;
 		}
 
 		if (webcamStream != null) {
 			webcamStream.stop();
+			try {
+				removeDataStream(webcamStream);
+			} catch (Exception e) {
+				System.err.println(e);
+			}
 			webcamStream = null;
 		}
 		// Also close the web camera
@@ -724,11 +736,43 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 
 		if (audioStream != null) {
 			audioStream.stop();
+			try {
+				removeDataStream(audioStream);
+			} catch (Exception e) {
+				System.err.println(e);
+			}
 			audioStream = null;
 		}
 		
 	}
-	
+
+	/**
+	 * Add a new DataStream to Vector dataStreams.
+	 * @param dataStreamI  The DataStream to add to Vector dataStreams.
+	 */
+	private void addDataStream(DataStream dataStreamI) {
+		synchronized (dataStreamsLock) {
+			dataStreams.add(dataStreamI);
+			// System.err.println("\nadded DataStream; Vector size = " + dataStreams.size());
+		}
+	}
+
+	/**
+	 * Remove a DataStream from Vector dataStreams.
+	 * @param dataStreamI  The DataStream to remove from Vector dataStreams.
+	 * @throws Exception   Throw exception if the given DataStream is not found in dataStreams.
+	 */
+	private void removeDataStream(DataStream dataStreamI) throws Exception {
+		boolean bRemoved = false;
+		synchronized (dataStreamsLock) {
+			bRemoved = dataStreams.remove(dataStreamI);
+			// System.err.println("\nremoved DataStream; Vector size = " + dataStreams.size());
+		}
+		if (!bRemoved) {
+			throw new Exception("The following DataStream could not be removed from the Vector of DataStreams: " + dataStreamI.toString());
+		}
+	}
+
 	/**
 	 * Pop up the GUI
 	 * 
@@ -1175,8 +1219,14 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 						stopCapture();
 						return;
 					}
+					addDataStream(screencapStream);
 				} else if (!screencapCheck.isSelected() && (screencapStream != null)) {
 					screencapStream.stop();
+					try {
+						removeDataStream(screencapStream);
+					} catch (Exception e) {
+						System.err.println(e);
+					}
 					screencapStream = null;
 				}
 			}
@@ -1193,8 +1243,14 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 						stopCapture();
 						return;
 					}
+					addDataStream(webcamStream);
 				} else if (!webcamCheck.isSelected() && (webcamStream != null)) {
 					webcamStream.stop();
+					try {
+						removeDataStream(webcamStream);
+					} catch (Exception e) {
+						System.err.println(e);
+					}
 					webcamStream = null;
 				}
 			}
@@ -1211,8 +1267,14 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 						stopCapture();
 						return;
 					}
+					addDataStream(audioStream);
 				} else if (!audioCheck.isSelected() && (audioStream != null)) {
 					audioStream.stop();
+					try {
+						removeDataStream(audioStream);
+					} catch (Exception e) {
+						System.err.println(e);
+					}
 					audioStream = null;
 				}
 			}

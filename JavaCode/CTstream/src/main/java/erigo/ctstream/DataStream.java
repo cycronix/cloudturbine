@@ -28,7 +28,7 @@ import java.util.concurrent.BlockingQueue;
 
 public abstract class DataStream {
 
-    public String name = "";
+    public String channelName = "";
 
     public BlockingQueue<TimeValue> queue = null;
 
@@ -86,7 +86,7 @@ public abstract class DataStream {
     public void updatePreview() {
         if (bIsRunning && cts.bPreview && bCanPreview && !bPreview) {
             // open preview window
-            previewWindow = new PreviewWindow(name + " preview", new Dimension(400,400));
+            previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400));
             // In case we want set the initial size of the WebcamStream preview winddow:
             // if ( (WebcamStream.webcam != null) && WebcamStream.webcam.isOpen() ) {
             //     previewSize = WebcamStream.webcam.getViewSize();
