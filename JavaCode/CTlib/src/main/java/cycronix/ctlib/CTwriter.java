@@ -611,6 +611,12 @@ public class CTwriter {
 			
 			// new mode:  queue time, data arrays.  all time calcs and writes to disk on flush...
 			
+			if(ctcrypto!=null) {
+				try { bdata = ctcrypto.encrypt(bdata);	} catch(Exception ee) {
+					System.err.println("WARNING:  could not encrypt: "+outName);
+				}
+			}
+			
 			//  zip mode:  queue up data in ZipOutputStream
 			if(zipFlag) {
 				if(zos == null) {    			
@@ -630,13 +636,7 @@ public class CTwriter {
 					CTinfo.warnPrint("zip entry exception: "+e);
 					return;	
 				}
-
-				if(ctcrypto!=null) {
-					try { bdata = ctcrypto.encrypt(bdata);	} catch(Exception ee) {
-						System.err.println("WARNING:  could not encrypt: "+outName);
-					}
-				}
-				
+	
 				zos.write(bdata); 
 				zos.closeEntry();		// note: zip file not written until flush() called
 

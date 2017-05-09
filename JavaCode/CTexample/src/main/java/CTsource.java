@@ -48,7 +48,7 @@ public class CTsource {
 			if(password!=null) ctw.setPassword(password);
 
 			CTinfo.setDebug(false);
-			ctw.setBlockMode(false,true);		// no pack, no zip
+			ctw.setBlockMode(false,false);		// no pack, no zip
 			ctw.autoFlush(0);					// no autoflush, no segments
 			ctw.autoSegment(0);
 			
