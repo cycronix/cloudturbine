@@ -28,11 +28,14 @@ public class CTsink {
 
 	public static void main(String[] args) {
 		String rootFolder = "CTexample";
+		String password = null;
 		if(args.length > 0) rootFolder = args[0];
+		if(args.length > 1) password = args[1];
 		
 		try {
 			CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
-			
+			if(password!=null) ctr.setPassword(password);
+
 			// loop and read what source(s) and chan(s) are available
 			for(String source:ctr.listSources()) {
 				System.err.println("Source: "+source);

@@ -92,6 +92,7 @@ public class CTwriter {
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
 //	private long blockDuration=0;			// if non-zero, packMode block-duration (msec)
+	private CTcrypto ctcrypto=null;		// optional encryption class
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
@@ -129,6 +130,15 @@ public class CTwriter {
 
 	//------------------------------------------------------------------------------------------------
 	// set state flags
+	
+	/**
+	 * Set encryption password, none if null.
+	 * @param password 
+	 */
+	public void setPassword(String password) throws Exception {
+		ctcrypto = new CTcrypto(password);
+	}
+	
 	/**
 	 * Set debug mode.  Deprecated, see CTinfo.setDebug()
 	 * @param dflag boolean true/false debug mode
@@ -405,9 +415,7 @@ public class CTwriter {
 				}
 				CTinfo.debugPrint("flush to destName: "+destName);
 
-				if(baos.size() > 0) {
-					writeToStream(destName, baos.toByteArray());	
-				}
+				if(baos.size() > 0) writeToStream(destName, baos.toByteArray());	
 			}
 			
 			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
@@ -623,6 +631,12 @@ public class CTwriter {
 					return;	
 				}
 
+				if(ctcrypto!=null) {
+					try { bdata = ctcrypto.encrypt(bdata);	} catch(Exception ee) {
+						System.err.println("WARNING:  could not encrypt: "+outName);
+					}
+				}
+				
 				zos.write(bdata); 
 				zos.closeEntry();		// note: zip file not written until flush() called
 

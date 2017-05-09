@@ -35,14 +35,18 @@ import cycronix.ctlib.*;
 public class CTsource {
 	public static void main(String[] args) {
 		String dstFolder = "";
+		String password = null;
 		if(args.length > 0) dstFolder = args[0];
 		else				dstFolder = "CTsource";
-
+		if(args.length > 1) password = args[1];
+		
 		long blockPts = 5;			// points per block flush
 		
 		try {
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(dstFolder);
+			if(password!=null) ctw.setPassword(password);
+
 			CTinfo.setDebug(false);
 			ctw.setBlockMode(false,true);		// no pack, no zip
 			ctw.autoFlush(0);					// no autoflush, no segments
