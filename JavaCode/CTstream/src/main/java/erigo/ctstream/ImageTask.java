@@ -180,7 +180,7 @@ public class ImageTask extends TimerTask implements Runnable {
 		
 		long capTime = System.currentTimeMillis() - startTime;
 		if (capTime > capturePeriodMillis) {
-			System.err.println("\nWARNING: image generation took  " + capTime + " msec, which is longer than the desired period of " + capturePeriodMillis + " msec");
+			System.err.println("\nWARNING: " + capTime + " msec to capture image (" + capturePeriodMillis + " msec is the desired period)");
 		}
 		
 	}

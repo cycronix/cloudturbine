@@ -377,62 +377,23 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		}
 
 		//
-		// Check screencapStreamName
+		// Check filenames
 		//
 		if ( (ctStream.screencapStreamName == null) || (ctStream.screencapStreamName.length() == 0) ) {
 			return "You must specify a screencap channel name";
 		}
-		if (ctStream.screencapStreamName.contains(" ")) {
-			return "You must specify a screencap channel name that does not contain embedded spaces";
-		}
-		// Check the filename extension on the screencap channel name; should be .jpg or .jpeg
-		int dotIdx = ctStream.screencapStreamName.lastIndexOf('.');
-		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.screencapStreamName.length()-1)) ) {
-			return "The screencap channel name must end in \".jpg\" or \".jpeg\"";
-		}
-		String filenameExt = ctStream.screencapStreamName.substring(dotIdx).toLowerCase();
-		if ( !filenameExt.equals(".jpg") && !filenameExt.equals(".jpeg") ) {
-			return "The screencap channel name must end in \".jpg\" or \".jpeg\"";
-		}
-
-		//
-		// Check webcamStreamName
-		//
 		if ( (ctStream.webcamStreamName == null) || (ctStream.webcamStreamName.length() == 0) ) {
 			return "You must specify a web camera channel name";
 		}
-		if (ctStream.webcamStreamName.contains(" ")) {
-			return "You must specify a web camera channel name that does not contain embedded spaces";
-		}
-		// Check the filename extension on the web camera channel name; should be .jpg or .jpeg
-		dotIdx = ctStream.webcamStreamName.lastIndexOf('.');
-		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.webcamStreamName.length()-1)) ) {
-			return "The web camera channel name must end in \".jpg\" or \".jpeg\"";
-		}
-		filenameExt = ctStream.webcamStreamName.substring(dotIdx).toLowerCase();
-		if ( !filenameExt.equals(".jpg") && !filenameExt.equals(".jpeg") ) {
-			return "The web camera channel name must end in \".jpg\" or \".jpeg\"";
-		}
-
-		//
-		// Check audioStreamName
-		//
 		if ( (ctStream.audioStreamName == null) || (ctStream.audioStreamName.length() == 0) ) {
 			return "You must specify an audio channel name";
 		}
-		if (ctStream.audioStreamName.contains(" ")) {
-			return "You must specify an audio channel name that does not contain embedded spaces";
+		try {
+			ctStream.checkFilenames();
+		} catch (Exception e) {
+			return e.getMessage();
 		}
-		// Check the filename extension on the audio channel name; should be .wav
-		dotIdx = ctStream.audioStreamName.lastIndexOf('.');
-		if ( (dotIdx == -1) || (dotIdx == 0) || (dotIdx == (ctStream.audioStreamName.length()-1)) ) {
-			return "The audio channel name must end in \".wav\"";
-		}
-		filenameExt = ctStream.audioStreamName.substring(dotIdx).toLowerCase();
-		if (!filenameExt.equals(".wav")) {
-			return "The audio channel name must end in \".wav\"";
-		}
-		
+
 		// Check FTP parameters, when using FTP
 		if (ctStream.bFTP) {
 			if ( (ctStream.ftpHost == null) || (ctStream.ftpHost.length() == 0) ) {

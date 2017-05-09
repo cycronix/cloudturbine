@@ -38,7 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * ImageTask: Generates a webcam image and puts it on WebcamStream's queue.
  *
  * @author John P. Wilson
- * @version 2017-05-04
+ * @version 2017-05-09
  */
 
 public class WebcamStream extends DataStream {
@@ -63,10 +63,10 @@ public class WebcamStream extends DataStream {
     /**
      * Implementation of the abstract start() method from DataStream
      */
-    public void start() throws IllegalStateException {
-        if (webcamTimer != null)		{ throw new IllegalStateException("ERROR in WebcamStream.start(): Timer object is not null"); }
-        if (webcamTimerTask != null)	{ throw new IllegalStateException("ERROR in WebcamStream.start(): ImageTimerTask object is not null"); }
-        if (queue != null)				{ throw new IllegalStateException("ERROR in WebcamStream.start(): LinkedBlockingQueue object is not null"); }
+    public void start() throws Exception {
+        if (webcamTimer != null)		{ throw new Exception("ERROR in WebcamStream.start(): Timer object is not null"); }
+        if (webcamTimerTask != null)	{ throw new Exception("ERROR in WebcamStream.start(): ImageTimerTask object is not null"); }
+        if (queue != null)				{ throw new Exception("ERROR in WebcamStream.start(): LinkedBlockingQueue object is not null"); }
         bIsRunning = true;
         openWebCamera();
         queue = new LinkedBlockingQueue<TimeValue>();
@@ -137,7 +137,7 @@ public class WebcamStream extends DataStream {
     /**
      * Start the web camera
      */
-    public static void openWebCamera() {
+    private static void openWebCamera() {
         if (webcam == null) {
             System.err.println("\nOpen web camera");
             webcam = Webcam.getDefault();

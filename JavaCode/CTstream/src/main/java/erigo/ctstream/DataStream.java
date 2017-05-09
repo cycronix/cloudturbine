@@ -35,7 +35,8 @@ public abstract class DataStream {
     public CTstream cts = null;
 
     // If bManualFlush is true, CTwriter.flush() will be called after data from this DataStream is sent to CT;
-    // if no DataStream has manual flush, then WriteTask will call flush at the period indicated by the user in the Settings dialog
+    // if no DataStream has manual flush, then WriteTask will call flush at the period indicated by the user
+    // in the Settings dialog (CTstream.flushMillis)
     public boolean bManualFlush = false;
 
     // Can this DataStream display a preview window?
@@ -51,8 +52,9 @@ public abstract class DataStream {
 
     /**
      * Start the stream
+     * @throws Exception if there is any problem starting the DataStream
      */
-    public abstract void start() throws IllegalStateException;
+    public abstract void start() throws Exception;
 
     /**
      * Stop the stream
