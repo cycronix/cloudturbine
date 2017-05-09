@@ -79,10 +79,10 @@ public class ScreencapStream extends DataStream {
     /**
      * Implementation of the abstract start() method from DataStream
      */
-    public void start() throws IllegalStateException {
-        if (screencapTimer != null)		{ throw new IllegalStateException("ERROR in ScreencapStream.start(): Timer object is not null"); }
-        if (screencapTimerTask != null)	{ throw new IllegalStateException("ERROR in ScreencapStream.start(): ImageTimerTask object is not null"); }
-        if (queue != null)				{ throw new IllegalStateException("ERROR in ScreencapStream.start(): LinkedBlockingQueue object is not null"); }
+    public void start() throws Exception {
+        if (screencapTimer != null)		{ throw new Exception("ERROR in ScreencapStream.start(): Timer object is not null"); }
+        if (screencapTimerTask != null)	{ throw new Exception("ERROR in ScreencapStream.start(): ImageTimerTask object is not null"); }
+        if (queue != null)				{ throw new Exception("ERROR in ScreencapStream.start(): LinkedBlockingQueue object is not null"); }
         bIsRunning = true;
         queue = new LinkedBlockingQueue<TimeValue>();
         // Setup periodic image captures (either from web camera or screen)

@@ -57,8 +57,8 @@ public class AudioStream extends DataStream implements Runnable {
 	/**
 	 * Implementation of the abstract start() method from DataStream
 	 */
-	public void start() throws IllegalStateException {
-		if (queue != null) { throw new IllegalStateException("ERROR in AudioStream.start(): LinkedBlockingQueue object is not null"); }
+	public void start() throws Exception {
+		if (queue != null) { throw new Exception("ERROR in AudioStream.start(): LinkedBlockingQueue object is not null"); }
 		// Make sure we can open the audio line
 		try {
 			format = getFormat();
@@ -67,7 +67,7 @@ public class AudioStream extends DataStream implements Runnable {
 			line.open(format);
 			line.start();
 		} catch (LineUnavailableException e) {
-			throw new IllegalStateException("Audio stream error, could not open the audio line:\n" + e.getMessage());
+			throw new Exception("Audio stream error, could not open the audio line:\n" + e.getMessage());
 		}
 		bIsRunning = true;
 		// Make sure there is no other audio capture running

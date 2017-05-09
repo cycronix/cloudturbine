@@ -16,6 +16,11 @@ limitations under the License.
 
 package erigo.ctstream;
 
+import cycronix.ctlib.CTftp;
+import cycronix.ctlib.CTinfo;
+import cycronix.ctlib.CTwriter;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -23,54 +28,105 @@ import java.util.Arrays;
  * WriteTask is a Runnable object which takes byte arrays from the queues of the various
  * DataStream objects and writes them to CT.
  *
- * Need to make sure that data is sent to CT in time order.  This avoids the problem, for instance,
- * where auto-flush seals off a block and then the next setTime/putData calls are for a time that
- * would have been in that block.
+ * WriteTask makes sure that data is sent to CT in time order.  This avoids the problem,
+ * for instance, where we call flush() to seal off a block and then the next setTime/putData
+ * calls are for a time that would have been in that (now closed) block.
  *
  * Flushing data is handled one of two ways:
  *
- * 1. If there is no "master" DataStream: use auto flush; just keep sending packets to CT in time sequence order;
- *    let CT handle flushing.
+ * 1. If one DataStream is the "master" (and note, there can at most be only one master DataStream):
+ *    bManualFlush = true
+ *    send packets from all DataStreams to CT in time sequence order;
+ *    every time we send a packet of data from the "master" DataStream to CT, call CTwriter.flush()
  *
- * 2. If one DataStream is the "master": keep sending packets to CT in time sequence order; every time we send
- *    data from the "master" DataStream to CT, finish it with a call to CTwriter.flush().
+ * 2. If there is no "master" DataStream:
+ *    bManualFlush = false
+ *    send packets from all DataStreams to CT in time sequence order;
+ *    call CTwriter.flush() at the period defined by CTstream.flushMillis
  *
- * 	while(true)
- * 		keep accumulating data (ie, images) in slave queue
- * 		when packet shows up in the master (audio) queue
- * 			determine [last time, current time] time range from the new audio packet
- * 			filter through the packets in the image queue to determine which ones fall inside this [last time, current time] range
- * 			call setTime/putData for each of the image packets that make it through the filter
- * 			call setTime/putData for the audio packet from master queue
- * 			call flush
- *	end
+ * When there is no master DataStream, we could potentially use auto-flush, and in some sense this
+ * would be easier; but code could get messy turning auto-flush on/off as a "master" DataStream
+ * is turned off/on.  Thus, whether there is a master DataStream or not, in all cases we handle
+ * flushing.
  *
  * @author John P. Wilson
- * @version 05/05/2017
- *
+ * @version 05/09/2017
  */
 
 public class WriteTask implements Runnable {
 	
-	public CTstream cts = null;
-
-	private boolean bRunning = true;
+	private CTstream cts = null;
+	private CTwriter ctw = null;			// To write data to CT
+	private Thread writeTaskThread = null;  // The thread running in this WriteTask
+	public boolean bIsRunning = true;
 	
 	/**
-	 * 
 	 * Constructor
 	 * 
 	 * @param  ctsI  The CTstream object.
+	 * @throws IOException if there is any problem opening CTwriter
 	 */
-	public WriteTask(CTstream ctsI) {
+	public WriteTask(CTstream ctsI) throws IOException {
 		cts = ctsI;
+		CTinfo.setDebug(cts.bDebugMode);
+		// Make sure outputFolder ends in a file separator
+		String outFolderToUse = cts.outputFolder;
+		if (!cts.outputFolder.endsWith(File.separator)) {
+			outFolderToUse = cts.outputFolder + File.separator;
+		}
+		if (!cts.bFTP) {
+			ctw = new CTwriter(outFolderToUse + cts.sourceName);
+		} else {
+			CTftp ctftp = new CTftp(outFolderToUse + cts.sourceName);
+			try {
+				ctftp.login(cts.ftpHost, cts.ftpUser, cts.ftpPassword);
+				ctw = ctftp; // upcast to CTWriter
+			} catch (Exception e) {
+				throw new IOException( new String("Error logging into FTP server \"" + cts.ftpHost + "\":\n" + e.getMessage()) );
+			}
+		}
+		ctw.setZipMode(cts.bZipMode);
+		ctw.autoSegment(cts.numBlocksPerSegment);
 	}
 
 	/**
-	 * Signal to shut down this WriteTask
+	 * Launch CT writes in a separate thread, executing in this class's run() method.
 	 */
-	public void shutDown() {
-		bRunning = false;
+	public void start() {
+		if (writeTaskThread != null) {
+			System.err.println("\nERROR in WriteTask: writeTaskThread is not null");
+			return;
+		}
+		writeTaskThread = new Thread(this);
+		writeTaskThread.start();
+	}
+
+	/**
+	 * Shut down this WriteTask
+	 */
+	public void stop() {
+		bIsRunning = false;
+		// shut down the separate thread executing in the run() method
+		try {
+			// System.err.println("\nWait for WriteTask to stop");
+			writeTaskThread.join(500);
+			if (writeTaskThread.isAlive()) {
+				// WriteTask must be in a blocking wait; interrupt it
+				writeTaskThread.interrupt();
+				writeTaskThread.join(500);
+			}
+			// if (!writeTaskThread.isAlive()) {
+			// 	   System.err.println("WriteTask has stopped");
+			// }
+		} catch (InterruptedException ie) {
+			System.err.println("Caught exception trying to stop WriteTask:\n" + ie);
+		}
+		// shut down CTwriter
+		if (ctw != null) {
+			// System.err.println("Close CTwriter");
+			ctw.close();
+			ctw = null;
+		}
 	}
 	
 	/**
@@ -89,7 +145,7 @@ public class WriteTask implements Runnable {
 		byte[] nextWebcamValue = null;
 		long nextAudioTime = Long.MAX_VALUE;
 		byte[] nextAudioValue = null;
-		while (bRunning) {
+		while (bIsRunning) {
 			// Make sure we have the next data from each DataStream
 			if ( (nextScreencapValue == null) && (cts.screencapStream != null) && (cts.screencapStream.queue != null) ) {
 				TimeValue tv = cts.screencapStream.queue.poll();
@@ -133,8 +189,8 @@ public class WriteTask implements Runnable {
 				Arrays.sort(timeVals);
 				long oldestTime = timeVals[0];
 				if ( (nextScreencapTime != Long.MAX_VALUE) && (nextScreencapTime == oldestTime) && (nextScreencapValue != null) ) {
-					cts.ctw.setTime(nextScreencapTime);
-					cts.ctw.putData(cts.screencapStream.name,nextScreencapValue);
+					ctw.setTime(nextScreencapTime);
+					ctw.putData(cts.screencapStream.name,nextScreencapValue);
 					System.out.print("P");
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {
@@ -144,14 +200,14 @@ public class WriteTask implements Runnable {
 					if (cts.screencapStream.bManualFlush) {
 						bDataToBeFlushed = false;
 						timeOfLastFlushMillis = System.currentTimeMillis();
-						cts.ctw.flush(true); // gapless
+						ctw.flush(true); // gapless
 						System.out.print("F");
 					}
 					nextScreencapTime = Long.MAX_VALUE;
 					nextScreencapValue = null;
 				} else if ( (nextWebcamTime != Long.MAX_VALUE) && (nextWebcamTime == oldestTime) && (nextWebcamValue != null) ) {
-					cts.ctw.setTime(nextWebcamTime);
-					cts.ctw.putData(cts.webcamStream.name,nextWebcamValue);
+					ctw.setTime(nextWebcamTime);
+					ctw.putData(cts.webcamStream.name,nextWebcamValue);
 					System.out.print("P");
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {
@@ -161,14 +217,14 @@ public class WriteTask implements Runnable {
 					if (cts.webcamStream.bManualFlush) {
 						bDataToBeFlushed = false;
 						timeOfLastFlushMillis = System.currentTimeMillis();
-						cts.ctw.flush(true); // gapless
+						ctw.flush(true); // gapless
 						System.out.print("F");
 					}
 					nextWebcamTime = Long.MAX_VALUE;
 					nextWebcamValue = null;
 				} else if ( (nextAudioTime != Long.MAX_VALUE) && (nextAudioTime == oldestTime) && (nextAudioValue != null) ) {
-					cts.ctw.setTime(nextAudioTime);
-					cts.ctw.putData(cts.audioStream.name,nextAudioValue);
+					ctw.setTime(nextAudioTime);
+					ctw.putData(cts.audioStream.name,nextAudioValue);
 					System.out.print("P");
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {
@@ -178,14 +234,14 @@ public class WriteTask implements Runnable {
 					if (cts.audioStream.bManualFlush) {
 						bDataToBeFlushed = false;
 						timeOfLastFlushMillis = System.currentTimeMillis();
-						cts.ctw.flush(true); // gapless
+						ctw.flush(true); // gapless
 						System.out.print("F");
 					}
 					nextAudioTime = Long.MAX_VALUE;
 					nextAudioValue = null;
 				}
 			} catch (Exception e) {
-				if (!bRunning) {
+				if (!bIsRunning) {
 					break;
 				} else {
 					System.err.println("CTwriter exception:\n" + e);
@@ -214,7 +270,7 @@ public class WriteTask implements Runnable {
 				if (cts.flushMillis <= (timeMillis-timeOfLastFlushMillis)) {
 					try {
 						// System.err.println("Flush data: cts.flushMillis=" + cts.flushMillis + ", timeOfLastFlushMillis=" + timeOfLastFlushMillis + ", current time=" + timeMillis);
-						cts.ctw.flush();
+						ctw.flush();
 						System.out.print("F");
 						bDataToBeFlushed = false;
 					} catch (IOException e) {
