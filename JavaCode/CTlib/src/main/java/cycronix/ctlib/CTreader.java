@@ -49,6 +49,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 public class CTreader {
 	private static String rootFolder = null;
+	private CTcrypto ctcrypto=null;		// optional encryption class
 
 //---------------------------------------------------------------------------------	
  // constructor for CTread.get() method
@@ -83,6 +84,14 @@ public class CTreader {
 	boolean timeOnly=false;
 	public void setTimeOnly(boolean tflag) {		// clumsy...  
 		timeOnly = tflag;							// doesn't work for blockdata where time is derived from block-interval/points
+	}
+	
+	/**
+	 * Set encryption password, none if null.
+	 * @param password 
+	 */
+	public void setPassword(String password) throws Exception {
+		ctcrypto = new CTcrypto(password);
 	}
 	
 //---------------------------------------------------------------------------------	   
@@ -541,6 +550,12 @@ public class CTreader {
 				byte[] data = null;
 				boolean getdata = !timeOnly || !fileName.toLowerCase().endsWith(".jpg");		// timeOnly only works for images at this point
 				if(getdata) data = file.read();
+				
+				if(ctcrypto!=null) { try { data = ctcrypto.decrypt(data); } catch(Exception ee) {
+						System.err.println("WARNING:  could not decrypt: "+fileName);
+					}
+				}
+				
  				if(timeOnly || (data != null && data.length>0)) { 
 					if(file.isTFILE()) fileName = file.getName();
 					cm.add(fileName, new CTdata(ftime, data, file));			// squirrel away CTfile ref for timerange info??

@@ -112,7 +112,7 @@ public class CTweb {
     private static String realmProps=null;				// authentication realm user/password info
 	private static int	port = 8000;					// default port
 	private static int sslport = 8443;					// HTTPS port (0 means none)
-	
+	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
 	//---------------------------------------------------------------------------------	
 
@@ -135,6 +135,8 @@ public class CTweb {
      		if(args[dirArg].equals("-K"))	keyStorePW = args[++dirArg];
      		if(args[dirArg].equals("-a"))	realmProps = args[++dirArg];
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
+     		if(args[dirArg].equals("-e"))	password = args[++dirArg];
+
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -174,6 +176,7 @@ public class CTweb {
      	
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
+     	if(password!=null) ctreader.setPassword(password);
      	CTinfo.setDebug(Debug);
        
      	// setup and start Jetty HTTP server
