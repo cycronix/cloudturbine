@@ -48,6 +48,7 @@ public class AudioStream extends DataStream implements Runnable {
 	 */
 	// constructor
 	public AudioStream(CTstream ctsI, String channelNameI) {
+		super();
 		channelName = channelNameI;
 		cts = ctsI;
 		bCanPreview = false;
@@ -111,9 +112,8 @@ public class AudioStream extends DataStream implements Runnable {
 		byte buffer[] = new byte[4 * bufferAlloc];                                                            // generous buffer to avoid overflow?
 		int numFlushes = 0;
 		try {
-			long nextTime = cts.getNextTime();
-			System.err.println("\n\nWARNING\nWARNING AudioStream: SHOULD WE CALL ctw.setTime() TO ESTABLISH START OF FIRST BLOCK?\nWARNING\n");
-			// ctw.setTime(nextTime);        // establish start time of first audio block
+			System.err.println("\n\nWARNING AudioStream: SHOULD WE CALL ctw.setTime() TO ESTABLISH START OF FIRST BLOCK?\n");
+			// ctw.setTime(cts.getNextTime());        // establish start time of first audio block
 			while (bIsRunning) {
 				int count = line.read(buffer, 0, bufferSize); // blocking call to read a buffer's worth of audio samples
 				// Slurp up any extra; limit the number of bytes to slurp up so buffer doesn't overflow

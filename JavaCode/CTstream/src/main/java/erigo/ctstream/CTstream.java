@@ -138,6 +138,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	private final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 
+	private static int dataStreamID = -1;		// IDs applied to DataStreams to identify them.
+
 	//
 	// Settings
 	//
@@ -158,6 +160,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public String screencapStreamName = "screencap.jpg";  // screencap channel name; must end in ".jpg" or ".jpeg"
 	public String webcamStreamName="webcam.jpg";		  // webcam channel name; must end in ".jpg" or ".jpeg"
 	public String audioStreamName ="audio.wav";			  // audio channel name; must end in ".wav"
+	public boolean bEncrypt = false;			// Use CT encryption?
+	public String encryptionPassword = "";		// Password when encryption is on
 	public boolean bFTP = false;				// Are we in FTP mode?
 	public String ftpHost = "";					// FTP hostname
 	public String ftpUser = "";					// FTP username
@@ -569,6 +573,16 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		if (!bFoundExt) {
 			throw new Exception("filename must end in one of the following extensions: " + extensionsStr);
 		}
+	}
+
+	/**
+	 * Static method to return a unique ID, used for identifying DataStreams.
+	 *
+	 * @return the next unique integer ID
+	 */
+	public static int getNextDataStreamID() {
+		dataStreamID = dataStreamID + 1;
+		return dataStreamID;
 	}
 	
 	/**

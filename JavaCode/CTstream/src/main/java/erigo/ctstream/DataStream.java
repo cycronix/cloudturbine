@@ -28,6 +28,9 @@ import java.util.concurrent.BlockingQueue;
 
 public abstract class DataStream {
 
+    // ID to uniquely identify this DataStream
+    public int id = -1;
+
     public String channelName = "";
 
     public BlockingQueue<TimeValue> queue = null;
@@ -49,6 +52,11 @@ public abstract class DataStream {
 
     // Is this stream currently running?
     public boolean bIsRunning = false;
+
+    public DataStream() {
+        // get an ID from CTstream
+        id = CTstream.getNextDataStreamID();
+    }
 
     /**
      * Start the stream
