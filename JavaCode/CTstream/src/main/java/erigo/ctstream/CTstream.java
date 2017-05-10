@@ -160,6 +160,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public String screencapStreamName = "screencap.jpg";  // screencap channel name; must end in ".jpg" or ".jpeg"
 	public String webcamStreamName="webcam.jpg";		  // webcam channel name; must end in ".jpg" or ".jpeg"
 	public String audioStreamName ="audio.wav";			  // audio channel name; must end in ".wav"
+	public String textMsgStreamName ="msg.txt";			  // text messaging channel name; must end in ".txt"
 	public boolean bEncrypt = false;			// Use CT encryption?
 	public String encryptionPassword = "";		// Password when encryption is on
 	public boolean bFTP = false;				// Are we in FTP mode?
@@ -184,6 +185,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public ScreencapStream screencapStream = null;	// DataStream for taking periodic screen captures
 	public WebcamStream webcamStream = null;		// DataStream for saving images from a web camera
 	public AudioStream audioStream = null;			// DataStream for saving audio data
+	public TextMessagingStream textStream = null;	// DataStream for saving text messages
 
 	// Class which manages all CT API calls; takes data from each DataStream's queue and writes it to CT
 	private WriteTask writeTask = null;
@@ -207,6 +209,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox previewCheck = null;		// checkbox to turn on/off the preview window
+	private JTextField textMsgTF = null;		// text field associated with the TextMessagingStream
 	private JButton startStopButton = null;		// One button to Start and then Stop streaming data
 	private JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
 												// just where we left off; kind of like a seamless "pause"
@@ -663,6 +666,18 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			return;
 		}
 
+		// always start TextMessagingStream
+		textStream = new TextMessagingStream(this,textMsgStreamName);
+		try {
+			textStream.start();
+		} catch (Exception e) {
+			System.err.println("Error starting text messaging stream:\n" + e);
+			textStream = null;
+			stopCapture();
+			return;
+		}
+		addDataStream(textStream);
+
 		// start ScreencapStream
 		if (bScreencap) {
 			screencapStream = new ScreencapStream(this, screencapStreamName);
@@ -724,6 +739,16 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		if (writeTask != null) {
 			writeTask.stop();
 			writeTask = null;
+		}
+
+		if (textStream != null) {
+			textStream.stop();
+			try {
+				removeDataStream(textStream);
+			} catch (Exception e) {
+				System.err.println(e);
+			}
+			textStream = null;
 		}
 
 		if (screencapStream != null) {
@@ -893,6 +918,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		previewCheck = new JCheckBox("Preview",bPreview);
 		previewCheck.setBackground(controlsPanel.getBackground());
 		previewCheck.addActionListener(this);
+		textMsgTF = new JTextField(30);
+		textMsgTF.addActionListener(this);
 		// *** capturePanel
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
@@ -1040,7 +1067,27 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.insets = new Insets(-5, 0, 3, 0);
 		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
-		
+		++panelrow;
+		// (vi) text field for the TextMessagingStream
+		JLabel textLabel = new JLabel("Msg",SwingConstants.LEFT);
+		panelgbl = new GridBagLayout();
+		subPanel = new JPanel(panelgbl);
+		panelgbc = new GridBagConstraints();
+		panelgbc.anchor = GridBagConstraints.WEST;
+		panelgbc.fill = GridBagConstraints.NONE;
+		panelgbc.weightx = 0;
+		panelgbc.weighty = 0;
+		subPanel.setBackground(controlsPanel.getBackground());
+		panelgbc.insets = new Insets(0, 0, 0, 5);
+		Utility.add(subPanel, textLabel, panelgbl, panelgbc, 0, 0, 1, 1);
+		panelgbc.insets = new Insets(0, 0, 0, 0);
+		Utility.add(subPanel, textMsgTF, panelgbl, panelgbc, 1, 0, 1, 1);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.insets = new Insets(0, 0, 3, 0);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		++panelrow;
+
 		//
 		// Second row: the translucent/transparent capture panel
 		//
@@ -1186,7 +1233,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	}
 	
 	/**
-	 * Callback for menu items and some of the "run time" controls in controlsPanel.
+	 * Callback for menu items and "run time" controls in controlsPanel.
 	 * 
 	 * @param eventI The ActionEvent which has occurred.
 	 */
@@ -1333,6 +1380,11 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				// Notify WebcamStream of the Preview window change
 				webcamStream.update();
 			}
+		} else if ((source instanceof JTextField) && (((JTextField)source) == textMsgTF)) {
+			// User wants to push another text message
+			textStream.postTextMessage(textMsgTF.getText());
+			// Clear out the text field
+			textMsgTF.setText("");
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
 			String errStr = ctSettings.canCTrun();
