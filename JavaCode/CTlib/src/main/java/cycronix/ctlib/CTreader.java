@@ -101,7 +101,7 @@ public class CTreader {
 	
 //	private Map<String, CTFile> CTFileMap = new TreeMap<String, CTFile>();		// cache
 	
-	public CTdata getData(String source, String chan, double tget, double tdur, String tmode) {
+	public CTdata getData(String source, String chan, double tget, double tdur, String tmode) throws Exception {
 		CTmap ctmap= new CTmap(chan);
 		CTFile sourceFolder;
 
@@ -112,8 +112,9 @@ public class CTreader {
 			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
 		} 
 		catch(Exception e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 			System.err.println("CTreader/getData oops, exception: "+e+", ctmap: "+ctmap);
+			throw e;
 		}
 
 		//		CTdata tdata = ctmap.getTimeData(chan, ctmap.refTime, tdur, tmode);
@@ -418,11 +419,11 @@ public class CTreader {
 	//---------------------------------------------------------------------------------	
 	// do the file checking and return CTmap channel map of Time-Data
 	
-	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) {
+	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) throws Exception {
 		return(getDataMap(ctmap, new CTFile(rootfolder), getftime, duration, rmode));
 	}
 	
-	public CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode) {
+	public CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode) throws Exception {
 		return getDataMap(ctmap, rootfolder, getftime, duration, rmode, false);
 	}
 	
@@ -430,7 +431,7 @@ public class CTreader {
 	private long lastCallTime=0;
 	private CTFile[] lastListOfFolders=null;
 	
-	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) {
+	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) throws Exception {
 		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 //		long startTime = System.nanoTime();
 		try {
@@ -521,7 +522,8 @@ public class CTreader {
 				}
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+//			e.printStackTrace();
+			throw e;
 		}
 
 		// loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
@@ -553,6 +555,7 @@ public class CTreader {
 				
 				if(ctcrypto!=null) { try { data = ctcrypto.decrypt(data); } catch(Exception ee) {
 						System.err.println("WARNING:  could not decrypt: "+fileName);
+						throw ee;
 					}
 				}
 				
