@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 
 import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
  
 /**
@@ -16,9 +17,10 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class CTcrypto {
 	private static final String ALGORITHM = "AES";
-	private static final String TRANSFORMATION = "AES";
+	private static final String TRANSFORMATION = "AES/GCM/NoPadding";
 	private static final String SALT = "CloudTurbine";
 	private Key secretKey;
+	private String authentication = "CloudTurbine";		// used to detect successful decryption
 	
 	CTcrypto(String password) throws Exception {
 		byte[] key = (SALT + password).getBytes("UTF-8");
@@ -30,7 +32,8 @@ public class CTcrypto {
 	
 	private byte[] doCrypto(byte[] inputBytes, int cipherMode) throws Exception {
 		Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-		cipher.init(cipherMode, secretKey);
+		cipher.init(cipherMode, secretKey, new GCMParameterSpec(128, authentication.getBytes()));
+//		cipher.updateAAD(authentication.getBytes());
 		return cipher.doFinal(inputBytes);
 	}
 

@@ -575,7 +575,7 @@ public class CTwriter {
 	Timer flushTimer = null;
 	
 //	private void writeData(long time, String outName, byte[] bdata) throws Exception {		// sync makes remote writes pace slow???
-	private synchronized void writeData(long time, String outName, byte[] bdata) throws IOException {
+	private synchronized void writeData(long time, String outName, byte[] bdata) throws Exception {
 		
 		CTinfo.debugPrint("writeData: "+outName+" at time: "+time+", zipFlag: "+zipFlag+", blockTime: "+blockTime);
 		
@@ -614,6 +614,7 @@ public class CTwriter {
 			if(ctcrypto!=null) {
 				try { bdata = ctcrypto.encrypt(bdata);	} catch(Exception ee) {
 					System.err.println("WARNING:  could not encrypt: "+outName);
+					throw ee;
 				}
 			}
 			
