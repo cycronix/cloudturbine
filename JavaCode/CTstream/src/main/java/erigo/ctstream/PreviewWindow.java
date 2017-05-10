@@ -63,6 +63,18 @@ public class PreviewWindow {
 		});
 	}
 
+	public void updateText(String textI) {
+		// For thread safety: Schedule a job for the event-dispatching thread to update the text on the JLabel
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				// lbl.setSize(width, height);
+				lbl.setIcon(null);
+				lbl.setText(textI);
+				lbl.repaint();
+			}
+		});
+	}
+
 	public void close() {
 		// For thread safety: Schedule a job for the event-dispatching thread to bring down the existing preview window
 		SwingUtilities.invokeLater(new Runnable() {
