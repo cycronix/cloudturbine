@@ -71,6 +71,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private String orig_screencapChannelName;
 	private String orig_webcamChannelName;
 	private String orig_audioChannelName;
+	private boolean orig_bEncrypt;
+	private String orig_encryptionPassword;
 	private boolean orig_bFTP;
 	private String orig_ftpHost;
 	private String orig_ftpUser;
@@ -83,10 +85,14 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	
 	// Dialog components
 	private JTextField outputFolderTF = null;
+	private JButton browseButton = null;
 	private JTextField sourceNameTF = null;
 	private JTextField screencapChannelNameTF = null;
 	private JTextField webcamChannelNameTF = null;
 	private JTextField audioChannelNameTF = null;
+	private JCheckBox bEncryptCheckB = null;
+	private JLabel encryptionPasswordLabel = null;
+	private JPasswordField encryptionPasswordTF = null;
 	private JCheckBox bFTPCheckB = null;
 	private JLabel ftpHostLabel = null;
 	private JTextField ftpHostTF = null;
@@ -127,10 +133,16 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		// Create GUI components
 		outputFolderTF = new JTextField(25);
+		browseButton = new JButton("Browse...");
+		browseButton.addActionListener(this);
 		sourceNameTF = new JTextField(25);
 		screencapChannelNameTF = new JTextField(10);
 		webcamChannelNameTF = new JTextField(10);
 		audioChannelNameTF = new JTextField(10);
+		bEncryptCheckB = new JCheckBox("Encrypt data");
+		bEncryptCheckB.addItemListener(this);
+		encryptionPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
+		encryptionPasswordTF = new JPasswordField(15);
 		bFTPCheckB = new JCheckBox("Use FTP");
 		bFTPCheckB.addItemListener(this);
 		ftpHostLabel = new JLabel("Host",SwingConstants.LEFT);
@@ -167,6 +179,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		gbc.weightx = 100;
 		gbc.weighty = 0;
 		Utility.add(guiPanel,outputFolderTF,gbl,gbc,1,row,1,1);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		Utility.add(guiPanel,browseButton,gbl,gbc,2,row,1,1);
 		row++;
 		
 		// ROW 2 - source name
@@ -224,19 +240,37 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		gbc.weighty = 0;
 		Utility.add(guiPanel,audioChannelNameTF,gbl,gbc,1,row,1,1);
 		row++;
-		
-		// ROW 6 - FTP checkbox
+
+		// ROW 6 - data encryption option
+		GridBagLayout panel_gbl = new GridBagLayout();
+		JPanel encryptionPanel = new JPanel(panel_gbl);
+		GridBagConstraints panel_gbc = new GridBagConstraints();
+		panel_gbc.anchor = GridBagConstraints.WEST;
+		panel_gbc.fill = GridBagConstraints.NONE;
+		panel_gbc.weightx = 0;
+		panel_gbc.weighty = 0;
+		panel_gbc.insets = new Insets(0,0,0,10);
+		Utility.add(encryptionPanel,bEncryptCheckB,panel_gbl,panel_gbc,0,0,1,1);
+		panel_gbc.insets = new Insets(0,0,0,5);
+		Utility.add(encryptionPanel,encryptionPasswordLabel,panel_gbl,panel_gbc,1,0,1,1);
+		panel_gbc.insets = new Insets(0,0,0,0);
+		Utility.add(encryptionPanel,encryptionPasswordTF,panel_gbl,panel_gbc,2,0,1,1);
+		gbc.insets = new Insets(10,15,0,15);
+		Utility.add(guiPanel,encryptionPanel,gbl,gbc,0,row,3,1);
+		row++;
+
+		// ROW 7 - FTP checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(10,15,0,15);
-		Utility.add(guiPanel,bFTPCheckB,gbl,gbc,0,row,2,1);
+		Utility.add(guiPanel,bFTPCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 7 - panel containing the FTP parameters (host, username, password)
-		GridBagLayout panel_gbl = new GridBagLayout();
+		// ROW 8 - panel containing the FTP parameters (host, username, password)
+		panel_gbl = new GridBagLayout();
 		JPanel ftpPanel = new JPanel(panel_gbl);
-		GridBagConstraints panel_gbc = new GridBagConstraints();
+		panel_gbc = new GridBagConstraints();
 		panel_gbc.anchor = GridBagConstraints.WEST;
 		panel_gbc.fill = GridBagConstraints.NONE;
 		panel_gbc.weightx = 0;
@@ -264,10 +298,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(2,50,0,15);
-		Utility.add(guiPanel,ftpPanel,gbl,gbc,0,row,2,1);
+		Utility.add(guiPanel,ftpPanel,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 8 - flush interval
+		// ROW 9 - flush interval
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -281,7 +315,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,flushIntervalComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 9 - num blocks per segment
+		// ROW 10 - num blocks per segment
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -295,31 +329,31 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,numBlocksPerSegmentComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 10 - debug checkbox
+		// ROW 11 - debug checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(10,15,0,15);
-		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,2,1);
+		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 11 - include mouse cursor checkbox
+		// ROW 12 - include mouse cursor checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(10,15,0,15);
-		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,2,1);
+		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 12 - stay on top checkbox
+		// ROW 13 - stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(10,15,0,15);
-		Utility.add(guiPanel,bStayOnTopCheckB,gbl,gbc,0,row,2,1);
+		Utility.add(guiPanel,bStayOnTopCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 13 - OK/Cancel command buttons
+		// ROW 14 - OK/Cancel command buttons
 		// Put the command buttons in a JPanel so they are all the same size
         JPanel buttonPanel = new JPanel(new GridLayout(1,2,15,0));
         buttonPanel.add(okButton);
@@ -330,7 +364,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
         gbc.ipadx = 20;
         gbc.insets = new Insets(15,25,15,25);
         gbc.anchor = GridBagConstraints.CENTER;
-        Utility.add(guiPanel,buttonPanel,gbl,gbc,0,row,2,1);
+        Utility.add(guiPanel,buttonPanel,gbl,gbc,0,row,3,1);
 		
 		// Add guiPanel to the content pane of the parent JFrame
 		gbl = new GridBagLayout();
@@ -379,19 +413,17 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		//
 		// Check filenames
 		//
-		if ( (ctStream.screencapStreamName == null) || (ctStream.screencapStreamName.length() == 0) ) {
-			return "You must specify a screencap channel name";
-		}
-		if ( (ctStream.webcamStreamName == null) || (ctStream.webcamStreamName.length() == 0) ) {
-			return "You must specify a web camera channel name";
-		}
-		if ( (ctStream.audioStreamName == null) || (ctStream.audioStreamName.length() == 0) ) {
-			return "You must specify an audio channel name";
-		}
 		try {
 			ctStream.checkFilenames();
 		} catch (Exception e) {
 			return e.getMessage();
+		}
+
+		// Check that a password has been specified, if data encryption is turned on
+		if (ctStream.bEncrypt) {
+			if ( (ctStream.encryptionPassword == null) || (ctStream.encryptionPassword.length() == 0) ) {
+				return "You must specify the data encryption password";
+			}
 		}
 
 		// Check FTP parameters, when using FTP
@@ -428,6 +460,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_screencapChannelName = ctStream.screencapStreamName;
 		orig_webcamChannelName = ctStream.webcamStreamName;
 		orig_audioChannelName = ctStream.audioStreamName;
+		orig_bEncrypt = ctStream.bEncrypt;
+		orig_encryptionPassword = ctStream.encryptionPassword;
 		orig_bFTP = ctStream.bFTP;
 		orig_ftpHost = ctStream.ftpHost;
 		orig_ftpUser = ctStream.ftpUser;
@@ -440,10 +474,15 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		// Initialize data in the dialog
 		outputFolderTF.setText(ctStream.outputFolder);
+		browseButton.setEnabled(!ctStream.bFTP);
 		sourceNameTF.setText(ctStream.sourceName);
 		screencapChannelNameTF.setText(ctStream.screencapStreamName);
 		webcamChannelNameTF.setText(ctStream.webcamStreamName);
 		audioChannelNameTF.setText(ctStream.audioStreamName);
+		bEncryptCheckB.setSelected(ctStream.bEncrypt);
+		encryptionPasswordTF.setText(ctStream.encryptionPassword);
+		encryptionPasswordLabel.setEnabled(ctStream.bEncrypt);
+		encryptionPasswordTF.setEnabled(ctStream.bEncrypt);
 		bFTPCheckB.setSelected(ctStream.bFTP);
 		ftpHostTF.setText(ctStream.ftpHost);
 		ftpUserTF.setText(ctStream.ftpUser);
@@ -476,8 +515,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	}
 	
 	/*
-	 * Respond to the state of bUseFTPCheckB changing:
-	 * Enable or disable FTP setting fields given the state of the "Use FTP" checkbox
+	 * Respond to the state of bEncryptCheckB and bUseFTPCheckB changing:
+	 * Enable or disable the corresponding fields based on the state of the checkbox
 	 */
 	@Override
 	public void itemStateChanged(ItemEvent eventI) {
@@ -486,8 +525,13 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		if (source == null) {
 			return;
+		} else if (source == bEncryptCheckB) {
+			boolean bChecked = bEncryptCheckB.isSelected();
+			encryptionPasswordLabel.setEnabled(bChecked);
+			encryptionPasswordTF.setEnabled(bChecked);
 		} else if (source == bFTPCheckB) {
 			boolean bChecked = bFTPCheckB.isSelected();
+			browseButton.setEnabled(!bChecked);
 			ftpHostLabel.setEnabled(bChecked);
 			ftpHostTF.setEnabled(bChecked);
 			ftpUserLabel.setEnabled(bChecked);
@@ -512,8 +556,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		if (source == null) {
 			return;
 		} else if (eventI.getActionCommand().equals("Browse...")) {
-			// This was for a "Browse" button to locate a directory, but since
-			// we're using this for filesystems and FTP, don't bother
 			// Code largely taken from http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
 			JFileChooser fc = new JFileChooser();
 			fc.setCurrentDirectory(new java.io.File("."));
@@ -546,11 +588,14 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.screencapStreamName = screencapChannelNameTF.getText().trim();
 		ctStream.webcamStreamName = webcamChannelNameTF.getText().trim();
 		ctStream.audioStreamName = audioChannelNameTF.getText().trim();
+		ctStream.bEncrypt = bEncryptCheckB.isSelected();
+		char[] encryptPasswordCharArray = encryptionPasswordTF.getPassword();
+		ctStream.encryptionPassword = new String(encryptPasswordCharArray).trim();
 		ctStream.bFTP = bFTPCheckB.isSelected();
 		ctStream.ftpHost = ftpHostTF.getText().trim();
 		ctStream.ftpUser = ftpUserTF.getText().trim();
-		char[] passwordCharArray = ftpPasswordTF.getPassword();
-		ctStream.ftpPassword = new String(passwordCharArray).trim();
+		char[] ftpPasswordCharArray = ftpPasswordTF.getPassword();
+		ctStream.ftpPassword = new String(ftpPasswordCharArray).trim();
 		ctStream.flushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
 		ctStream.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctStream.bDebugMode = bDebugModeCheckB.isSelected();
@@ -586,6 +631,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.screencapStreamName = orig_screencapChannelName;
 		ctStream.webcamStreamName = orig_webcamChannelName;
 		ctStream.audioStreamName = orig_audioChannelName;
+		ctStream.bEncrypt = orig_bEncrypt;
+		ctStream.encryptionPassword = orig_encryptionPassword;
 		ctStream.bFTP = orig_bFTP;
 		ctStream.ftpHost = orig_ftpHost;
 		ctStream.ftpUser = orig_ftpUser;

@@ -22,35 +22,38 @@ import cycronix.ctlib.CTwriter;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
- * WriteTask is a Runnable object which takes byte arrays from the queues of the various
- * DataStream objects and writes them to CT.
+ * WriteTask is a Runnable object which takes byte arrays from the DataStream queues and
+ * writes them to CT.  This class handles any number of DataStreams (specifically, all
+ * those included in Vector dataStreams from the CTstream class).
  *
  * WriteTask makes sure that data is sent to CT in time order.  This avoids the problem,
- * for instance, where we call flush() to seal off a block and then the next setTime/putData
+ * for instance, where we call flush() to seal off a block and then later setTime/putData
  * calls are for a time that would have been in that (now closed) block.
  *
  * Flushing data is handled one of two ways:
  *
- * 1. If one DataStream is the "master" (and note, there can at most be only one master DataStream):
- *    bManualFlush = true
- *    send packets from all DataStreams to CT in time sequence order;
+ * 1. If one DataStream is the "master" (note, there can at most be only one master DataStream):
+ *    send packets from all DataStreams to CT in time sequence order
  *    every time we send a packet of data from the "master" DataStream to CT, call CTwriter.flush()
  *
  * 2. If there is no "master" DataStream:
- *    bManualFlush = false
- *    send packets from all DataStreams to CT in time sequence order;
+ *    send packets from all DataStreams to CT in time sequence order
  *    call CTwriter.flush() at the period defined by CTstream.flushMillis
+ *
+ * A "master" DataStream is one where bManualFlush is true.
  *
  * When there is no master DataStream, we could potentially use auto-flush, and in some sense this
  * would be easier; but code could get messy turning auto-flush on/off as a "master" DataStream
  * is turned off/on.  Thus, whether there is a master DataStream or not, in all cases we handle
- * flushing.
+ * flushing in this class.
  *
  * @author John P. Wilson
- * @version 05/09/2017
+ * @version 05/10/2017
  */
 
 public class WriteTask implements Runnable {
@@ -87,6 +90,13 @@ public class WriteTask implements Runnable {
 		}
 		ctw.setZipMode(cts.bZipMode);
 		ctw.autoSegment(cts.numBlocksPerSegment);
+		if (cts.bEncrypt) {
+			try {
+				ctw.setPassword(cts.encryptionPassword);
+			} catch (Exception e) {
+				throw new IOException( new String("Error setting CT password:\n" + e.getMessage()) );
+			}
+		}
 	}
 
 	/**
@@ -132,125 +142,38 @@ public class WriteTask implements Runnable {
 	/**
 	 * run()
 	 * 
-	 * Write data to CloudTurbine.
+	 * Write data from the various DataStreams to CloudTurbine.  Start at the oldest available data and
+	 * work forward in time.  This avoids getting the "java.io.IOException: OOPS negative CT time (dropping)"
+	 * errors from CT and dropping data samples.
 	 *
+	 * However, since each DataStream is independent, we can still get these "OOPS" error as follows:
+	 * Say we have 2 DataStreams for which we are pumping out data from this run() method.  Consider
+	 * that at some time one of the DataStreams gets stuck for some reason, but data from the other
+	 * DataStream is merrily marching forward.  Finally, the other DataStream breaks through and
+	 * puts data on its queue, but now the time for the data is before the timestamp being used in
+	 * the CT calls in this run() method.  This is when we could get the "OOPS" error.
 	 */
 	public void run() {
 		int numPuts = 0;
 		long timeOfLastFlushMillis = System.currentTimeMillis();
 		boolean bDataToBeFlushed = false;
-		long nextScreencapTime = Long.MAX_VALUE;
-		byte[] nextScreencapValue = null;
-		long nextWebcamTime = Long.MAX_VALUE;
-		byte[] nextWebcamValue = null;
-		long nextAudioTime = Long.MAX_VALUE;
-		byte[] nextAudioValue = null;
+		List<DataStreamSample> samples = new ArrayList<DataStreamSample>();
 		while (bIsRunning) {
-			// Make sure we have the next data from each DataStream
-			if ( (nextScreencapValue == null) && (cts.screencapStream != null) && (cts.screencapStream.queue != null) ) {
-				TimeValue tv = cts.screencapStream.queue.poll();
-				if ( (tv != null) && (tv.value != null) ) {
-					nextScreencapTime = tv.time;
-					nextScreencapValue = tv.value;
+			// Make sure our List includes a sample from each running DataStream
+			// NOTE: we synchronize access to Vector cts.dataStreams
+			// At the same time, we'll check the number of "manual flush" streams we've got
+			int numManualFlush = 0;
+			synchronized (cts.dataStreamsLock) {
+				// Check the number of "manual flush" streams we've got
+				for (DataStream ds : cts.dataStreams) {
+					addSample(ds,samples);
+					// Check if this is a "manual flush" stream
+					if ( (ds != null) && ds.bIsRunning && ds.bManualFlush ) {
+						++numManualFlush;
+					}
 				}
 			}
-			if ( (nextWebcamValue == null) && (cts.webcamStream != null) && (cts.webcamStream.queue != null) ) {
-				TimeValue tv = cts.webcamStream.queue.poll();
-				if ( (tv != null) && (tv.value != null) ) {
-					nextWebcamTime = tv.time;
-					nextWebcamValue = tv.value;
-				}
-			}
-			if ( (nextAudioValue == null) && (cts.audioStream != null) && (cts.audioStream.queue != null) ) {
-				TimeValue tv = cts.audioStream.queue.poll();
-				if ( (tv != null) && (tv.value != null) ) {
-					nextAudioTime = tv.time;
-					nextAudioValue = tv.value;
-				}
-			}
-			if ( (nextScreencapValue == null) && (nextWebcamValue == null) && (nextAudioValue == null) ) {
-				// Nothing to send to CT
-				// Sleep for a bit but then we'll still go through the remainder of this function
-				// (ie, don't execute "continue") because we'll check down below if there is data
-				// that should be flushed.
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			// See if there's data to send to CT
-			try {
-				// Put the oldest available data next
-				long[] timeVals = new long[3];
-				timeVals[0] = nextScreencapTime;
-				timeVals[1] = nextWebcamTime;
-				timeVals[2] = nextAudioTime;
-				Arrays.sort(timeVals);
-				long oldestTime = timeVals[0];
-				if ( (nextScreencapTime != Long.MAX_VALUE) && (nextScreencapTime == oldestTime) && (nextScreencapValue != null) ) {
-					ctw.setTime(nextScreencapTime);
-					ctw.putData(cts.screencapStream.name,nextScreencapValue);
-					System.out.print("P");
-					numPuts += 1;
-					if ((numPuts % 40) == 0) {
-						System.err.print("\n");
-					}
-					bDataToBeFlushed = true;
-					if (cts.screencapStream.bManualFlush) {
-						bDataToBeFlushed = false;
-						timeOfLastFlushMillis = System.currentTimeMillis();
-						ctw.flush(true); // gapless
-						System.out.print("F");
-					}
-					nextScreencapTime = Long.MAX_VALUE;
-					nextScreencapValue = null;
-				} else if ( (nextWebcamTime != Long.MAX_VALUE) && (nextWebcamTime == oldestTime) && (nextWebcamValue != null) ) {
-					ctw.setTime(nextWebcamTime);
-					ctw.putData(cts.webcamStream.name,nextWebcamValue);
-					System.out.print("P");
-					numPuts += 1;
-					if ((numPuts % 40) == 0) {
-						System.err.print("\n");
-					}
-					bDataToBeFlushed = true;
-					if (cts.webcamStream.bManualFlush) {
-						bDataToBeFlushed = false;
-						timeOfLastFlushMillis = System.currentTimeMillis();
-						ctw.flush(true); // gapless
-						System.out.print("F");
-					}
-					nextWebcamTime = Long.MAX_VALUE;
-					nextWebcamValue = null;
-				} else if ( (nextAudioTime != Long.MAX_VALUE) && (nextAudioTime == oldestTime) && (nextAudioValue != null) ) {
-					ctw.setTime(nextAudioTime);
-					ctw.putData(cts.audioStream.name,nextAudioValue);
-					System.out.print("P");
-					numPuts += 1;
-					if ((numPuts % 40) == 0) {
-						System.err.print("\n");
-					}
-					bDataToBeFlushed = true;
-					if (cts.audioStream.bManualFlush) {
-						bDataToBeFlushed = false;
-						timeOfLastFlushMillis = System.currentTimeMillis();
-						ctw.flush(true); // gapless
-						System.out.print("F");
-					}
-					nextAudioTime = Long.MAX_VALUE;
-					nextAudioValue = null;
-				}
-			} catch (Exception e) {
-				if (!bIsRunning) {
-					break;
-				} else {
-					System.err.println("CTwriter exception:\n" + e);
-				}
-			}
-			// If no DataStreams are specified as "manual flush" (where CTwriter.flush() is called after data is
-			// sent to CT) then we need to periodically flush data to CT.  This is similar to auto-flush.
-			// Only do this if there are no streams which are manually flushed.
-			int numManualFlush = numManualFlushStreams();
+			// FIREWALL
 			if (numManualFlush > 1) {
 				// ERROR - we should have at most 1 DataStream which specifies manual flush
 				// Launch a separate thread to shut down CTstream
@@ -264,6 +187,56 @@ public class WriteTask implements Runnable {
 				shutdownThread.start();
 				break;
 			}
+			if (samples.isEmpty()) {
+				// Nothing to send to CT
+				// Sleep for a bit, but then we'll still go through the remainder of this function
+				// (ie, don't do a "continue" here) because down below we'll check if there is data
+				// that should be flushed.
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			} else {
+				// Send the oldest available data to CT first
+				long oldestTime = Long.MAX_VALUE;
+				int idx_sample_with_oldest_time = -1;
+				for (int i = 0; i < samples.size(); ++i) {
+					if (samples.get(i).time < oldestTime) {
+						idx_sample_with_oldest_time = i;
+					}
+				}
+				DataStreamSample dss = samples.get(idx_sample_with_oldest_time);
+				try {
+					ctw.setTime(dss.time);
+					ctw.putData(dss.channelName, dss.value);
+					System.out.print("P");
+					numPuts += 1;
+					if ((numPuts % 40) == 0) {
+						System.err.print("\n");
+					}
+					bDataToBeFlushed = true;
+					if (dss.bManualFlush) {
+						bDataToBeFlushed = false;
+						timeOfLastFlushMillis = System.currentTimeMillis();
+						ctw.flush(true); // gapless
+						System.out.print("F");
+					}
+				} catch (Exception e) {
+					if (!bIsRunning) {
+						// This WriteTask is to be shut down; just break out
+						break;
+					} else {
+						System.err.println("CTwriter exception:\n" + e);
+					}
+				}
+				// We're done with this sample; remove it from the List
+				samples.remove(dss);
+			}
+
+			// Our pseudo "auto flush" implementation
+			// If no DataStreams are specified as "manual flush" (where CTwriter.flush() is called after data is
+			// sent to CT) then we need to periodically flush data to CT.
 			if ( bDataToBeFlushed && (numManualFlush == 0) ) {
 				// no manual flush DataStreams; see if it is time to do a flush
 				long timeMillis = System.currentTimeMillis();
@@ -285,21 +258,48 @@ public class WriteTask implements Runnable {
 	}
 
 	/**
-	 * Determine the number of "manual flush" DataStreams which are in use; there should be at most 1.
-	 * @return the number of manual flush streams
+	 * Make sure a sample from the given DataStream is included in the given list of samples.
+	 * If there isn't, then add one.
+	 *
+	 * @param dsI		DataStream to take a sample from
+	 * @param samplesI	List of samples; we will make sure this list includes a sample from the given DataStream
 	 */
-	private int numManualFlushStreams() {
-		int numManualFlush = 0;
-		if ( (cts.screencapStream != null) && (cts.screencapStream.queue != null) && (cts.screencapStream.bManualFlush) ) {
-			++numManualFlush;
+	private void addSample(DataStream dsI, List<DataStreamSample> samplesI) {
+		// Firewall
+		if ( (dsI == null) || (!dsI.bIsRunning) || (dsI.queue == null) || (dsI.queue.isEmpty()) ) {
+			// DataStream is not running
+			return;
 		}
-		if ( (cts.webcamStream != null) && (cts.webcamStream.queue != null) && (cts.webcamStream.bManualFlush) ) {
-			++numManualFlush;
+		// See if we have a sample in samplesI from this DataStream; we do this by matching IDs
+		for (DataStreamSample dss : samplesI) {
+			if (dss.id == dsI.id) {
+				// our list includes a sample from this DataStream; we're done
+				return;
+			}
 		}
-		if ( (cts.audioStream != null) && (cts.audioStream.queue != null) && (cts.audioStream.bManualFlush) ) {
-			++numManualFlush;
+		// Add a sample from the DataStream to this List
+		TimeValue tv = dsI.queue.poll();
+		if ( (tv != null) && (tv.value != null) ) {
+			// We've got a new sample to add!
+			DataStreamSample dss = new DataStreamSample();
+			dss.id = dsI.id;
+			dss.channelName = dsI.channelName;
+			dss.bManualFlush = dsI.bManualFlush;
+			dss.time = tv.time;
+			dss.value = tv.value;
+			samplesI.add(dss);
 		}
-		return numManualFlush;
+	}
+
+	/**
+	 * Private class to store one sample from one DataStream.
+	 */
+	private class DataStreamSample {
+		public int id = -1;
+		public String channelName = "";
+		public boolean bManualFlush = false;
+		public long time = Long.MAX_VALUE;
+		public byte[] value = null;
 	}
 	
 }

@@ -58,11 +58,12 @@ public class ScreencapStream extends DataStream {
     /**
      * ScreencapStream constructor
      *
-     * @param ctsI   CTstream object
-     * @param nameI  Channel name
+     * @param ctsI          CTstream object
+     * @param channelNameI  Channel name
      */
-    public ScreencapStream(CTstream ctsI, String nameI) {
-        name = nameI;
+    public ScreencapStream(CTstream ctsI, String channelNameI) {
+        super();
+        channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;
         // Decode the String corresponding to binary cursor data; produce a BufferedImage with it
