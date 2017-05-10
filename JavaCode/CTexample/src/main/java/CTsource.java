@@ -60,7 +60,7 @@ public class CTsource {
 			for(int i=0; i<100; i++) {
 				ctw.setTime(time);				
 				cmap.clear(); 
-				cmap.put("c0", i+0);
+				cmap.put("c0", 9999);
 				cmap.put("c1.f32", (float)(i+100));
 				cmap.put("c2.txt", ""+i);
 				ctw.putData(cmap);
