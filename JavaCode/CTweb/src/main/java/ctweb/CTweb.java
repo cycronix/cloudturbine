@@ -689,7 +689,8 @@ public class CTweb {
     				}
     			}
     		} catch(Exception e) { 
-    			System.err.println("doGet Exception: "+e); e.printStackTrace(); 
+    			System.err.println("CTweb doGet Exception: "+e); 
+//    			e.printStackTrace(); 
     		}
 
     		if(debug) System.err.println("Unable to respond to: "+pathInfo);
