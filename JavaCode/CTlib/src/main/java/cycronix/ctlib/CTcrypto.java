@@ -16,32 +16,39 @@ import javax.crypto.spec.SecretKeySpec;
  *
  */
 public class CTcrypto {
-	private static final String ALGORITHM = "AES";
-	private static final String TRANSFORMATION = "AES/GCM/NoPadding";
 	private static final String SALT = "CloudTurbine";
 	private Key secretKey;
-	private String authentication = "CloudTurbine";		// used to detect successful decryption
-	
+
+	// constructor:  create key by hashing password
 	CTcrypto(String password) throws Exception {
 		byte[] key = (SALT + password).getBytes("UTF-8");
 		MessageDigest sha = MessageDigest.getInstance("SHA-1");
 		key = sha.digest(key);
 		key = Arrays.copyOf(key, 16); // use only first 128 bit
-		secretKey = new SecretKeySpec(key, ALGORITHM);
-	}
-	
-	private byte[] doCrypto(byte[] inputBytes, int cipherMode) throws Exception {
-		Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-		cipher.init(cipherMode, secretKey, new GCMParameterSpec(128, authentication.getBytes()));
-//		cipher.updateAAD(authentication.getBytes());
-		return cipher.doFinal(inputBytes);
+		secretKey = new SecretKeySpec(key, "AES");
 	}
 
-	public byte[] encrypt(byte[] inputBytes) throws Exception {
-		return doCrypto(inputBytes, Cipher.ENCRYPT_MODE);
+	// encrypt
+	byte[] encrypt(byte[] src) throws Exception {
+		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+		cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+		byte[] iv = cipher.getIV(); 
+		assert iv.length == 12;
+		byte[] cipherText = cipher.doFinal(src);
+		assert cipherText.length == src.length + 16; 
+		byte[] message = new byte[12 + cipherText.length]; 
+		System.arraycopy(iv, 0, message, 0, 12);
+		System.arraycopy(cipherText, 0, message, 12, cipherText.length);
+		return message;
 	}
 
-	public byte[] decrypt(byte[] inputBytes) throws Exception {
-		return doCrypto(inputBytes, Cipher.DECRYPT_MODE);
+	// decrypt
+	byte[] decrypt(byte[] message) throws Exception {
+		if (message.length < 12 + 16) throw new IllegalArgumentException();
+		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+		GCMParameterSpec params = new GCMParameterSpec(128, message, 0, 12);
+		cipher.init(Cipher.DECRYPT_MODE, secretKey, params);
+		return cipher.doFinal(message, 12, message.length - 12);
 	}
+
 }
