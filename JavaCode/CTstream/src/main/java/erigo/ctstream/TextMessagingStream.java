@@ -35,7 +35,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class TextMessagingStream extends DataStream {
 
-    private static final HashMap<RenderingHints.Key, Object> renderingProperties = new HashMap<>();
+    private String lastMsg = "";  // The last message sent to the queue
 
     /**
      * TextMessagingStream constructor
@@ -49,10 +49,6 @@ public class TextMessagingStream extends DataStream {
         channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;
-        // For creating an image preview of the text string
-        renderingProperties.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        renderingProperties.put(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        renderingProperties.put(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
     }
 
     /**
@@ -88,6 +84,22 @@ public class TextMessagingStream extends DataStream {
     }
 
     /**
+     * Update the status of the preview window
+     */
+    public void updatePreview() {
+        super.updatePreview();
+        if (bPreview && bIsRunning && cts.bPreview) {
+            // set the size of the window
+            Dimension previewSize = new Dimension(400,200);
+            previewWindow.setFrameSize(previewSize);
+            if (!lastMsg.isEmpty()) {
+                // update the preview window with the last message we posted on the queue
+                previewWindow.updateText(lastMsg);
+            }
+        }
+    }
+
+    /**
      * Post a new text message.
      *
      * @param msgI  The text message to post.
@@ -105,7 +117,8 @@ public class TextMessagingStream extends DataStream {
         }
         try {
             queue.put(new TimeValue(cts.getNextTime(), msg.getBytes()));
-            System.out.print("t");
+            lastMsg = msg;
+            if (cts.bPrintDataStatusMsg) { System.err.print("t"); }
         } catch (Exception e) {
             if (bIsRunning) {
                 System.err.println("\nTextMessagingStream: exception thrown adding data to queue:\n" + e);
@@ -114,52 +127,9 @@ public class TextMessagingStream extends DataStream {
         }
 
         if(bPreview && (previewWindow != null)) {
-            // BufferedImage img = textToImage(msg, Font f, float Size);
-            // previewWindow.updateImage(img,img.getWidth(),img.getHeight());
             previewWindow.updateText(msg);
         }
 
-    }
-
-    /**
-     * Convert String to image.
-     *
-     * This example was posted by "initramfs" at http://stackoverflow.com/questions/18800717/convert-text-content-to-image
-     *
-     * @param Text
-     * @param f
-     * @param Size
-     * @return
-     */
-    private static BufferedImage textToImage(String Text, Font f, float Size) {
-        //Derives font to new specified size, can be removed if not necessary.
-        f = f.deriveFont(Size);
-
-        FontRenderContext frc = new FontRenderContext(null, true, true);
-
-        //Calculate size of buffered image.
-        LineMetrics lm = f.getLineMetrics(Text, frc);
-
-        Rectangle2D r2d = f.getStringBounds(Text, frc);
-
-        BufferedImage img = new BufferedImage((int)Math.ceil(r2d.getWidth()), (int)Math.ceil(r2d.getHeight()), BufferedImage.TYPE_INT_ARGB);
-
-        Graphics2D g2d = img.createGraphics();
-
-        g2d.setRenderingHints(renderingProperties);
-
-        g2d.setBackground(Color.WHITE);
-        g2d.setColor(Color.BLACK);
-
-        g2d.clearRect(0, 0, img.getWidth(), img.getHeight());
-
-        g2d.setFont(f);
-
-        g2d.drawString(Text, 0, lm.getAscent());
-
-        g2d.dispose();
-
-        return img;
     }
 
 }

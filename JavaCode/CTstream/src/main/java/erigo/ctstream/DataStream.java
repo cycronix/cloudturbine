@@ -95,12 +95,6 @@ public abstract class DataStream {
         if (bIsRunning && cts.bPreview && bCanPreview && !bPreview) {
             // open preview window
             previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400));
-            // In case we want set the initial size of the WebcamStream preview winddow:
-            // if ( (WebcamStream.webcam != null) && WebcamStream.webcam.isOpen() ) {
-            //     previewSize = WebcamStream.webcam.getViewSize();
-            //     // previewSize is the size of the image; add extra padding for the window so scrollbars aren't needed
-            //     previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
-            // }
             bPreview = true;
         } else if (!cts.bPreview || !bIsRunning) {
             bPreview = false;

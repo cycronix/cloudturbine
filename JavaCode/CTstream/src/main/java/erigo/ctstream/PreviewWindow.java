@@ -41,6 +41,7 @@ public class PreviewWindow {
 				frame = new JFrame();
 				frame.setTitle(title);
 				lbl = new JLabel();
+				lbl.setFont(new Font(lbl.getFont().getName(), Font.PLAIN, 18));
 				JScrollPane scrollPane = new JScrollPane(lbl);
 				scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 				scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -48,6 +49,19 @@ public class PreviewWindow {
 				frame.setVisible(true);
 				frame.setDefaultCloseOperation(JFrame. DO_NOTHING_ON_CLOSE);
 				frame.setSize(initSize);
+			}
+		});
+	}
+
+	/**
+	 * Set the size of the frame.
+	 * @param sizeI  Desired size for the preview window.
+	 */
+	public void setFrameSize(Dimension sizeI) {
+		// For thread safety: Schedule a job for the event-dispatching thread to update the image on the JLabel
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				frame.setSize(sizeI);
 			}
 		});
 	}
@@ -67,10 +81,8 @@ public class PreviewWindow {
 		// For thread safety: Schedule a job for the event-dispatching thread to update the text on the JLabel
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				// lbl.setSize(width, height);
-				lbl.setIcon(null);
-				lbl.setText(textI);
-				lbl.repaint();
+				// give some padding around the text
+				lbl.setText("  " + textI + "  ");
 			}
 		});
 	}
