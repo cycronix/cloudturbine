@@ -16,35 +16,28 @@ limitations under the License.
 
 package erigo.ctstream;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.font.FontRenderContext;
-import java.awt.font.LineMetrics;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * A DataStream for generating text messages.
+ * A DataStream for generating text.
  *
  * @author John P. Wilson
- * @version 2017-05-10
+ * @version 2017-05-11
  */
 
-public class TextMessagingStream extends DataStream {
+public class TextStream extends DataStream {
 
     private String lastMsg = "";  // The last message sent to the queue
 
     /**
-     * TextMessagingStream constructor
+     * TextStream constructor
      *
      * @param ctsI          CTstream object
      * @param channelNameI  Channel name
      */
     // constructor
-    public TextMessagingStream(CTstream ctsI, String channelNameI) {
+    public TextStream(CTstream ctsI, String channelNameI) {
         super();
         channelName = channelNameI;
         cts = ctsI;
@@ -55,7 +48,7 @@ public class TextMessagingStream extends DataStream {
      * Implementation of the abstract start() method from DataStream
      */
     public void start() throws Exception {
-        if (queue != null) { throw new Exception("ERROR in TextMessagingStream.start(): LinkedBlockingQueue object is not null"); }
+        if (queue != null) { throw new Exception("ERROR in TextStream.start(): LinkedBlockingQueue object is not null"); }
         bIsRunning = true;
         queue = new LinkedBlockingQueue<TimeValue>();
         updatePreview();
@@ -79,7 +72,7 @@ public class TextMessagingStream extends DataStream {
             // Not currently running; just return
             return;
         }
-        // For TextMessagingStream, there are no other real-time settings we need to adjust for; just return
+        // For TextStream, there are no other real-time settings we need to adjust for; just return
         return;
     }
 
@@ -100,34 +93,33 @@ public class TextMessagingStream extends DataStream {
     }
 
     /**
-     * Post a new text message.
+     * Post updated text.
      *
-     * @param msgI  The text message to post.
+     * @param textI  The text message to post.
      */
-    public void postTextMessage(String msgI) {
+    public void postText(String textI) {
         if (!bIsRunning) {
             return;
         }
-        if (msgI == null) {
+        if (textI == null) {
             return;
         }
-        String msg = msgI.trim();
-        if (msg.isEmpty()) {
+        if (textI.isEmpty()) {
             return;
         }
         try {
-            queue.put(new TimeValue(cts.getNextTime(), msg.getBytes()));
-            lastMsg = msg;
+            queue.put(new TimeValue(cts.getNextTime(), textI.getBytes()));
+            lastMsg = textI;
             if (cts.bPrintDataStatusMsg) { System.err.print("t"); }
         } catch (Exception e) {
             if (bIsRunning) {
-                System.err.println("\nTextMessagingStream: exception thrown adding data to queue:\n" + e);
+                System.err.println("\nTextStream: exception thrown adding data to queue:\n" + e);
                 e.printStackTrace();
             }
         }
 
         if(bPreview && (previewWindow != null)) {
-            previewWindow.updateText(msg);
+            previewWindow.updateText(textI);
         }
 
     }
