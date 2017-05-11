@@ -94,6 +94,15 @@ public class CTreader {
 		ctcrypto = new CTcrypto(password);
 	}
 	
+	/**
+	 * Set encryption password, none if null.
+	 * @param password			decryption password
+	 * @param optionalDecrypt	if true, return non-encrypted data if decryption fails.  Otherwise fail with exception.
+	 */
+	public void setPassword(String password, boolean optionalDecrypt) throws Exception {
+		ctcrypto = new CTcrypto(password, optionalDecrypt);
+	}
+	
 //---------------------------------------------------------------------------------	   
 //get:  direct-fetch time+data method
 // note:	this uses multi-channel ctmap internally, but only returns one channel (ctdata)

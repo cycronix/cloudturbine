@@ -176,7 +176,7 @@ public class CTweb {
      	
      	// create CT reader 
      	ctreader = new CTreader(rootFolder);
-     	if(password!=null) ctreader.setPassword(password);
+     	if(password!=null) ctreader.setPassword(password, true);		// optional decrypt
      	CTinfo.setDebug(Debug);
        
      	// setup and start Jetty HTTP server
