@@ -145,13 +145,6 @@ public class WriteTask implements Runnable {
 	 * Write data from the various DataStreams to CloudTurbine.  Start at the oldest available data and
 	 * work forward in time.  This avoids getting the "java.io.IOException: OOPS negative CT time (dropping)"
 	 * errors from CT and dropping data samples.
-	 *
-	 * However, since each DataStream is independent, we can still get these "OOPS" error as follows:
-	 * Say we have 2 DataStreams for which we are pumping out data from this run() method.  Consider
-	 * that at some time one of the DataStreams gets stuck for some reason, but data from the other
-	 * DataStream is merrily marching forward.  Finally, the other DataStream breaks through and
-	 * puts data on its queue, but now the time for the data is before the timestamp being used in
-	 * the CT calls in this run() method.  This is when we could get the "OOPS" error.
 	 */
 	public void run() {
 		int numPuts = 0;
@@ -204,6 +197,7 @@ public class WriteTask implements Runnable {
 				for (int i = 0; i < samples.size(); ++i) {
 					if (samples.get(i).time < oldestTime) {
 						idx_sample_with_oldest_time = i;
+						oldestTime = samples.get(i).time;
 					}
 				}
 				DataStreamSample dss = samples.get(idx_sample_with_oldest_time);
