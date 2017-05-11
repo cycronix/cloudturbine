@@ -180,7 +180,7 @@ public class ImageTask extends TimerTask implements Runnable {
 		
 		long capTime = System.currentTimeMillis() - startTime;
 		if (capTime > capturePeriodMillis) {
-			System.err.println("\nWARNING: " + capTime + " msec to capture image (" + capturePeriodMillis + " msec is the desired period)");
+			System.err.println("\nWARNING: " + capTime + " msec to capture " + dataStream.channelName + " image (" + capturePeriodMillis + " msec is the desired period)");
 		}
 		
 	}
