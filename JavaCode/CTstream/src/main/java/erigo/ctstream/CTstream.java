@@ -38,7 +38,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -146,7 +145,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	// Setting made in the main control panel
 	private boolean bScreencap = false;			// stream screencap image data?
 	private boolean bWebcam = false;			// stream webcam image data?
-	private boolean bAudiocap = false;			// stream audio data?
+	private boolean bAudio = false;				// stream audio data?
+	private boolean bTextMessaging = true;		// stream text messaging data?  note this is on by default
 	public double framesPerSec;					// how many frames to capture per second
 	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
@@ -170,6 +170,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public long flushMillis;					// flush interval (msec)
 	public long numBlocksPerSegment = 0;		// number of blocks per segment; defaults to 0 (no segments)
 	public boolean bDebugMode = false;			// run CT in debug mode?
+	public boolean bPrintDataStatusMsg = false;	// print single-character status updates as data is added to the queue and then sent to CT?
 	public boolean bIncludeMouseCursor = true;	// include the mouse cursor in the screencap image?
 	public boolean bStayOnTop = false;			// keep the CTstream UI on top of all other windows on the desktop
 
@@ -362,7 +363,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		bPreview = line.hasOption("preview");
 		bScreencap = line.hasOption("screencap");
 		bWebcam = line.hasOption("webcam");
-		bAudiocap = line.hasOption("audio");
+		bAudio = line.hasOption("audio");
 	    // Source name
 	    sourceName = line.getOptionValue("s",sourceName);
 		// Where to write the files to
@@ -666,17 +667,19 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			return;
 		}
 
-		// always start TextMessagingStream
-		textStream = new TextMessagingStream(this,textMsgStreamName);
-		try {
-			textStream.start();
-		} catch (Exception e) {
-			System.err.println("Error starting text messaging stream:\n" + e);
-			textStream = null;
-			stopCapture();
-			return;
+		// start TextMessagingStream
+		if (bTextMessaging) {
+			textStream = new TextMessagingStream(this, textMsgStreamName);
+			try {
+				textStream.start();
+			} catch (Exception e) {
+				System.err.println("Error starting text messaging stream:\n" + e);
+				textStream = null;
+				stopCapture();
+				return;
+			}
+			addDataStream(textStream);
 		}
-		addDataStream(textStream);
 
 		// start ScreencapStream
 		if (bScreencap) {
@@ -707,7 +710,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		}
 
 		// start AudioStream
-		if (bAudiocap) {
+		if (bAudio) {
 			audioStream = new AudioStream(this, audioStreamName);
 			try {
 				audioStream.start();
@@ -880,7 +883,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		webcamCheck = new JCheckBox("camera", bWebcam);
 		webcamCheck.setBackground(controlsPanel.getBackground());
 		webcamCheck.addActionListener(this);
-		audioCheck = new JCheckBox("audio", bAudiocap);
+		audioCheck = new JCheckBox("audio", bAudio);
 		audioCheck.setBackground(controlsPanel.getBackground());
 		audioCheck.addActionListener(this);
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
@@ -1316,7 +1319,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				}
 			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == audioCheck)) {
-			bAudiocap = audioCheck.isSelected();
+			bAudio = audioCheck.isSelected();
 			if ( (writeTask != null) && (writeTask.bIsRunning) ) {
 				if (audioCheck.isSelected() && (audioStream == null)) {
 					audioStream = new AudioStream(this, audioStreamName);
@@ -1371,20 +1374,21 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			} else {
 				bPreview = false;
 			}
-			// Update the data streams
-			if (screencapStream != null) {
-				// Notify ScreencapStream of the Preview window change
-				screencapStream.update();
-			}
-			if (webcamStream != null) {
-				// Notify WebcamStream of the Preview window change
-				webcamStream.update();
+			// Update the preview window for the DataStreams
+			synchronized (dataStreamsLock) {
+				for (DataStream ds : dataStreams) {
+					ds.updatePreview();
+				}
 			}
 		} else if ((source instanceof JTextField) && (((JTextField)source) == textMsgTF)) {
-			// User wants to push another text message
-			textStream.postTextMessage(textMsgTF.getText());
-			// Clear out the text field
-			textMsgTF.setText("");
+			// User wants to push another text message to CT
+			if ( (writeTask != null) && (writeTask.bIsRunning) && (textStream != null) && (textStream.bIsRunning) ) {
+				textStream.postTextMessage(textMsgTF.getText());
+				// Clear out the text field
+				textMsgTF.setText("");
+			} else {
+				textMsgTF.setText("<stream not running>");
+			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
 			String errStr = ctSettings.canCTrun();

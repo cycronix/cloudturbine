@@ -148,9 +148,9 @@ public class ImageTask extends TimerTask implements Runnable {
 			try {
 				dataStream.queue.put(new TimeValue(cts.getNextTime(), jpegByteArray));
 				if (dataStream instanceof ScreencapStream) {
-					System.out.print("s");
+					if (cts.bPrintDataStatusMsg) { System.err.print("s"); }
 				} else if (dataStream instanceof WebcamStream) {
-					System.out.print("w");
+					if (cts.bPrintDataStatusMsg) { System.err.print("w"); }
 				}
 			} catch (Exception e) {
 				if (dataStream.bIsRunning) {

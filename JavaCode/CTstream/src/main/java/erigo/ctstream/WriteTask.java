@@ -210,24 +210,24 @@ public class WriteTask implements Runnable {
 				try {
 					ctw.setTime(dss.time);
 					ctw.putData(dss.channelName, dss.value);
-					System.out.print("P");
+					if (cts.bPrintDataStatusMsg) { System.err.print("P"); }
 					numPuts += 1;
 					if ((numPuts % 40) == 0) {
-						System.err.print("\n");
+						if (cts.bPrintDataStatusMsg) { System.err.print("\n"); }
 					}
 					bDataToBeFlushed = true;
 					if (dss.bManualFlush) {
 						bDataToBeFlushed = false;
 						timeOfLastFlushMillis = System.currentTimeMillis();
 						ctw.flush(true); // gapless
-						System.out.print("F");
+						if (cts.bPrintDataStatusMsg) { System.err.print("F"); }
 					}
 				} catch (Exception e) {
 					if (!bIsRunning) {
 						// This WriteTask is to be shut down; just break out
 						break;
 					} else {
-						System.err.println("CTwriter exception:\n" + e);
+						System.err.println("\nCTwriter exception putting data in channel " + dss.channelName + ":\n" + e);
 					}
 				}
 				// We're done with this sample; remove it from the List
@@ -244,10 +244,10 @@ public class WriteTask implements Runnable {
 					try {
 						// System.err.println("Flush data: cts.flushMillis=" + cts.flushMillis + ", timeOfLastFlushMillis=" + timeOfLastFlushMillis + ", current time=" + timeMillis);
 						ctw.flush();
-						System.out.print("F");
+						if (cts.bPrintDataStatusMsg) { System.err.print("F"); }
 						bDataToBeFlushed = false;
 					} catch (IOException e) {
-						System.err.println("WriteTask: caught exception on flush:\n" + e);
+						System.err.println("\nCTwriter exception flushing data:\n" + e);
 						e.printStackTrace();
 					}
 					timeOfLastFlushMillis = timeMillis;

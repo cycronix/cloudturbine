@@ -135,7 +135,7 @@ public class AudioStream extends DataStream implements Runnable {
 				if (count > 0) {
 					try {
 						queue.put(new TimeValue(cts.getNextTime(), addWaveHeader(buffer, count)));
-						System.out.print("a");
+						if (cts.bPrintDataStatusMsg) { System.err.print("a"); }
 					} catch (Exception e) {
 						if (bIsRunning) {
 							System.err.println("\nAudioStream: exception thrown adding data to queue:\n" + e);

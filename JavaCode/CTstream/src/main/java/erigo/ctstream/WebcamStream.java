@@ -19,6 +19,7 @@ package erigo.ctstream;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
 
+import java.awt.*;
 import java.util.Timer;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -104,6 +105,20 @@ public class WebcamStream extends DataStream {
         if (updatedCapturePeriodMillis != capturePeriodMillis) {
             System.err.println("\nRestarting webcam captures at new rate: " + cts.framesPerSec + " frames/sec");
             startWebcamTimer();
+        }
+    }
+
+    /**
+     * Update the status of the preview window.
+     */
+    public void updatePreview() {
+        super.updatePreview();
+        if (bPreview && bIsRunning && cts.bPreview && (webcam != null) && webcam.isOpen()) {
+            // Set the size of the preview window to match the image size plus some extra padding
+            // so scrollbars aren't needed
+            Dimension previewSize = webcam.getViewSize();
+            previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
+            previewWindow.setFrameSize(previewSize);
         }
     }
 
