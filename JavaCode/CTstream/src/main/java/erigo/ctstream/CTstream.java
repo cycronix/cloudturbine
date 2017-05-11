@@ -146,7 +146,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private boolean bScreencap = false;			// stream screencap image data?
 	private boolean bWebcam = false;			// stream webcam image data?
 	private boolean bAudio = false;				// stream audio data?
-	private boolean bTextMessaging = true;		// stream text messaging data?  note this is on by default
+	private boolean bText = false;				// stream text data?
 	public double framesPerSec;					// how many frames to capture per second
 	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
@@ -160,7 +160,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public String screencapStreamName = "screencap.jpg";  // screencap channel name; must end in ".jpg" or ".jpeg"
 	public String webcamStreamName="webcam.jpg";		  // webcam channel name; must end in ".jpg" or ".jpeg"
 	public String audioStreamName ="audio.wav";			  // audio channel name; must end in ".wav"
-	public String textMsgStreamName ="msg.txt";			  // text messaging channel name; must end in ".txt"
+	public String textStreamName ="text.txt";		      // text channel name; must end in ".txt"
 	public boolean bEncrypt = false;			// Use CT encryption?
 	public String encryptionPassword = "";		// Password when encryption is on
 	public boolean bFTP = false;				// Are we in FTP mode?
@@ -186,7 +186,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public ScreencapStream screencapStream = null;	// DataStream for taking periodic screen captures
 	public WebcamStream webcamStream = null;		// DataStream for saving images from a web camera
 	public AudioStream audioStream = null;			// DataStream for saving audio data
-	public TextMessagingStream textStream = null;	// DataStream for saving text messages
+	public TextStream textStream = null;			// DataStream for saving text
+	private DocumentChangeListener ctDoc = null;	// Responds to user edits by saving entire document in TextStream's queue
 
 	// Class which manages all CT API calls; takes data from each DataStream's queue and writes it to CT
 	private WriteTask writeTask = null;
@@ -207,10 +208,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private JCheckBox screencapCheck = null;	// checkbox to turn on/off image capture from screen
 	private JCheckBox webcamCheck = null;		// checkbox to turn on/off image capture from camera
 	private JCheckBox audioCheck = null;		// checkbox to turn on/off audio capture
+	private JCheckBox textCheck = null;			// checkbox to turn on/off text capture
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox previewCheck = null;		// checkbox to turn on/off the preview window
-	private JTextField textMsgTF = null;		// text field associated with the TextMessagingStream
+	public JTextArea textTextArea = null;		// text area associated with TextStream
+	private JScrollPane textScrollPane = null;	// scrollpane for the text area
 	private JButton startStopButton = null;		// One button to Start and then Stop streaming data
 	private JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
 												// just where we left off; kind of like a seamless "pause"
@@ -279,10 +282,11 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		options.addOption("cd", "change_detect", false, "Save only changed images.");
 		options.addOption("fs", "full_screen", false, "Capture the full screen.");
 		options.addOption("p", "preview", false, "Display live preview image");
-		options.addOption("t", "UI_on_top", false, "Keep CTstream on top of all other windows.");
+		options.addOption("T", "UI_on_top", false, "Keep CTstream on top of all other windows.");
 		options.addOption("sc", "screencap", false, "Capture screen images");
 		options.addOption("w", "webcam", false, "Capture webcam images");
 		options.addOption("a", "audio", false, "Record audio.");
+		options.addOption("t", "text", false, "Capture text.");
 
 		// Command line options that include a flag
 		// For example, the following will be for "-outputfolder <folder>   (Location of output files...)"
@@ -329,6 +333,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				.desc("Audio channel name (must end in \".wav\"); default = \"" + audioStreamName + "\".")
 				.build();
 		options.addOption(option);
+		option = Option.builder("text_chan")
+				.argName("text_chan_name")
+				.hasArg()
+				.desc("Text channel name (must end in \".txt\"); default = \"" + textStreamName + "\".")
+				.build();
+		options.addOption(option);
 		option = Option.builder("q")
 				.argName("imagequality")
 				.hasArg()
@@ -364,6 +374,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		bScreencap = line.hasOption("screencap");
 		bWebcam = line.hasOption("webcam");
 		bAudio = line.hasOption("audio");
+		bText = line.hasOption("text");
 	    // Source name
 	    sourceName = line.getOptionValue("s",sourceName);
 		// Where to write the files to
@@ -372,6 +383,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	    screencapStreamName = line.getOptionValue("sc_chan", screencapStreamName);
 	    webcamStreamName = line.getOptionValue("webcam_chan", webcamStreamName);
 	    audioStreamName = line.getOptionValue("audio_chan", audioStreamName);
+	    textStreamName = line.getOptionValue("text_chan", textStreamName);
 		try {
 			checkFilenames();
 		} catch (Exception e) {
@@ -500,6 +512,9 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				}
 			}
 		});
+
+		// Create the document listener for TextStream
+		ctDoc = new DocumentChangeListener(this);
 
 		// See if shaped windows are supported
 		final boolean bShapedWindowSupported = graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSPARENT);
@@ -667,13 +682,13 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			return;
 		}
 
-		// start TextMessagingStream
-		if (bTextMessaging) {
-			textStream = new TextMessagingStream(this, textMsgStreamName);
+		// start TextStream
+		if (bText) {
+			textStream = new TextStream(this, textStreamName);
 			try {
 				textStream.start();
 			} catch (Exception e) {
-				System.err.println("Error starting text messaging stream:\n" + e);
+				System.err.println("Error starting text stream:\n" + e);
 				textStream = null;
 				stopCapture();
 				return;
@@ -886,6 +901,9 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		audioCheck = new JCheckBox("audio", bAudio);
 		audioCheck.setBackground(controlsPanel.getBackground());
 		audioCheck.addActionListener(this);
+		textCheck = new JCheckBox("text", bText);
+		textCheck.setBackground(controlsPanel.getBackground());
+		textCheck.addActionListener(this);
 		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
 		JComboBox<Double> fpsCB = new JComboBox<Double>(FPS_VALUES);
 		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
@@ -921,8 +939,13 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		previewCheck = new JCheckBox("Preview",bPreview);
 		previewCheck.setBackground(controlsPanel.getBackground());
 		previewCheck.addActionListener(this);
-		textMsgTF = new JTextField(30);
-		textMsgTF.addActionListener(this);
+		// Specify a small size for the text area, so that we can shrink down the UI w/o the scrollbars popping up
+		textTextArea = new JTextArea(3,10);
+		// Add a Document listener to the JTextArea; this is how we
+		// will listen for changes to the document
+		textTextArea.getDocument().addDocumentListener(ctDoc);
+		textScrollPane = new JScrollPane(textTextArea);
+		// textScrollPane.setMinimumSize(new Dimension(100,200));
 		// *** capturePanel
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
@@ -991,7 +1014,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.insets = new Insets(5, 0, 0, 0);
-		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
 		gbc.anchor = GridBagConstraints.WEST;
 		gbc.fill = GridBagConstraints.NONE;
@@ -1008,10 +1031,11 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		Utility.add(subPanel, screencapCheck, panelgbl, panelgbc, 0, 0, 1, 1);
 		Utility.add(subPanel, webcamCheck, panelgbl, panelgbc, 1, 0, 1, 1);
 		Utility.add(subPanel, audioCheck, panelgbl, panelgbc, 2, 0, 1, 1);
+		Utility.add(subPanel, textCheck, panelgbl, panelgbc, 3, 0, 1, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.insets = new Insets(0, 0, 0, 0);
-		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
 		// (iii) frames/sec control
 		panelgbl = new GridBagLayout();
@@ -1028,7 +1052,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		Utility.add(subPanel, fpsCB, panelgbl, panelgbc, 1, 0, 1, 1);
 		gbc.insets = new Insets(0, 0, 0, 0);
 		gbc.anchor = GridBagConstraints.CENTER;
-		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
 		// (iv) image quality slider
 		panelgbl = new GridBagLayout();
@@ -1051,7 +1075,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		Utility.add(subPanel, sliderLabelHigh, panelgbl, panelgbc, 3, 0, 1, 1);
 		gbc.insets = new Insets(0, 0, 0, 0);
 		gbc.anchor = GridBagConstraints.CENTER;
-		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
 		// (v) Change detect / Full screen / Preview checkboxes
 		panelgbl = new GridBagLayout();
@@ -1069,26 +1093,37 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.insets = new Insets(-5, 0, 3, 0);
-		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
-		// (vi) text field for the TextMessagingStream
-		JLabel textLabel = new JLabel("Msg",SwingConstants.LEFT);
+		// (vi) text field for the TextStream
+		/*
 		panelgbl = new GridBagLayout();
 		subPanel = new JPanel(panelgbl);
 		panelgbc = new GridBagConstraints();
-		panelgbc.anchor = GridBagConstraints.WEST;
-		panelgbc.fill = GridBagConstraints.NONE;
-		panelgbc.weightx = 0;
-		panelgbc.weighty = 0;
+		panelgbc.anchor = GridBagConstraints.CENTER;
+		panelgbc.fill = GridBagConstraints.HORIZONTAL;
+		panelgbc.weightx = 100;
+		panelgbc.weighty = 100;
 		subPanel.setBackground(controlsPanel.getBackground());
-		panelgbc.insets = new Insets(0, 0, 0, 5);
-		Utility.add(subPanel, textLabel, panelgbl, panelgbc, 0, 0, 1, 1);
 		panelgbc.insets = new Insets(0, 0, 0, 0);
-		Utility.add(subPanel, textMsgTF, panelgbl, panelgbc, 1, 0, 1, 1);
+		Utility.add(subPanel, textScrollPane, panelgbl, panelgbc, 1, 0, 1, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 0, 3, 0);
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 100;
+		gbc.weighty = 100;
+		gbc.insets = new Insets(0, 15, 3, 15);
 		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 2, 1);
+		++panelrow;
+		*/
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 100;
+		gbc.weighty = 0;
+		gbc.insets = new Insets(0, 15, 5, 15);
+		Utility.add(controlsPanel, textScrollPane, controlsgbl, gbc, 0, panelrow, 1, 1);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
 		++panelrow;
 
 		//
@@ -1342,6 +1377,30 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 					audioStream = null;
 				}
 			}
+		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == textCheck)) {
+			bText = textCheck.isSelected();
+			if ( (writeTask != null) && (writeTask.bIsRunning) ) {
+				if (textCheck.isSelected() && (textStream == null)) {
+					textStream = new TextStream(this, textStreamName);
+					try {
+						textStream.start();
+					} catch (Exception e) {
+						System.err.println("Error starting text stream:\n" + e);
+						textStream = null;
+						stopCapture();
+						return;
+					}
+					addDataStream(textStream);
+				} else if (!textCheck.isSelected() && (textStream != null)) {
+					textStream.stop();
+					try {
+						removeDataStream(textStream);
+					} catch (Exception e) {
+						System.err.println(e);
+					}
+					textStream = null;
+				}
+			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == changeDetectCheck)) {
 			if (changeDetectCheck.isSelected()) {
 				bChangeDetect = true;
@@ -1379,15 +1438,6 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				for (DataStream ds : dataStreams) {
 					ds.updatePreview();
 				}
-			}
-		} else if ((source instanceof JTextField) && (((JTextField)source) == textMsgTF)) {
-			// User wants to push another text message to CT
-			if ( (writeTask != null) && (writeTask.bIsRunning) && (textStream != null) && (textStream.bIsRunning) ) {
-				textStream.postTextMessage(textMsgTF.getText());
-				// Clear out the text field
-				textMsgTF.setText("");
-			} else {
-				textMsgTF.setText("<stream not running>");
 			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
