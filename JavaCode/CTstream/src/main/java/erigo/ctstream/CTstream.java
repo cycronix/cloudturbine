@@ -544,6 +544,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		} catch (Exception e) {
 			throw new Exception("Audio channel name error: " + e.getMessage());
 		}
+
+		try {
+			checkFilename(textStreamName, new String[]{"txt"});
+		} catch (Exception e) {
+			throw new Exception("Text channel name error: " + e.getMessage());
+		}
 	}
 
 	/**
@@ -825,6 +831,63 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		if (!bRemoved) {
 			throw new Exception("The following DataStream could not be removed from the Vector of DataStreams: " + dataStreamI.toString());
 		}
+	}
+
+	/*
+	 * Determine if appropriate settings have been made such that we can start streaming data.
+	 */
+	public String canCTrun() {
+
+		// Check outputFolder
+		if ( (outputFolder == null) || (outputFolder.length() == 0) ) {
+			return "You must specify an output directory.";
+		}
+
+		// Check sourceName
+		if ( (sourceName == null) || (sourceName.length() == 0) ) {
+			return "You must specify a source name.";
+		}
+
+		//
+		// Check filenames
+		//
+		try {
+			checkFilenames();
+		} catch (Exception e) {
+			return e.getMessage();
+		}
+
+		// Check that a password has been specified, if data encryption is turned on
+		if (bEncrypt) {
+			if ( (encryptionPassword == null) || (encryptionPassword.length() == 0) ) {
+				return "You must specify the data encryption password";
+			}
+		}
+
+		// Check FTP parameters, when using FTP
+		if (bFTP) {
+			if ( (ftpHost == null) || (ftpHost.length() == 0) ) {
+				return "You must specify the FTP host";
+			}
+			if (ftpHost.contains(" ")) {
+				return "The FTP host name must not contain embedded spaces";
+			}
+			if ( (ftpUser == null) || (ftpUser.length() == 0) ) {
+				return "You must specify the FTP username";
+			}
+			if (ftpUser.contains(" ")) {
+				return "The FTP username must not contain embedded spaces";
+			}
+			if ( (ftpPassword == null) || (ftpPassword.length() == 0) ) {
+				return "You must specify the FTP password";
+			}
+		}
+
+		if (flushMillis < CTsettings.flushIntervalLongs[0]) {
+			return new String("Flush interval must be greater than or equal to " + CTsettings.flushIntervalLongs[0]);
+		}
+
+		return "";
 	}
 
 	/**
@@ -1437,7 +1500,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
-			String errStr = ctSettings.canCTrun();
+			String errStr = canCTrun();
 			if (!errStr.isEmpty()) {
 				JOptionPane.showMessageDialog(guiFrame, errStr, "CTstream settings error", JOptionPane.ERROR_MESSAGE);
 				return;

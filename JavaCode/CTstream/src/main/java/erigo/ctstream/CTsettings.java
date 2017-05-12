@@ -415,63 +415,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 
 	}
 	
-	/*
-	 * Determine if appropriate settings have been made such that we can start streaming data.
-	 */
-	public String canCTrun() {
-		
-		// Check outputFolder
-		if ( (ctStream.outputFolder == null) || (ctStream.outputFolder.length() == 0) ) {
-			return "You must specify an output directory.";
-		}
-		
-		// Check sourceName
-		if ( (ctStream.sourceName == null) || (ctStream.sourceName.length() == 0) ) {
-			return "You must specify a source name.";
-		}
-
-		//
-		// Check filenames
-		//
-		try {
-			ctStream.checkFilenames();
-		} catch (Exception e) {
-			return e.getMessage();
-		}
-
-		// Check that a password has been specified, if data encryption is turned on
-		if (ctStream.bEncrypt) {
-			if ( (ctStream.encryptionPassword == null) || (ctStream.encryptionPassword.length() == 0) ) {
-				return "You must specify the data encryption password";
-			}
-		}
-
-		// Check FTP parameters, when using FTP
-		if (ctStream.bFTP) {
-			if ( (ctStream.ftpHost == null) || (ctStream.ftpHost.length() == 0) ) {
-				return "You must specify the FTP host";
-			}
-			if (ctStream.ftpHost.contains(" ")) {
-				return "The FTP host name must not contain embedded spaces";
-			}
-			if ( (ctStream.ftpUser == null) || (ctStream.ftpUser.length() == 0) ) {
-				return "You must specify the FTP username";
-			}
-			if (ctStream.ftpUser.contains(" ")) {
-				return "The FTP username must not contain embedded spaces";
-			}
-			if ( (ctStream.ftpPassword == null) || (ctStream.ftpPassword.length() == 0) ) {
-				return "You must specify the FTP password";
-			}
-		}
-		
-		if (ctStream.flushMillis < flushIntervalLongs[0]) {
-			return new String("Flush interval must be greater than or equal to " + flushIntervalLongs[0]);
-		}
-		
-		return "";
-	}
-	
 	public void popupSettingsDialog() {
 		
 		// Squirrel away copies of the current data
@@ -631,7 +574,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		}
 		
 		// Check data
-		String errStr = canCTrun();
+		String errStr = ctStream.canCTrun();
 		if (!errStr.isEmpty()) {
 			// Was a problem with the data the user entered
 			JOptionPane.showMessageDialog(this, errStr, "CTstream settings error", JOptionPane.ERROR_MESSAGE);
