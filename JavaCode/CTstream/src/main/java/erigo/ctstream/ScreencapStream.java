@@ -62,7 +62,7 @@ public class ScreencapStream extends DataStream {
      * @param channelNameI  Channel name
      */
     public ScreencapStream(CTstream ctsI, String channelNameI) {
-        super();
+        super(false);
         channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;

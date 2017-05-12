@@ -93,7 +93,7 @@ public class DocumentChangeListener implements DocumentListener {
         }
 
         // Write out document (as long as it isn't empty)
-        Document document = cts.textTextArea.getDocument();
+        Document document = cts.textArea.getDocument();
         int doc_len = document.getLength();
         String updatedText = " ";  // if no text is in the document, leave a space as a placeholder
         try {

@@ -187,7 +187,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public WebcamStream webcamStream = null;		// DataStream for saving images from a web camera
 	public AudioStream audioStream = null;			// DataStream for saving audio data
 	public TextStream textStream = null;			// DataStream for saving text
-	private DocumentChangeListener ctDoc = null;	// Responds to user edits by saving entire document in TextStream's queue
+	public DocumentChangeListener docChangeListener = null;	// Responds to user edits by saving entire document in TextStream's queue
 
 	// Class which manages all CT API calls; takes data from each DataStream's queue and writes it to CT
 	private WriteTask writeTask = null;
@@ -212,7 +212,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox previewCheck = null;		// checkbox to turn on/off the preview window
-	public JTextArea textTextArea = null;		// text area associated with TextStream
+	public JTextArea textArea = null;			// text area associated with TextStream
 	private JScrollPane textScrollPane = null;	// scrollpane for the text area
 	private JButton startStopButton = null;		// One button to Start and then Stop streaming data
 	private JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
@@ -513,9 +513,6 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 		});
 
-		// Create the document listener for TextStream
-		ctDoc = new DocumentChangeListener(this);
-
 		// See if shaped windows are supported
 		final boolean bShapedWindowSupported = graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSPARENT);
 		// For thread safety: Schedule a job for the event-dispatching thread to create and show the GUI
@@ -546,6 +543,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			checkFilename(audioStreamName, new String[]{"wav"});
 		} catch (Exception e) {
 			throw new Exception("Audio channel name error: " + e.getMessage());
+		}
+
+		try {
+			checkFilename(textStreamName, new String[]{"txt"});
+		} catch (Exception e) {
+			throw new Exception("Text channel name error: " + e.getMessage());
 		}
 	}
 
@@ -830,6 +833,63 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		}
 	}
 
+	/*
+	 * Determine if appropriate settings have been made such that we can start streaming data.
+	 */
+	public String canCTrun() {
+
+		// Check outputFolder
+		if ( (outputFolder == null) || (outputFolder.length() == 0) ) {
+			return "You must specify an output directory.";
+		}
+
+		// Check sourceName
+		if ( (sourceName == null) || (sourceName.length() == 0) ) {
+			return "You must specify a source name.";
+		}
+
+		//
+		// Check filenames
+		//
+		try {
+			checkFilenames();
+		} catch (Exception e) {
+			return e.getMessage();
+		}
+
+		// Check that a password has been specified, if data encryption is turned on
+		if (bEncrypt) {
+			if ( (encryptionPassword == null) || (encryptionPassword.length() == 0) ) {
+				return "You must specify the data encryption password";
+			}
+		}
+
+		// Check FTP parameters, when using FTP
+		if (bFTP) {
+			if ( (ftpHost == null) || (ftpHost.length() == 0) ) {
+				return "You must specify the FTP host";
+			}
+			if (ftpHost.contains(" ")) {
+				return "The FTP host name must not contain embedded spaces";
+			}
+			if ( (ftpUser == null) || (ftpUser.length() == 0) ) {
+				return "You must specify the FTP username";
+			}
+			if (ftpUser.contains(" ")) {
+				return "The FTP username must not contain embedded spaces";
+			}
+			if ( (ftpPassword == null) || (ftpPassword.length() == 0) ) {
+				return "You must specify the FTP password";
+			}
+		}
+
+		if (flushMillis < CTsettings.flushIntervalLongs[0]) {
+			return new String("Flush interval must be greater than or equal to " + CTsettings.flushIntervalLongs[0]);
+		}
+
+		return "";
+	}
+
 	/**
 	 * Pop up the GUI
 	 * 
@@ -940,12 +1000,11 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		previewCheck.setBackground(controlsPanel.getBackground());
 		previewCheck.addActionListener(this);
 		// Specify a small size for the text area, so that we can shrink down the UI w/o the scrollbars popping up
-		textTextArea = new JTextArea(3,10);
-		// Add a Document listener to the JTextArea; this is how we
-		// will listen for changes to the document
-		textTextArea.getDocument().addDocumentListener(ctDoc);
-		textScrollPane = new JScrollPane(textTextArea);
-		// textScrollPane.setMinimumSize(new Dimension(100,200));
+		textArea = new JTextArea(3,10);
+		// Add a Document listener to the JTextArea; this is how we will listen for changes to the document
+		docChangeListener = new DocumentChangeListener(this);
+		textArea.getDocument().addDocumentListener(docChangeListener);
+		textScrollPane = new JScrollPane(textArea);
 		// *** capturePanel
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {
@@ -1441,7 +1500,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 		} else if (eventI.getActionCommand().equals("Start")) {
 			// Make sure all needed values have been set
-			String errStr = ctSettings.canCTrun();
+			String errStr = canCTrun();
 			if (!errStr.isEmpty()) {
 				JOptionPane.showMessageDialog(guiFrame, errStr, "CTstream settings error", JOptionPane.ERROR_MESSAGE);
 				return;

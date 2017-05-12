@@ -16,6 +16,7 @@ limitations under the License.
 
 package erigo.ctstream;
 
+import javax.swing.text.Document;
 import java.awt.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -38,7 +39,7 @@ public class TextStream extends DataStream {
      */
     // constructor
     public TextStream(CTstream ctsI, String channelNameI) {
-        super();
+        super(true);
         channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;
@@ -52,6 +53,11 @@ public class TextStream extends DataStream {
         bIsRunning = true;
         queue = new LinkedBlockingQueue<TimeValue>();
         updatePreview();
+        // If user has already added text, post it right away
+        Document document = cts.textArea.getDocument();
+        if (document.getLength() > 0) {
+            postText(document.getText(0, document.getLength()));
+        }
     }
 
     /**
