@@ -187,7 +187,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public WebcamStream webcamStream = null;		// DataStream for saving images from a web camera
 	public AudioStream audioStream = null;			// DataStream for saving audio data
 	public TextStream textStream = null;			// DataStream for saving text
-	private DocumentChangeListener ctDoc = null;	// Responds to user edits by saving entire document in TextStream's queue
+	public DocumentChangeListener docChangeListener = null;	// Responds to user edits by saving entire document in TextStream's queue
 
 	// Class which manages all CT API calls; takes data from each DataStream's queue and writes it to CT
 	private WriteTask writeTask = null;
@@ -212,7 +212,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox previewCheck = null;		// checkbox to turn on/off the preview window
-	public JTextArea textTextArea = null;		// text area associated with TextStream
+	public JTextArea textArea = null;			// text area associated with TextStream
 	private JScrollPane textScrollPane = null;	// scrollpane for the text area
 	private JButton startStopButton = null;		// One button to Start and then Stop streaming data
 	private JButton continueButton = null;		// Clicking this is just like clicking "Start" except we pick up in time
@@ -512,9 +512,6 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				}
 			}
 		});
-
-		// Create the document listener for TextStream
-		ctDoc = new DocumentChangeListener(this);
 
 		// See if shaped windows are supported
 		final boolean bShapedWindowSupported = graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSPARENT);
@@ -940,12 +937,11 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		previewCheck.setBackground(controlsPanel.getBackground());
 		previewCheck.addActionListener(this);
 		// Specify a small size for the text area, so that we can shrink down the UI w/o the scrollbars popping up
-		textTextArea = new JTextArea(3,10);
-		// Add a Document listener to the JTextArea; this is how we
-		// will listen for changes to the document
-		textTextArea.getDocument().addDocumentListener(ctDoc);
-		textScrollPane = new JScrollPane(textTextArea);
-		// textScrollPane.setMinimumSize(new Dimension(100,200));
+		textArea = new JTextArea(3,10);
+		// Add a Document listener to the JTextArea; this is how we will listen for changes to the document
+		docChangeListener = new DocumentChangeListener(this);
+		textArea.getDocument().addDocumentListener(docChangeListener);
+		textScrollPane = new JScrollPane(textArea);
 		// *** capturePanel
 		capturePanel = new JPanel();
 		if (!bShapedWindowSupportedI) {

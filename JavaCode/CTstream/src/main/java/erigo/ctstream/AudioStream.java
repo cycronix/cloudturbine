@@ -48,7 +48,7 @@ public class AudioStream extends DataStream implements Runnable {
 	 */
 	// constructor
 	public AudioStream(CTstream ctsI, String channelNameI) {
-		super();
+		super(false);
 		channelName = channelNameI;
 		cts = ctsI;
 		bCanPreview = false;

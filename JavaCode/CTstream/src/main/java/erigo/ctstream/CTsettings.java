@@ -46,9 +46,12 @@ import javax.swing.SwingConstants;
 
 /**
  *
- * Dialog so the user can edit CTstream settings.
+ * Dialog for CTstream settings.
  *
- * Some of these settings are specific to certain DataStream classes, others are CTwriter settings.
+ * These settings are mainly for CTwriter or overall program settings.
+ *
+ * @author John P. Wilson
+ * @version 05/12/2017
  *
  */
 
@@ -71,6 +74,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private String orig_screencapChannelName;
 	private String orig_webcamChannelName;
 	private String orig_audioChannelName;
+	private String orig_textChannelName;
 	private boolean orig_bEncrypt;
 	private String orig_encryptionPassword;
 	private boolean orig_bFTP;
@@ -90,6 +94,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JTextField screencapChannelNameTF = null;
 	private JTextField webcamChannelNameTF = null;
 	private JTextField audioChannelNameTF = null;
+	private JTextField textChannelNameTF = null;
 	private JCheckBox bEncryptCheckB = null;
 	private JLabel encryptionPasswordLabel = null;
 	private JPasswordField encryptionPasswordTF = null;
@@ -139,6 +144,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		screencapChannelNameTF = new JTextField(10);
 		webcamChannelNameTF = new JTextField(10);
 		audioChannelNameTF = new JTextField(10);
+		textChannelNameTF = new JTextField(10);
 		bEncryptCheckB = new JCheckBox("Encrypt data");
 		bEncryptCheckB.addItemListener(this);
 		encryptionPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
@@ -167,7 +173,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Add components to the guiPanel
 		int row = 0;
 		
-		// ROW 1 - output folder
+		// output folder
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -185,7 +191,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,browseButton,gbl,gbc,2,row,1,1);
 		row++;
 		
-		// ROW 2 - source name
+		// source name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -199,7 +205,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,sourceNameTF,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 3 - screencap channel name
+		// screencap channel name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -213,7 +219,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,screencapChannelNameTF,gbl,gbc,1,row,1,1);
 		row++;
 
-		// ROW 4 - webcam channel name
+		// webcam channel name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -227,7 +233,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,webcamChannelNameTF,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 5 - audio channel name
+		// audio channel name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -241,7 +247,21 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,audioChannelNameTF,gbl,gbc,1,row,1,1);
 		row++;
 
-		// ROW 6 - data encryption option
+		// text channel name
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		tempLabel = new JLabel("Text channel name",SwingConstants.LEFT);
+		gbc.insets = new Insets(10,15,0,10);
+		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
+		gbc.insets = new Insets(10,0,0,15);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		Utility.add(guiPanel,textChannelNameTF,gbl,gbc,1,row,1,1);
+		row++;
+
+		// data encryption option
 		GridBagLayout panel_gbl = new GridBagLayout();
 		JPanel encryptionPanel = new JPanel(panel_gbl);
 		GridBagConstraints panel_gbc = new GridBagConstraints();
@@ -259,7 +279,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,encryptionPanel,gbl,gbc,0,row,3,1);
 		row++;
 
-		// ROW 7 - FTP checkbox
+		// FTP checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -267,7 +287,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bFTPCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 8 - panel containing the FTP parameters (host, username, password)
+		// panel containing the FTP parameters (host, username, password)
 		panel_gbl = new GridBagLayout();
 		JPanel ftpPanel = new JPanel(panel_gbl);
 		panel_gbc = new GridBagConstraints();
@@ -301,7 +321,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,ftpPanel,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 9 - flush interval
+		// flush interval
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -315,7 +335,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,flushIntervalComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 10 - num blocks per segment
+		// num blocks per segment
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -329,7 +349,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,numBlocksPerSegmentComboB,gbl,gbc,1,row,1,1);
 		row++;
 		
-		// ROW 11 - debug checkbox
+		// debug checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -337,7 +357,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 12 - include mouse cursor checkbox
+		// include mouse cursor checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -345,7 +365,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 13 - stay on top checkbox
+		// stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -353,7 +373,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,bStayOnTopCheckB,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// ROW 14 - OK/Cancel command buttons
+		// OK/Cancel command buttons
 		// Put the command buttons in a JPanel so they are all the same size
         JPanel buttonPanel = new JPanel(new GridLayout(1,2,15,0));
         buttonPanel.add(okButton);
@@ -460,6 +480,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_screencapChannelName = ctStream.screencapStreamName;
 		orig_webcamChannelName = ctStream.webcamStreamName;
 		orig_audioChannelName = ctStream.audioStreamName;
+		orig_textChannelName = ctStream.textStreamName;
 		orig_bEncrypt = ctStream.bEncrypt;
 		orig_encryptionPassword = ctStream.encryptionPassword;
 		orig_bFTP = ctStream.bFTP;
@@ -479,6 +500,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		screencapChannelNameTF.setText(ctStream.screencapStreamName);
 		webcamChannelNameTF.setText(ctStream.webcamStreamName);
 		audioChannelNameTF.setText(ctStream.audioStreamName);
+		textChannelNameTF.setText(ctStream.textStreamName);
 		bEncryptCheckB.setSelected(ctStream.bEncrypt);
 		encryptionPasswordTF.setText(ctStream.encryptionPassword);
 		encryptionPasswordLabel.setEnabled(ctStream.bEncrypt);
@@ -588,6 +610,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.screencapStreamName = screencapChannelNameTF.getText().trim();
 		ctStream.webcamStreamName = webcamChannelNameTF.getText().trim();
 		ctStream.audioStreamName = audioChannelNameTF.getText().trim();
+		ctStream.textStreamName = textChannelNameTF.getText().trim();
 		ctStream.bEncrypt = bEncryptCheckB.isSelected();
 		char[] encryptPasswordCharArray = encryptionPasswordTF.getPassword();
 		ctStream.encryptionPassword = new String(encryptPasswordCharArray).trim();
@@ -631,6 +654,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.screencapStreamName = orig_screencapChannelName;
 		ctStream.webcamStreamName = orig_webcamChannelName;
 		ctStream.audioStreamName = orig_audioChannelName;
+		ctStream.textStreamName = orig_textChannelName;
 		ctStream.bEncrypt = orig_bEncrypt;
 		ctStream.encryptionPassword = orig_encryptionPassword;
 		ctStream.bFTP = orig_bFTP;

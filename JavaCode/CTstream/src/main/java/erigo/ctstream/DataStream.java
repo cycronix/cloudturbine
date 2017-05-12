@@ -37,6 +37,9 @@ public abstract class DataStream {
 
     public CTstream cts = null;
 
+    // Is this DataStream going to be handling text?  This is used for setting up the PreviewWindow.
+    private boolean bText = false;
+
     // If bManualFlush is true, CTwriter.flush() will be called after data from this DataStream is sent to CT;
     // if no DataStream has manual flush, then WriteTask will call flush at the period indicated by the user
     // in the Settings dialog (CTstream.flushMillis)
@@ -53,7 +56,13 @@ public abstract class DataStream {
     // Is this stream currently running?
     public boolean bIsRunning = false;
 
-    public DataStream() {
+    /**
+     * DataStream constructor
+     *
+     * @param bTextI  Is this DataStream going to be handling text?  This is used for setting up the PreviewWindow.
+     */
+    public DataStream(boolean bTextI) {
+        bText = bTextI;
         // get an ID from CTstream
         id = CTstream.getNextDataStreamID();
     }
@@ -94,7 +103,7 @@ public abstract class DataStream {
     public void updatePreview() {
         if (bIsRunning && cts.bPreview && bCanPreview && !bPreview) {
             // open preview window
-            previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400));
+            previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400), bText);
             bPreview = true;
         } else if (!cts.bPreview || !bIsRunning) {
             bPreview = false;
