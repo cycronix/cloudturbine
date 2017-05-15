@@ -27,8 +27,11 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.FileVisitOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.nio.file.attribute.BasicFileAttributes;
 
 /**
@@ -160,6 +163,7 @@ public class CTreader {
 	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double oldTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
+		if(!listOfFolders[0].isDirectory()) return(listOfFolders[0]).fileTime();  // presume list of files
 
 //		return fileTime(listOfFolders[0]);
 		double ftime = 0.;		// default is now
@@ -214,7 +218,14 @@ public class CTreader {
  	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double newTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
-
+		if(!listOfFolders[0].isDirectory()) {
+			if(ctmap == null) return(listOfFolders[listOfFolders.length-1]).fileTime();  // presume (prefiltered!) list of files
+			else {
+				System.err.println("ERROR, unimplemented filtered file list newTime");
+				return 0.;				// TO DO:  implement this case when needed
+			}
+		}
+		
 		//double ftime = (double)System.currentTimeMillis()/1000.;		// default is now
 //		newFile = null;
 		double ftime = 0.;
@@ -231,17 +242,14 @@ public class CTreader {
 				if(files[j].isTFILE()) ftime = files[j].fileTime();		// skip recursion, use the file-as-folder for TFILE
 				else if(files[j].isDirectory()) ftime = newTime(new CTFile[] {files[j]}, ctmap);	// recurse
 				else {
-//					System.err.println("newTime got fileTime: "+files[j].fileTime()+", containsFile: "+listOfFolders[idx].containsFile(ctmap));
 //					if(ctmap == null || containsFile(files, ctmap)) ftime = files[jdx].fileTime();
-					if(ctmap == null || listOfFolders[idx].containsFile(ctmap)) ftime = files[j].fileTime();
+					if(ctmap == null || listOfFolders[idx].containsFile(ctmap) || ctmap.checkName(files[j].getName())) ftime = files[j].fileTime();
 				}
-			
 				if(ftime > 0.) return ftime;
 			}
 //			System.err.println("newTime skip past folder: "+listOfFolders[idx].getAbsolutePath());
 		}
 		
-//		System.err.println("newTime got ftime: "+ftime);
 		return ftime;
 	}
 
@@ -436,59 +444,83 @@ public class CTreader {
 		return getDataMap(ctmap, rootfolder, getftime, duration, rmode, false);
 	}
 	
-	private CTFile lastRootFolder=null;
-	private long lastCallTime=0;
-	private CTFile[] lastListOfFolders=null;
+	private HashMap<String,CTFile[]> folderListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
 	
 	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) throws Exception {
 		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 //		long startTime = System.nanoTime();
+		String thisChan = rootfolder + File.pathSeparator + ctmap.getName(0);			// this is single channel function
 		try {
 			// get updated list of folders
-			CTFile[] listOfFolders;
-//			long startTime = System.nanoTime();
-			long thisCallTime = System.currentTimeMillis();
-			if((rootfolder.equals(lastRootFolder)) && ((thisCallTime-lastCallTime) < 100) && lastListOfFolders!=null) {
-				listOfFolders = lastListOfFolders;
-//				System.err.println("listOfFolders cache HIT");
-			}
-			else {
-//				System.err.println("listOfFolders cache MISS, rootFolder.equals: "+rootfolder.equals(lastRootFolder)+", dt: "+(thisCallTime-lastCallTime));
-				// following logic: on top-level, get all base-time folders, presume any channel of interest is in each.  then filter by channel.  filtering basetime (all data) is expensive
-				if(recurse) listOfFolders = rootfolder.listFolders(ctmap);	// folders pruned to ctmap chans only (expensive but necessary for "sparse" channels in zip files!?)
-				else		listOfFolders = rootfolder.listFolders();		// don't prune by channels up-front (expensive), defer to gatherFiles()
-				lastCallTime = thisCallTime;				// reset on MISS-only, force a check every max-interval
-			}
-//			long endTime = System.nanoTime();
-//			System.err.println("getDataMap listFolders("+rootfolder.getName()+") time: "+((endTime-startTime)/1000000.)+" ms, length: "+((listOfFolders==null)?0:listOfFolders.length)+", recurse: "+recurse);
-			lastListOfFolders = listOfFolders;
-			lastRootFolder = rootfolder;	
-			
-			if(listOfFolders == null || listOfFolders.length < 1) return ctmap;
+			CTFile[] oldList = folderListByChan.get(thisChan);
+//			boolean fileRefresh = !(oldList!=null && rmode.equals("absolute") && (getftime+duration)<oldList[oldList.length-1].fileTime()); 
+			boolean fileRefresh = oldList==null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) >= oldList[oldList.length-1].fileTime();
+			CTFile[] listOfFolders = flatFileList(rootfolder, ctmap, folderListByChan.get(thisChan), fileRefresh);
+//			System.err.println("1. getDataMap ctmap.size: "+ctmap.size()+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
+			folderListByChan.put(thisChan, listOfFolders);
+//			System.out.println("Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+			if(listOfFolders == null || listOfFolders.length < 1) return ctmap;
+					
 			if(rmode.equals("registration")) {				// handle registration
 				System.err.println("unexpected registration request!");
 				return ctmap;
 			}
 			else if(rmode.equals("oldest")) {				// convert relative to absolute time
-				getftime = oldTime(listOfFolders, ctmap) + getftime;
+				getftime = oldTime(listOfFolders, null) + getftime;
 				CTinfo.debugPrint("getDataMap, oldTime: "+getftime);
 				rmode = "absolute";
 			}
 			else if(rmode.equals("newest")) {
-				getftime = newTime(listOfFolders, ctmap) - duration - getftime;
+//				System.err.println("newest, listOfFolders.length: "+listOfFolders.length+", newTime: "+newTime(listOfFolders,ctmap));
+				getftime = newTime(listOfFolders, null) - duration - getftime;			// listOfFolders filtered, don't waste effort re-filtering ctmap
 				CTinfo.debugPrint("newest getftime: "+getftime);
 				rmode = "absolute";
 			}
 			else if(rmode.equals("after")) {
-				double newtime = newTime(listOfFolders, ctmap);
+				double newtime = newTime(listOfFolders, null);
 				double tdur = newtime - getftime;
 				if(tdur > duration) getftime = newtime - duration;		// galump if nec to get most recent duration
 				getftime += 0.000001;									// microsecond after (no overlap)
 				CTinfo.debugPrint("after duration: "+duration);
 				rmode = "absolute";
 			}
+
+			int found = fileSearch(listOfFolders, getftime);
+//			System.err.println("chan: "+thisChan+", ftime: "+getftime+", index: "+found+", out of size: "+listOfFolders.length);
+			int istart = found - 1;
+			if(istart<0) istart=0;
 			
+			double endtime = getftime + duration;
+			long gotdata = 0;
+
+			// one-pass, gather list of candidate folders
+			for(int i=istart; i<listOfFolders.length; i++) {						// find range of eligible folders 
+				CTFile folder = listOfFolders[i];
+				if(i>1) {													// after end check
+					double priorftime;				
+					priorftime = listOfFolders[i-1].fileTime();	// go 2 past to bracket "next/prev" points in candidate list
+					if(priorftime > endtime) break;							// done	
+				}
+				CTinfo.debugPrint("CTreader checking folder["+i+"]: "+folder.getMyPath()+", start: "+getftime+", end: "+endtime);
+
+				// TO DO:  clean up following logic
+				if(!folder.isFileFolder()) {						// folder-of-folders
+					if(folder.fileType == CTFile.FileType.FILE) {		// individual file 
+						CTinfo.debugPrint("CTreader get individual file: "+folder+", gotdata: "+gotdata);
+						gotdata = getFile(folder, ctmap);		// individual file
+					} else {
+						CTinfo.debugPrint("CTreader gathering zip entries from: "+folder+", gotdata: "+gotdata);
+						CTFile[] listOfFiles = folder.listFiles();		// exhaustive search one-deep (bleh)
+						for(int j=0; j<listOfFiles.length; j++) gotdata += gatherFiles(listOfFiles[j], ctmap);
+					}
+				}
+				else {
+					CTinfo.debugPrint("CTreader gathering file folder: "+folder+", gotdata: "+gotdata);
+					gotdata += gatherFiles(folder, ctmap);		// data-file folder
+				}
+			}
+/*			
 			// pre-gather all file sub-folders (i.e. folders in zip files) as linear list.
 			double endtime = getftime + duration;
 			int gotdata = 0;
@@ -530,13 +562,16 @@ public class CTreader {
 					CTinfo.debugPrint("gathered file folder: "+folder+", gotdata: "+gotdata);
 				}
 			}
+			*/
 		} catch (Exception e) {
-//			e.printStackTrace();
+			e.printStackTrace();
 			throw e;
 		}
 
 		// loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
 		if(!recurse) ctmap.trim(getftime,  duration, rmode);	
+		
+//		System.err.println("2. getDataMap listFolders("+thisChan+") time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 		return ctmap;				// last folder
 	}
 		
@@ -548,13 +583,15 @@ public class CTreader {
 			System.err.println("gatherFiles, null folder!");
 			return 0;
 		}
-		double ftime = folder.fileTime();
+//		double ftime = folder.fileTime();
 		long hasdata = 0;
 
 		CTFile[] listOfFiles = folder.listFiles();			// get list of files in folder
 		if(listOfFiles == null) return 0;
 		for(int j=0; j<listOfFiles.length; j++) {
 			CTFile file = listOfFiles[j];
+			hasdata += getFile(file, cm);		
+/*			
 			if(file.isFile()) {
 				String fileName =  file.getName();
 				if(!cm.checkName(fileName)) continue;		// not a match 
@@ -576,27 +613,133 @@ public class CTreader {
 					CTinfo.debugPrint("Put file: "+file.getPath()+", size: "+dlen+", "+"ftime: "+ftime+", from zipFile: "+file.getMyZipFile());
 				}
 			} 
+*/
 		}
 		return hasdata;
 	}
-/*	
-	//--------------------------------------------------------------------------------------------------------
-	// containsFile:  see if folder contains a file (channel) in ctmap
 
-	private boolean containsFile(CTFile[] listOfFiles, CTmap cm)  {
-//		System.err.println("containsFile: "+listOfFiles);
-		if(listOfFiles == null) return false;
-		for(int j=0; j<listOfFiles.length; j++) {
-			CTFile file = listOfFiles[j];
-//			System.err.println(file.getName()+", check: "+cm.checkName(file.getName()));
-			if(file.isFile()) {
-				String fileName =  file.getName();
-				if(cm.checkName(fileName)) return true;		// got a match 
-			} 
-		}
-		return false;
+	// separate getFile, TO DO: consolidate with above
+	private long getFile(CTFile file, CTmap cm) throws Exception {
+		long hasdata = 0;
+
+		if(file.isFile()) {
+			String fileName =  file.getName();
+			if(!cm.checkName(fileName)) return 0;		// not a match 
+			byte[] data = null;
+			boolean getdata = !timeOnly || !fileName.toLowerCase().endsWith(".jpg");		// timeOnly only works for images at this point
+			if(getdata) data = file.read();
+
+			if(ctcrypto!=null) { 
+				try { data = ctcrypto.decrypt(data); } catch(Exception ee) {
+					System.err.println("WARNING:  could not decrypt: "+fileName);
+					throw ee;
+				}
+			}
+
+			if(timeOnly || (data != null && data.length>0)) { 
+				if(file.isTFILE()) fileName = file.getName();
+				cm.add(fileName, new CTdata(file.fileTime(), data, file));			// squirrel away CTfile ref for timerange info??
+				if(data != null) hasdata+=data.length;
+				long dlen = data!=null?data.length:0;
+				CTinfo.debugPrint("Put file: "+file.getPath()+", size: "+dlen+", from zipFile: "+file.getMyZipFile()+", ftime: "+file.fileTime());
+			}
+		} 
+		return hasdata;
 	}
-*/	
+	
+	//--------------------------------------------------------------------------------------------------------
+	// flattenFolders:  make list of time/folder as one-deep list
+	
+	private class TimeFolder implements Comparable<TimeFolder> {
+		public CTFile folderFile;
+		public double folderTime;
+		
+		public TimeFolder(CTFile file, double time) {
+			folderFile = file;
+			folderTime = time;
+		};
+		
+		@Override
+		public int compareTo(TimeFolder compareFile) {
+			return ((this.folderTime > compareFile.folderTime) ? 1 : -1);
+		}
+	}
+	
+//	private ArrayList<TimeFolder> flatFileList(File baseFolder) throws Exception {
+	private CTFile[] flatFileList(File baseFolder, CTmap ictmap, CTFile[] oldList, boolean fileRefresh) throws Exception {
+
+		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
+		final CTmap ctmap = ictmap;
+		double iendTime = 0.;
+		if(oldList != null) {
+			iendTime = oldList[oldList.length-1].fileTime();
+		}
+		final double endTime = iendTime;
+		EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);	// follow symbolic links
+
+		// following inefficient:  want to walk folders backwards until hit oldList.endtime
+		// initially build full flatFileList, subsequent calls update it by adding to oldList
+		if(fileRefresh)
+		Files.walkFileTree(baseFolder.toPath(), opts, 10, new SimpleFileVisitor<Path>() {		// max depth 10
+
+			@Override
+			public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException
+			{
+				String fname = path.toString();
+//				CTFile file = new CTFile(path.toString());
+				double time = CTinfo.fileTime(fname);
+				if(time>endTime) {
+					CTFile file = new CTFile(fname);
+//					System.err.println("file: "+file.getName()+", ctmap(0): "+ctmap.getName(0)+", file.containsFile: "+file.containsFile(ctmap));
+					if(ctmap.checkName(file.getName()) || file.containsFile(ctmap)) {		// either file or containing folder (zip)
+						fflist.add(new TimeFolder(file,time));		// containsFile is expensive
+//						System.err.println("flatFileList walkFileTree file: "+fname+", time: "+time+", endTime: "+endTime);
+					}
+				}
+				return FileVisitResult.CONTINUE;
+			}
+	
+		});
+		
+//		System.err.println("flatFileList, chan: "+ctmap.getName(0)+", OldList.size: "+((oldList==null)?(0):(oldList.length))+", newfflist.size: "+fflist.size()+", fileRefresh: "+fileRefresh);
+
+		if(fflist.size()==0) return oldList;		// nothing new, save some work
+		
+		Collections.sort(fflist);
+		CTFile[] ffarray;
+		if(oldList != null) {
+			ffarray = new CTFile[fflist.size() + oldList.length];
+			for(int i=0; i<oldList.length; i++) ffarray[i] = oldList[i];
+			for(int i=0, j=oldList.length; i<fflist.size(); i++,j++) ffarray[j] = fflist.get(i).folderFile;		// concatenate old + new
+		}
+		else {
+			ffarray = new CTFile[fflist.size()];
+			for(int i=0; i<ffarray.length; i++) ffarray[i] = fflist.get(i).folderFile;
+		}
+		
+		return ffarray;
+	}
+	
+	// binary search for file at or after timestamp
+    private int fileSearch(CTFile[] fileList, double ftime) {
+        int start = 0;
+        int end = fileList.length - 1;
+        while (start < end) {
+            int mid = (start + end) / 2;
+//        	System.err.println("start: "+start+", end: "+end+", mid: "+mid+", ftime: "+ftime+", thistime: "+fileList[mid].fileTime()+", thisfile: "+fileList[mid].getPath());
+
+            if (ftime == fileList[mid].fileTime()) {
+                return mid;
+            }
+            if (ftime < fileList[mid].fileTime()) {
+                end = mid - 1;
+            } else {
+                start = mid + 1;
+            }
+        }
+        return start;
+    }
+	
 }
 
 

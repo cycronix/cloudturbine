@@ -127,7 +127,14 @@ class CTFile extends File {
 //		if(files == null) isFile=true;		// top-level files in zip
 //		else			  isEntry=true;
 	}
-
+/*
+	@Override
+	public int compareTo(File compareFile) {
+		System.err.println("CTFile.compareTo: "+compareFile.getPath());
+		CTFile ctfile = new CTFile(compareFile.getPath());
+		return ((ctfile.fileTime() > ctfile.fileTime()) ? 1 : -1);
+	}
+*/	
 	//---------------------------------------------------------------------------------	
 	// convert .gz to .zip
 	private static String convertGzip(String path) {
