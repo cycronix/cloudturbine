@@ -331,6 +331,8 @@ public class CTweb {
     	
     	@Override
     	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    		long startTime = System.nanoTime();
+    		boolean doProfile=debug;
     		
     		if(debug) {
     			String uri = request.getScheme() + "://" +
@@ -391,6 +393,7 @@ public class CTweb {
     			return;
     		}
 
+    		if(doProfile) System.err.println("doGet 1 time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
     		String pathParts[] = pathInfo.split("/");		// split into 2 parts: cmd/multi-part-path
 
     		try {
@@ -484,7 +487,7 @@ public class CTweb {
     			}
     			else {																		// Channel level request for data
     				if(debug) System.err.println("data request: "+pathInfo);
-    				
+	
     				String source = pathParts[2];
     				for(int i=3; i<pathParts.length-1; i++) source += ("/"+pathParts[i]);		// multi-level source name
     				//    			String chan = pathParts[3];				//  presumes /CT/Source/Chan with no sub-level nesting
@@ -497,6 +500,8 @@ public class CTweb {
     				else    			ctreader.setTimeOnly(false);
 
     				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
+    				if(doProfile) System.err.println("doGet R time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+
     				if(tdata == null) {		// empty response for WebTurbine compatibility
     					if(debug) System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);					
     					formResponse(response, null);		// add CORS header even for error response
@@ -530,17 +535,24 @@ public class CTweb {
     								String reqchan = source + "/" + chan;				// reconstruct full path
     								if(reqchan.startsWith("/")) reqchan = reqchan.substring(1);		// strip leading '/' if present
     								if(debug) System.err.println("ifnonematch, gottime: "+gottime+", matchtime: "+matchtime+", matchchan: "+matchchan+", reqchan: "+reqchan);
+									if(doProfile) System.err.println("doGet 2a time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
     								if(Math.abs(matchtime-gottime)<=1 && matchchan.equals(reqchan)) {		// account for msec round off error
     									// add header info about time limits
     									// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
-    									double oldTime = ctreader.oldTime(source,chan);
-    									double newTime = ctreader.newTime(source,chan);
+//    									double oldTime = ctreader.oldTime(source,chan);
+//    									double newTime = ctreader.newTime(source,chan);
+    									double[] tlimits = ctreader.timeLimits(source, chan);
+    									double oldTime = tlimits[0];
+    									double newTime = tlimits[1];
+    									if(doProfile) System.err.println("doGet 2b time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
+
     									double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
     									formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
 
     									formResponse(response,null);
     									response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
+    									if(doProfile) System.err.println("doGet 2c time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
     									if(debug) System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference+", newTime: "+newTime);
     									return;
@@ -569,8 +581,11 @@ public class CTweb {
 
 	   							// add header info about time limits
     							// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
-    							double oldTime = ctreader.oldTime(source,chan);
-    							double newTime = ctreader.newTime(source,chan);
+    	//						double oldTime = ctreader.oldTime(source,chan);
+    	//						double newTime = ctreader.newTime(source,chan);
+								double[] tlimits = ctreader.timeLimits(source, chan);
+								double oldTime = tlimits[0];
+								double newTime = tlimits[1];
     							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
 //								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
     						
@@ -615,7 +630,7 @@ public class CTweb {
     								input.close();
     								out.flush();
     							}
-
+    							if(doProfile) System.err.println("doGet 3 time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 
     							return;
 
@@ -664,8 +679,11 @@ public class CTweb {
     							}
     							// add header info about time limits
     							// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
-    							oldTime = ctreader.oldTime(source,chan);
-    							newTime = ctreader.newTime(source,chan);
+//    							oldTime = ctreader.oldTime(source,chan);
+//    							newTime = ctreader.newTime(source,chan);
+								tlimits = ctreader.timeLimits(source, chan);
+								oldTime = tlimits[0];
+								newTime = tlimits[1];
     							lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
     							formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);  
     							//    								response.setContentType(mimeType(pathInfo, "text/html"));
@@ -678,8 +696,11 @@ public class CTweb {
     						// add header info about time limits even if no data
     						if(debug) System.err.println("No data for: "+pathInfo);
     						// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
-    						double oldTime = ctreader.oldTime(source,chan);
-    						double newTime = ctreader.newTime(source,chan);
+//    						double oldTime = ctreader.oldTime(source,chan);
+//    						double newTime = ctreader.newTime(source,chan);
+							double[] tlimits = ctreader.timeLimits(source, chan);
+							double oldTime = tlimits[0];
+							double newTime = tlimits[1];
     						double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
     						formHeader(response, start, start+duration, oldTime, newTime, lagTime);
         					formResponse(response, null);		// add CORS header even for error response
