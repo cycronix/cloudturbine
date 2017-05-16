@@ -16,18 +16,7 @@ limitations under the License.
 
 package erigo.ctstream;
 
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Image;
-import java.awt.Insets;
-import java.awt.Point;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
@@ -41,8 +30,11 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -1323,6 +1315,9 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		JMenuItem menuItem = new JMenuItem("Settings...");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
+		menuItem = new JMenuItem("CloudTurbine website");
+		menu.add(menuItem);
+		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("Exit");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
@@ -1486,6 +1481,10 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				Rectangle updatedGUIFrameBounds = new Rectangle(guiFrameBounds.x,guiFrameBounds.y,guiFrameBounds.width,updatedHeight);
 				guiFrame.setBounds(updatedGUIFrameBounds);
 			}
+			// To display or not display screencap preview is dependent on whether we are in full screen mode or not.
+			if (screencapStream != null) {
+				screencapStream.updatePreview();
+			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == previewCheck)) {
 			if (previewCheck.isSelected()) {
 				bPreview = true;
@@ -1544,6 +1543,24 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			// Let user edit settings; the following function will not
 			// return until the user clicks the OK or Cancel button.
 			ctSettings.popupSettingsDialog();
+		} else if (eventI.getActionCommand().equals("CloudTurbine website")) {
+			if (!Desktop.isDesktopSupported()) {
+				System.err.println("\nNot able to launch URL in a browser window, feature not supported.");
+				return;
+			}
+			Desktop desktop = Desktop.getDesktop();
+			URI uri = null;
+			try {
+				uri = new URI("http://cloudturbine.com");
+			} catch (URISyntaxException e) {
+				System.err.println("\nURISyntaxException:\n" + e);
+				return;
+			}
+			try {
+				desktop.browse(uri);
+			} catch (IOException e) {
+				System.err.println("\nCaught IOException trying to go to cloudturbine.com:\n" + e);
+			}
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
 		}

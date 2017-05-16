@@ -16,28 +16,51 @@ limitations under the License.
 
 package erigo.ctstream;
 
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYShapeRenderer;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+
 import java.awt.*;
+import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.*;
 
 /**
- * Popup a window to previewWindow the image that will be sent to CT
+ * A preview window for displaying data to be sent to CT.
  *
  * @author Matt Miller, John Wilson
- * @version 05/12/2017
+ * @version 05/16/2017
  *
  */
 
 public class PreviewWindow {
 
-	private JFrame frame = null;		// the preview window
-	private boolean bText = false;		// is this frame going to display text or image?
-	private JLabel lbl = null;			// for displaying image (in this case, bText must be false)
-	private JTextArea textArea = null;	// for displaying text (in this case, bText must be true)
+	public enum PreviewType { IMAGE, PLOT, TEXT }
 
-	public PreviewWindow(String title, Dimension initSize, boolean bTextI)
+	private JFrame frame = null;		// the preview window
+	private PreviewType previewType;	// the type of data to display
+	private JLabel lbl = null;			// for displaying image
+	private JFreeChart chart = null;	// for displaying plot
+	private JTextArea textArea = null;	// for displaying text
+
+	/**
+	 * Create a new preview window.
+	 *
+	 * @param title          Title displayed in the preview window's title bar.
+	 * @param initSize       Initial size of the preview window.
+	 * @param previewTypeI   Type of preview window; must be one of PreviewType.
+	 */
+	public PreviewWindow(String title, Dimension initSize, PreviewType previewTypeI)
 	{
-		bText = bTextI;
+		previewType = previewTypeI;
 		// For thread safety: Schedule a job for the event-dispatching thread to create and show the GUI
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
@@ -52,13 +75,27 @@ public class PreviewWindow {
 				JPanel panel = new JPanel(gbl);
 				// Add the appropriate component (JTextArea or JLabel) to the scroll pane
 				JScrollPane scrollPane = null;
-				if (bText) {
-					textArea = new JTextArea(3,10);
-					textArea.setEditable(false);
-					scrollPane = new JScrollPane(textArea);
-				} else {
-					lbl = new JLabel();
-					scrollPane = new JScrollPane(lbl);
+				switch (previewType) {
+					case IMAGE:
+						lbl = new JLabel();
+						scrollPane = new JScrollPane(lbl);
+						break;
+					case PLOT:
+						// create chart with default datapoint
+						List<Double> xdata = new ArrayList<Double>();
+						List<Double> ydata = new ArrayList<Double>();
+						xdata.add(0.0);
+						ydata.add(0.0);
+						chart = createChart(createDataset(xdata,ydata),"", "Time (sec)", "");
+						JPanel chartPanel =  new ChartPanel(chart);
+						// chartPanel.setPreferredSize(new java.awt.Dimension(650, 400));
+						scrollPane = new JScrollPane(chartPanel);
+						break;
+					case TEXT:
+						textArea = new JTextArea(3,10);
+						textArea.setEditable(false);
+						scrollPane = new JScrollPane(textArea);
+						break;
 				}
 				scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 				scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -88,11 +125,17 @@ public class PreviewWindow {
 		});
 	}
 
-	public void updateImage(BufferedImage img, int width, int height) {
-		if (bText) {
-			System.err.println("ERROR: preview window was setup for text but now being asked to display an image");
+	/**
+	 * Put a new image in the preview window.
+	 * @param img       The new image.
+	 */
+	public void updateImage(BufferedImage img) {
+		if (previewType != PreviewType.IMAGE) {
+			System.err.println("ERROR: preview window not setup for image");
 			return;
 		}
+		int width = img.getWidth();
+		int height = img.getHeight();
 		// For thread safety: Schedule a job for the event-dispatching thread to update the image on the JLabel
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
@@ -103,9 +146,132 @@ public class PreviewWindow {
 		});
 	}
 
+	public void updatePlot(java.util.List<Double> xDataI, java.util.List<Double> yDataI, boolean bMakeSymmetricI) {
+		if (previewType != PreviewType.PLOT) {
+			System.err.println("ERROR: preview window not setup for plot");
+			return;
+		}
+		XYDataset dataset = createDataset(xDataI,yDataI);
+		chart.getXYPlot().setDataset(dataset);
+		if (bMakeSymmetricI) {
+			// Adjust the y-axis (Range) limits
+			double maxVal = 0.0;
+			for (double nextDouble : yDataI) {
+				if (Math.abs(nextDouble) > maxVal) maxVal = Math.abs(nextDouble);
+			}
+			double axisLimit = 0.0;
+			int powerOfTen = -10;
+			while (true) {
+				double baseVal = Math.pow(10.0,(double)powerOfTen);
+				if (maxVal < baseVal) {
+					axisLimit = baseVal;
+					break;
+				}
+				else if (maxVal < 2.0*baseVal) {
+					axisLimit = 2.0*baseVal;
+					break;
+				}
+				else if (maxVal < 5.0*baseVal) {
+					axisLimit = 5.0*baseVal;
+					break;
+				}
+				powerOfTen = powerOfTen + 1;
+			}
+			chart.getXYPlot().getRangeAxis().setRange(-1*axisLimit, axisLimit);
+		}
+	}
+
+	/**
+	 * Creates a chart.
+	 *
+	 * @param dataset  the dataset.
+	 *
+	 * @return A chart instance.
+	 */
+	private JFreeChart createChart(XYDataset dataset, String chartTitle, String xaxisLabel, String yaxisLabel) {
+		// create the chart...
+		JFreeChart chart = ChartFactory.createXYLineChart(
+				chartTitle,
+				xaxisLabel,
+				yaxisLabel,
+				dataset,
+				PlotOrientation.VERTICAL,
+				false,  // include legend
+				true,   // tooltips
+				false   // urls
+		);
+
+		customizeChart(chart);
+
+		XYPlot plot = (XYPlot) chart.getPlot();
+		// Domain is the x-axis, range is the y-axis
+		// Can set "margins" at each end of each axis - this specifies space to increase/decrease the displayed
+		// values at each end; margins are specified in terms of a percentage.
+		plot.getDomainAxis().setLowerMargin(0.0);
+		plot.getDomainAxis().setUpperMargin(0.0);
+
+		return chart;
+	}
+
+	/*
+     * Customize the lines, symbols, gridlines, etc.
+     *
+     * Many of these options we'll just use the default
+     */
+	private void customizeChart(JFreeChart chart) {
+
+		XYPlot plot = chart.getXYPlot();
+
+		// XYLineAndShapeRenderer does both lines and shapes
+		// XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
+		// For XYLineAndShapeRenderer: set thickness for series (using strokes)
+		// renderer.setSeriesStroke(0, new BasicStroke(1.0f));
+
+		// XYShapeRenderer does shapes only
+		XYShapeRenderer renderer = new XYShapeRenderer();
+		renderer.setSeriesShape(0, new Ellipse2D.Double(-0.75,-0.75,1.5,1.5));
+
+		// sets paint color
+		renderer.setSeriesPaint(0, Color.RED);
+
+		// sets paint color for plot outlines (chart borders)
+		// plot.setOutlinePaint(Color.BLUE);
+		// plot.setOutlineStroke(new BasicStroke(2.0f));
+
+		// sets renderer for lines
+		plot.setRenderer(renderer);
+
+		// sets plot background
+		// plot.setBackgroundPaint(Color.DARK_GRAY);
+
+		// sets paint color for the grid lines
+		// plot.setRangeGridlinesVisible(true);
+		// plot.setRangeGridlinePaint(Color.BLACK);
+
+		// plot.setDomainGridlinesVisible(true);
+		// plot.setDomainGridlinePaint(Color.BLACK);
+
+	}
+
+	/**
+	 * Create a dataset to be displayed by the plot
+	 * @param xDataI   New x data
+	 * @param yDataI   Mew y data
+	 * @return the new XYDataset
+	 */
+	private XYDataset createDataset(java.util.List<Double> xDataI, java.util.List<Double> yDataI) {
+		XYSeriesCollection dataset = new XYSeriesCollection();
+		XYSeries series = new XYSeries("first dataset");
+		for (int i=0; i<xDataI.size(); ++i) {
+			series.add(xDataI.get(i).doubleValue(),yDataI.get(i).doubleValue());
+		}
+		dataset.addSeries(series);
+		return dataset;
+	}
+
 	public void updateText(String textI) {
-		if (!bText) {
-			System.err.println("ERROR: preview window was setup for an image but now being asked to display text");
+		if (previewType != PreviewType.TEXT) {
+			System.err.println("ERROR: preview window not setup for text");
 			return;
 		}
 		// For thread safety: Schedule a job for the event-dispatching thread to update the text on the JLabel
