@@ -37,8 +37,8 @@ public abstract class DataStream {
 
     public CTstream cts = null;
 
-    // Is this DataStream going to be handling text?  This is used for setting up the PreviewWindow.
-    private boolean bText = false;
+    // Specify the type of data managed by this DataStream's PreviewWindow.
+    private PreviewWindow.PreviewType previewType = PreviewWindow.PreviewType.IMAGE;
 
     // If bManualFlush is true, CTwriter.flush() will be called after data from this DataStream is sent to CT;
     // if no DataStream has manual flush, then WriteTask will call flush at the period indicated by the user
@@ -59,10 +59,10 @@ public abstract class DataStream {
     /**
      * DataStream constructor
      *
-     * @param bTextI  Is this DataStream going to be handling text?  This is used for setting up the PreviewWindow.
+     * @param previewTypeI  Type of data this DataStream will send to be displayed in a PreviewWindow.
      */
-    public DataStream(boolean bTextI) {
-        bText = bTextI;
+    public DataStream(PreviewWindow.PreviewType previewTypeI) {
+        previewType = previewTypeI;
         // get an ID from CTstream
         id = CTstream.getNextDataStreamID();
     }
@@ -103,7 +103,7 @@ public abstract class DataStream {
     public void updatePreview() {
         if (bIsRunning && cts.bPreview && bCanPreview && !bPreview) {
             // open preview window
-            previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400), bText);
+            previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400), previewType);
             bPreview = true;
         } else if (!cts.bPreview || !bIsRunning) {
             bPreview = false;

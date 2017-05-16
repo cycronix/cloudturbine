@@ -56,7 +56,7 @@ public class WebcamStream extends DataStream {
      * @param channelNameI  Channel name
      */
     public WebcamStream(CTstream ctsI, String channelNameI) {
-        super(false);
+        super(PreviewWindow.PreviewType.IMAGE);
         channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;

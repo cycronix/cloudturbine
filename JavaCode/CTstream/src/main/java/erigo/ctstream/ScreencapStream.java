@@ -62,7 +62,7 @@ public class ScreencapStream extends DataStream {
      * @param channelNameI  Channel name
      */
     public ScreencapStream(CTstream ctsI, String channelNameI) {
-        super(false);
+        super(PreviewWindow.PreviewType.IMAGE);
         channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;
@@ -116,6 +116,21 @@ public class ScreencapStream extends DataStream {
         if (updatedCapturePeriodMillis != capturePeriodMillis) {
             System.err.println("\nRestarting screen captures at new rate: " + cts.framesPerSec + " frames/sec");
             startScreencapTimer();
+        }
+    }
+
+    /**
+     * Update the status of the preview window.
+     * If user is running in full screen mode, don't display a preview window.
+     */
+    public void updatePreview() {
+        if (bPreview && bIsRunning && cts.bPreview && (previewWindow != null) && cts.bFullScreen) {
+            // Pop down the preview window
+            bPreview = false;
+            previewWindow.close();
+            previewWindow = null;
+        } else if (!cts.bFullScreen) {
+            super.updatePreview();
         }
     }
 

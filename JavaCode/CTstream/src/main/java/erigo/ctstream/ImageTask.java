@@ -163,11 +163,16 @@ public class ImageTask extends TimerTask implements Runnable {
 			//
 			// Display preview image
 			//
-			if(dataStream.bPreview && (dataStream.previewWindow != null)) {
-				// NOTE: In order to previewWindow the image with the correct JPEG compression, need to send PreviewWindow
-				//       a new BufferedImage based on jpegByteArray; can't just send bufferedImage because that image
-				//       hasn't been compressed yet.
-				dataStream.previewWindow.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)),bufferedImage.getWidth(),bufferedImage.getHeight());
+			if (dataStream.bPreview && (dataStream.previewWindow != null) ) {
+				if ( (dataStream instanceof ScreencapStream) && cts.bFullScreen ) {
+					// In full screen mode, we will pop down the preview window
+					dataStream.updatePreview();
+				} else {
+					// To view the image with the correct JPEG compression, need to send PreviewWindow a new
+					// BufferedImage based on jpegByteArray; can't just send bufferedImage because that image
+					// hasn't been compressed yet.
+					dataStream.previewWindow.updateImage(ImageIO.read(new ByteArrayInputStream(jpegByteArray)));
+				}
 			}
 		} catch (Exception e) {
 			if (dataStream.bIsRunning) {

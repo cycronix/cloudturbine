@@ -39,7 +39,7 @@ public class TextStream extends DataStream {
      */
     // constructor
     public TextStream(CTstream ctsI, String channelNameI) {
-        super(true);
+        super(PreviewWindow.PreviewType.TEXT);
         channelName = channelNameI;
         cts = ctsI;
         bCanPreview = true;

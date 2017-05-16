@@ -24,6 +24,9 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
+import java.nio.ShortBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -48,10 +51,10 @@ public class AudioStream extends DataStream implements Runnable {
 	 */
 	// constructor
 	public AudioStream(CTstream ctsI, String channelNameI) {
-		super(false);
+		super(PreviewWindow.PreviewType.PLOT);
 		channelName = channelNameI;
 		cts = ctsI;
-		bCanPreview = false;
+		bCanPreview = true;
 		bManualFlush = true;
 	}
 
@@ -77,6 +80,7 @@ public class AudioStream extends DataStream implements Runnable {
 		// start the audio capture
 		audioThread = new Thread(this);
 		audioThread.start();
+		updatePreview();
 	}
 
 	/**
@@ -142,6 +146,17 @@ public class AudioStream extends DataStream implements Runnable {
 							e.printStackTrace();
 						}
 						break;
+					}
+					if(bPreview && (previewWindow != null)) {
+						List<Double> sampTimes = new ArrayList<Double>();
+						List<Double> sampValues = new ArrayList<Double>();
+						ByteBuffer bb = ByteBuffer.wrap(buffer);
+						bb.order(ByteOrder.LITTLE_ENDIAN);
+						for (int i=0; i<count/2; ++i) {
+							sampTimes.add((double)i/(double)frequency);
+							sampValues.add((double)bb.getShort()/32768.0);
+						}
+						previewWindow.updatePlot(sampTimes,sampValues,true);
 					}
 				}
 			}
