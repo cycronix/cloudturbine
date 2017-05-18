@@ -135,7 +135,7 @@ public class CTreader {
 	}
 		
 //---------------------------------------------------------------------------------	
-// timeLimits:  get oldest, newest time limits in one-pass
+// timeLimits:  get oldest, newest time limits in one-pass from cache
 	
 	public double[] timeLimits(String sourceFolder, String chan) throws Exception {
 		double[] tlimits = new double[]{0,0};
@@ -164,32 +164,6 @@ public class CTreader {
 		tlimits[0] = listOfFiles[0].fileTime();							// oldest
 		tlimits[1] = listOfFiles[listOfFiles.length-1].fileTime();		// newest
 		return tlimits;
-/*		
-		String sourceFolder_fullpath = sourceFolder;
-
-		if (rootFolder != null) {
-			if(sourceFolder.startsWith(File.separator))
-				sourceFolder_fullpath = new String(rootFolder + sourceFolder);
-			else	sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
-		}
-		CTFile basefolder = new CTFile(sourceFolder_fullpath);
-		String thisChan = sourceFolder_fullpath + File.separator + chan;			// this is single channel function
-
-		try {
-//			tlimits[0] = oldTime(sourceFolder, chan);		// until update flatFileList
-			CTFile[] listOfFiles = flatFileList(basefolder, new CTmap(chan), thisChan, true);
-			if(listOfFiles != null && listOfFiles.length>0) {
-				tlimits[0] = listOfFiles[0].fileTime();							// oldest
-				tlimits[1] = listOfFiles[listOfFiles.length-1].fileTime();		// newest
-			}
-		} 
-		catch(Exception e) {		// should throw
-			System.err.println("OOPS, oldTime/flatFileList Exception: "+e);
-		}
-		
-//		System.err.println("timeLimits chan: "+thisChan+", old: "+tlimits[0]+", new: "+tlimits[1]);
-		return tlimits;
-		*/
 	}
 	
 //---------------------------------------------------------------------------------	
@@ -216,7 +190,7 @@ public class CTreader {
 		}
 		CTFile basefolder = new CTFile(sourceFolder_fullpath);
 
-		boolean newWay=true;		// until update flatFileList to track oldest
+		boolean newWay=false;		// until update flatFileList to track oldest
 		if(newWay) {
 			try {
 				String thisChan = sourceFolder_fullpath + File.separator + ctmap.getName(0);			// this is single channel function
@@ -311,7 +285,7 @@ public class CTreader {
 		}
 		CTFile basefolder = new CTFile(sourceFolder_fullpath);
 
-		boolean newWay=true;
+		boolean newWay=false;		// explicity newTime still gets robust old way search
 		if(newWay) {
 			try {
 				String thisChan = sourceFolder_fullpath + File.separator + ctmap.getName(0);			// this is single channel function
@@ -565,13 +539,14 @@ public class CTreader {
 //	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
 	
 	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) throws Exception {
-		CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", ctmap.size: "+ctmap.size());
 		long startTime = System.nanoTime();
 		String thisChan = rootfolder + File.separator + ctmap.getName(0);			// this is single channel function
 		try {
 			// get updated list of folders
 			CTFile[] oldList = fileListByChan.get(thisChan);
 			boolean fileRefresh = oldList==null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime();
+			CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", fileRefresh: "+fileRefresh);
+			
 			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChan, fileRefresh);
 //			System.err.println("1. getDataMap ctmap.size: "+ctmap.size()+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
@@ -690,6 +665,7 @@ public class CTreader {
 	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
 
 	// this should be its own Class with oldest, newest, etc properties...
+	
 	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 //		long startTime = System.nanoTime();
 		CTFile[] oldList = fileListByChan.get(thisChan);
@@ -773,11 +749,11 @@ public class CTreader {
 			else {
 				String fname = folder.getName();
 				double ftime = folder.fileTime();			
-//				System.err.println("CTfileList gotfile: "+fname+", time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime));
 				if(!ctmap.checkName(fname)) continue;
 
 				if(ftime>endTime) {		// time here may equal end of prior block???
-					fflist.add(new TimeFolder(folder,ftime));							
+					fflist.add(new TimeFolder(folder,ftime));		
+//					System.err.println("CTfileList gotfile: "+fname+", time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", oldLen: "+listOfFolders.length+", file: "+folder.getPath());
 				}
 				else {
 					abortFileList = true;
