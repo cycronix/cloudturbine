@@ -630,7 +630,7 @@ public class CTweb {
     								input.close();
     								out.flush();
     							}
-    							if(doProfile) System.err.println("doGet 3 time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+    							if(doProfile) System.err.println("doGet B time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
     							return;
 
@@ -689,6 +689,8 @@ public class CTweb {
     							//    								response.setContentType(mimeType(pathInfo, "text/html"));
     							response.setContentType("text/html");		// all string data in this case!
     							formResponse(response, sbresp);
+    							if(doProfile) System.err.println("doGet S time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
+
     							return;
     						}
     					}
