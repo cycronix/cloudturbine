@@ -666,14 +666,19 @@ public class CTreader {
 
 	// this should be its own Class with oldest, newest, etc properties...
 	
-	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
+//	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
+	// beware: this will multi-thread
+	private CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 //		long startTime = System.nanoTime();
-		CTFile[] oldList = fileListByChan.get(thisChan);
+
+		CTFile[] cachedList = fileListByChan.get(thisChan);
+//		System.err.println("flatFileList, refresh: "+fileRefresh+", chan: "+ictmap.getName(0)+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
+
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
 		final CTmap ctmap = ictmap;
 		double iendTime = 0.;
-		if(oldList != null) {
-			iendTime = oldList[oldList.length-1].fileTime();
+		if(cachedList != null) {
+			iendTime = cachedList[cachedList.length-1].fileTime();
 		}
 		final double endTime = iendTime;
 
@@ -681,39 +686,40 @@ public class CTreader {
 				
 		if(fileRefresh) {
 			CTFile[] listOfFolders = baseFolder.listFiles();
+			if(listOfFolders==null) return null;
 			
 			// trim oldest if nec
 //			double oldestTime = listOfFolders[0].fileTime();      	    // ref oldTime is oldest of any chan
 			double oldestTime = oldTime(listOfFolders[0]);			// this at least skips containsFile call, any chan oldest
 //			System.err.println("oldestTime: "+oldestTime+", list0: "+(oldList!=null?oldList[0].fileTime():0));
-			if(oldList != null && (oldestTime > oldList[0].fileTime())) {
+			if(cachedList != null && (oldestTime > cachedList[0].fileTime())) {
 				int ichk;
-				for(ichk=0; ichk<oldList.length; ichk++) {
-					if(oldestTime <= oldList[ichk].fileTime()) break;
+				for(ichk=0; ichk<cachedList.length; ichk++) {
+					if(oldestTime <= cachedList[ichk].fileTime()) break;
 				}
 				if(ichk>0) {
 //					System.err.println("oldTRIM "+ctmap.getName(0)+", from: "+oldList.length+", by N: "+ichk+", oldestTime: "+oldestTime+", oldList[0]: "+oldList[0].fileTime());
-					CTFile[] tmpList = new CTFile[oldList.length - ichk];
-					for(int j=ichk,k=0; j<oldList.length; j++,k++) tmpList[k] = oldList[j];
-					oldList = tmpList;
-					fileListByChan.put(thisChan, oldList);
+					CTFile[] tmpList = new CTFile[cachedList.length - ichk];
+					for(int j=ichk,k=0; j<cachedList.length; j++,k++) tmpList[k] = cachedList[j];
+					cachedList = tmpList;
+					fileListByChan.put(thisChan, cachedList);
 				}
 			};
 			
-			CTfileList(listOfFolders, fflist, endTime, ctmap);	
+			
+			CTfileList(listOfFolders, fflist, endTime, ctmap);			// add any new files to end of list
 		}
 		
-//		System.err.println("flatFileList, refresh: "+fileRefresh+", chan: "+ctmap.getName(0)+", OldList.size: "+((oldList==null)?(0):(oldList.length))+", newfflist.size: "+fflist.size()+", fileRefresh: "+fileRefresh);
-//		System.err.println("flatFileList 1 time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
+//		System.err.println("flatFileList time: "+((System.nanoTime()-startTime)/1000000.)+" ms, New Points: "+fflist.size());
 
-		if(fflist.size()==0) return oldList;		// nothing new, save some work
+		if(fflist.size()==0) return cachedList;		// nothing new, save some work
 		
 		Collections.sort(fflist);
 		CTFile[] ffarray;
-		if(oldList != null) {
-			ffarray = new CTFile[fflist.size() + oldList.length];
-			for(int i=0; i<oldList.length; i++) ffarray[i] = oldList[i];
-			for(int i=0, j=oldList.length; i<fflist.size(); i++,j++) ffarray[j] = fflist.get(i).folderFile;		// concatenate old + new
+		if(cachedList != null) {
+			ffarray = new CTFile[fflist.size() + cachedList.length];
+			for(int i=0; i<cachedList.length; i++) ffarray[i] = cachedList[i];
+			for(int i=0, j=cachedList.length; i<fflist.size(); i++,j++) ffarray[j] = fflist.get(i).folderFile;		// concatenate old + new
 		}
 		else {
 			ffarray = new CTFile[fflist.size()];
@@ -729,22 +735,22 @@ public class CTreader {
 	
 	//--------------------------------------------------------------------------------------------------------
 	// CTfileList:  custom walkFileTree but skipping over subfolders
-	static boolean abortFileList=false;
-	private void CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
-		abortFileList = false;
-		doCTfileList(listOfFolders, fflist, endTime, ctmap);
-	}
+//	static boolean abortFileList=false;
+//	private void CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
+//		abortFileList = false;
+//		doCTfileList(listOfFolders, fflist, endTime, ctmap);
+//	}
 	
-	private void doCTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
+	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
 //		CTFile[] listOfFolders = baseFolder.listFiles();
 		
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
-			if(abortFileList) return;
+//			if(abortFileList) return;
 			CTFile folder = listOfFolders[i];
 			
 			if(folder.isDirectory()) {
 //				System.err.println("CTfileList recurse!");
-				doCTfileList(folder.listFiles(), fflist, endTime, ctmap);
+				if(!CTfileList(folder.listFiles(), fflist, endTime, ctmap)) return false;		// pop recursion stack
 			}
 			else {
 				String fname = folder.getName();
@@ -756,11 +762,13 @@ public class CTreader {
 //					System.err.println("CTfileList gotfile: "+fname+", time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", oldLen: "+listOfFolders.length+", file: "+folder.getPath());
 				}
 				else {
-					abortFileList = true;
+//					abortFileList = true;
+					return false;
 				}
-				return;
+				return true;			// keep going
 			}
 		}
+		return true;					// all done, success
 	}
 
 	//--------------------------------------------------------------------------------------------------------

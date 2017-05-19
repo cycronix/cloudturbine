@@ -689,7 +689,7 @@ public class CTweb {
     							//    								response.setContentType(mimeType(pathInfo, "text/html"));
     							response.setContentType("text/html");		// all string data in this case!
     							formResponse(response, sbresp);
-    							if(doProfile) System.err.println("doGet S time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
+    							if(doProfile) System.err.println("doGet S time: "+((System.nanoTime()-startTime)/1000000.)+" ms, chan: "+chan);
 
     							return;
     						}
