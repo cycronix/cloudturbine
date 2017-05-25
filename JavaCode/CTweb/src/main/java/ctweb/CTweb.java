@@ -529,7 +529,7 @@ public class CTweb {
     						String ifnonematch = request.getHeader("If-None-Match");
     						if(ifnonematch != null) {
     							String[] matchparts = ifnonematch.split(":");
-    							if(matchparts.length == 2) {
+    							if(matchparts.length == 2 && matchparts[1].length()>0) {
     								String matchchan = matchparts[0];
     								double matchtime = Double.parseDouble(matchparts[1]);		// int-msec
     								//        							long gottime = (long)(1000.* time[0]);				// int-msec for compare
@@ -715,7 +715,7 @@ public class CTweb {
     			}
     		} catch(Exception e) { 
     			System.err.println("CTweb doGet Exception: "+e); 
-//    			e.printStackTrace(); 
+    			if(debug) e.printStackTrace(); 
     		}
 
     		if(debug) System.err.println("Unable to respond to: "+pathInfo);
