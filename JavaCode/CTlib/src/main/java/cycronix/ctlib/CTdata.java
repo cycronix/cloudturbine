@@ -147,7 +147,7 @@ public class CTdata {
 			double tbase = filelist.get(i).baseTime();
 			double time = timelist.get(i);
 			
-			CTinfo.debugPrint("filelist.get("+i+"): "+filelist.get(i).getMyPath()+", tbase: "+tbase+", time: "+time);
+//			CTinfo.debugPrint("filelist.get("+i+"): "+filelist.get(i).getMyPath()+", tbase: "+tbase+", time: "+time);
 			
 			String dds = new String(datalist.get(i));				// CSV comma separated string of values
 			String[] ddp = dds.replaceFirst("^,","").split(",");	// skip leading comma if present
@@ -161,7 +161,7 @@ public class CTdata {
 			}
 			
 			// not sure all the next/prev/oldest/newest logic is in here...
-			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count+", duration: "+duration);
+//			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count+", duration: "+duration);
 
 			if(i==0) { Tprev = time; Dprev=ddp[0]; }	// initialize
 			for(int j=0; j<count; j++) {
@@ -184,7 +184,7 @@ public class CTdata {
 			if(time >= tend) break;
 		}
 		
-		CTinfo.debugPrint("ctd.size: "+ctd.size());
+		CTinfo.debugPrint("timeRangeNumeric, ctd.size: "+ctd.size());
 
 		return ctd;
 	}

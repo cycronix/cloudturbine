@@ -148,11 +148,12 @@ public class CTreader {
 		
 		String sourceFolder_fullpath = sourceFolder;
 		if (rootFolder != null) {
-			if(sourceFolder.startsWith(File.separator))
-				sourceFolder_fullpath = new String(rootFolder + sourceFolder);
-			else	sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
+			if(sourceFolder.startsWith("/") || sourceFolder.startsWith(File.separator)) sourceFolder = sourceFolder.substring(1);	// fire wall
+			sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
 		}
+		
 		String thisChan = sourceFolder_fullpath + File.separator + chan;			// this is single channel function
+//		System.err.println("timeLimits fileListByChan, thisChan: "+thisChan+", rootFolder: "+rootFolder+", sfull: "+sourceFolder_fullpath+", chan: "+chan+", sourceFolder: "+sourceFolder);
 		CTFile[] listOfFiles = fileListByChan.get(thisChan);				// get existing cached limits
 //		System.err.println("<listOfFiles.length: "+listOfFiles.length);
 		if(listOfFiles == null || listOfFiles.length==0) {
@@ -163,6 +164,7 @@ public class CTreader {
 		
 		tlimits[0] = listOfFiles[0].fileTime();							// oldest
 		tlimits[1] = listOfFiles[listOfFiles.length-1].fileTime();		// newest
+//		System.err.println("timeLimits, chan: "+thisChan+", listOfFiles.length: "+listOfFiles.length+", tlimits[0]: "+tlimits[0]+", tlimits[1]:"+tlimits[1]);
 		return tlimits;
 	}
 	
@@ -239,11 +241,13 @@ public class CTreader {
 
 	// fast oldTime:  crawl down first (oldest) folder branch to bottom file time
 	private double oldTime(CTFile baseFolder) {
-//		System.err.println("oldTime baseFolder: "+baseFolder.getPath());
+//		System.err.println("oldTime baseFolder: "+baseFolder.getPath()+", isDir: "+baseFolder.isDirectory());
 		if(!baseFolder.isDirectory()) return baseFolder.fileTime();  
 
 		double ftime = 0.;		// default is now
-		CTFile file = baseFolder.listFiles()[0];
+		CTFile[] files = baseFolder.listFiles();
+		if(files.length == 0) return baseFolder.fileTime();		// catch empty folder case
+		CTFile file = files[0];
 
 		if(new File(file.getAbsolutePath()).isDirectory()) {
 //			System.err.println("recurse: "+file.getAbsolutePath());
@@ -285,7 +289,7 @@ public class CTreader {
 		}
 		CTFile basefolder = new CTFile(sourceFolder_fullpath);
 
-		boolean newWay=false;		// explicity newTime still gets robust old way search
+		boolean newWay=false;		// explicit newTime still gets robust old way search
 		if(newWay) {
 			try {
 				String thisChan = sourceFolder_fullpath + File.separator + ctmap.getName(0);			// this is single channel function
@@ -330,13 +334,13 @@ public class CTreader {
 
 			int j = files.length-1;
 			for(; j>=0; j--) {
-//				System.err.println("newTime check file: "+files[j].getMyPath()+", isTFILE: "+files[j].isTFILE()+", fileType: "+files[j].fileType);
 				if(files[j].isTFILE()) ftime = files[j].fileTime();		// skip recursion, use the file-as-folder for TFILE
 				else if(files[j].isDirectory()) ftime = newTime(new CTFile[] {files[j]}, ctmap);	// recurse
 				else {
-//					if(ctmap == null || containsFile(files, ctmap)) ftime = files[jdx].fileTime();
-					if(ctmap == null || listOfFolders[idx].containsFile(ctmap) || ctmap.checkName(files[j].getName())) ftime = files[j].fileTime();
+//					if(ctmap == null || listOfFolders[idx].containsFile(ctmap) || ctmap.checkName(files[j].getName())) ftime = files[j].fileTime();
+					if(ctmap == null || ctmap.checkName(files[j].getName())) ftime = files[j].fileTime();		// at this point this is a file not a dir
 				}
+//				System.err.println("newTime check file: "+files[j].getMyPath()+", isTFILE: "+files[j].isTFILE()+", fileType: "+files[j].fileType+", ftime: "+ftime);
 				if(ftime > 0.) return ftime;
 			}
 //			System.err.println("newTime skip past folder: "+listOfFolders[idx].getAbsolutePath());
@@ -410,7 +414,8 @@ public class CTreader {
 			
 			if(thisFile.isDirectory() && thisFile.fileTime()>0) {
 //				System.err.println("Folder: "+i+"/"+last+", file: "+thisFile.getAbsolutePath());
-				buildChanList(thisFile,ChanList,fastSearch&&!thisFile.isFileFolder());		// recursive, no expedite channel name list themselves
+//				buildChanList(thisFile,ChanList,fastSearch&&!thisFile.isFileFolder());		// recursive, no expedite channel name list themselves
+				buildChanList(thisFile,ChanList,fastSearch);		// recursive, defer isFileFolder check until in folder (is slow)
 			}
 			else {
 				if(thisFile.length() > 0) {
@@ -420,6 +425,7 @@ public class CTreader {
 					String fname = listOfFiles[i].getName();
 					if(ChanList.indexOf(fname) < 0 && !fname.endsWith(".tmp"))  {		// MJM 1/9/17:  skip tmp files
 						ChanList.add(fname);	// add if not already there
+						expedite = 1;													// no expedite channel list themselves
 						//	CTinfo.debugPrint("Chanlist.add: "+fname);
 					}
 				}
@@ -548,9 +554,6 @@ public class CTreader {
 			CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", fileRefresh: "+fileRefresh);
 			
 			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChan, fileRefresh);
-//			System.err.println("1. getDataMap ctmap.size: "+ctmap.size()+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
-
-//			fileListByChan.put(thisChan, listOfFiles);
 			if(listOfFiles == null || listOfFiles.length < 1) return ctmap;
 					
 			if(rmode.equals("registration")) {				// handle registration
@@ -729,23 +732,17 @@ public class CTreader {
 			}
 		}
 		
+//		System.err.println("flatFileList update fileList key: "+thisChan);
 		fileListByChan.put(thisChan, ffarray);
 		return ffarray;
 	}
 	
 	//--------------------------------------------------------------------------------------------------------
 	// CTfileList:  custom walkFileTree but skipping over subfolders
-//	static boolean abortFileList=false;
-//	private void CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
-//		abortFileList = false;
-//		doCTfileList(listOfFolders, fflist, endTime, ctmap);
-//	}
 	
 	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
-//		CTFile[] listOfFolders = baseFolder.listFiles();
 		
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
-//			if(abortFileList) return;
 			CTFile folder = listOfFolders[i];
 			
 			if(folder.isDirectory()) {
@@ -759,10 +756,10 @@ public class CTreader {
 
 				if(ftime>endTime) {		// time here may equal end of prior block???
 					fflist.add(new TimeFolder(folder,ftime));		
-//					System.err.println("CTfileList gotfile: "+fname+", time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", oldLen: "+listOfFolders.length+", file: "+folder.getPath());
+//					System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
 				}
 				else {
-//					abortFileList = true;
+//					System.err.println("CTfileList SKIP time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
 					return false;
 				}
 				return true;			// keep going

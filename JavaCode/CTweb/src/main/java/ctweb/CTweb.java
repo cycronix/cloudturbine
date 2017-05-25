@@ -394,6 +394,7 @@ public class CTweb {
     		}
 
     		if(doProfile) System.err.println("doGet 1 time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+			pathInfo = pathInfo.replace("//", "/");					// merge any empty double-slash layers
     		String pathParts[] = pathInfo.split("/");		// split into 2 parts: cmd/multi-part-path
 
     		try {
@@ -490,9 +491,10 @@ public class CTweb {
 	
     				String source = pathParts[2];
     				for(int i=3; i<pathParts.length-1; i++) source += ("/"+pathParts[i]);		// multi-level source name
+    				
     				//    			String chan = pathParts[3];				//  presumes /CT/Source/Chan with no sub-level nesting
     				String chan = pathParts[pathParts.length-1];
-    				String sourcePath = rootFolder+File.separator+source;
+//    				String sourcePath = rootFolder+File.separator+source;
     				String[] strdata=null;		
 
     				// setTimeOnly partially-implemented
