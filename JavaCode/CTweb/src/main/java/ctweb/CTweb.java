@@ -422,6 +422,7 @@ public class CTweb {
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
     				else {
     					for(String sname : slist) {
+    						sname = sname.replace("\\", "/");				// backslash not legal URL link
     						if(debug) System.err.println("src: "+sname);
 //        					if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
     						sbresp.append("<li><a href=\""+(pathInfo+"/"+sname)+"/\">"+sname+"/</a><br>");          
