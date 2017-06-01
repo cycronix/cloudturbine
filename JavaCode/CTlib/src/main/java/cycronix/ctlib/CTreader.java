@@ -124,7 +124,7 @@ public class CTreader {
 			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
 		} 
 		catch(Exception e) {
-//			e.printStackTrace();
+			e.printStackTrace();
 			System.err.println("CTreader/getData oops, exception: "+e+", ctmap: "+ctmap);
 			throw e;
 		}
@@ -680,7 +680,7 @@ public class CTreader {
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
 		final CTmap ctmap = ictmap;
 		double iendTime = 0.;
-		if(cachedList != null) {
+		if(cachedList != null && cachedList.length>0) {
 			iendTime = cachedList[cachedList.length-1].fileTime();
 		}
 		final double endTime = iendTime;
