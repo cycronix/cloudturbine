@@ -628,7 +628,7 @@ public class CTreader {
 			boolean getdata = !timeOnly || !fileName.toLowerCase().endsWith(".jpg");		// timeOnly only works for images at this point
 			if(getdata) data = file.read();
 
-			if(ctcrypto!=null) { 
+			if(ctcrypto!=null &&  (data != null && data.length>0)) { 
 				try { data = ctcrypto.decrypt(data); } catch(Exception ee) {
 					System.err.println("WARNING:  could not decrypt: "+fileName);
 					throw ee;
