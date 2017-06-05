@@ -147,15 +147,14 @@ public class CTreader {
 		}
 		
 		String sourceFolder_fullpath = sourceFolder;
-		if (rootFolder != null) {
-			if(sourceFolder.startsWith("/") || sourceFolder.startsWith(File.separator)) sourceFolder = sourceFolder.substring(1);	// fire wall
-			sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
-		}
-		
+		if (rootFolder != null) sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
 		String thisChan = sourceFolder_fullpath + File.separator + chan;			// this is single channel function
+		if(!File.separator.equals("/")) thisChan = thisChan.replace(File.separator, "/");
+		thisChan = thisChan.replace("//", "/");										// firewall trim double-slash in key
+		
 //		System.err.println("timeLimits fileListByChan, thisChan: "+thisChan+", rootFolder: "+rootFolder+", sfull: "+sourceFolder_fullpath+", chan: "+chan+", sourceFolder: "+sourceFolder);
 		CTFile[] listOfFiles = fileListByChan.get(thisChan);				// get existing cached limits
-//		System.err.println("<listOfFiles.length: "+listOfFiles.length);
+//		if(listOfFiles!=null)System.err.println("<<<<listOfFiles.length: "+listOfFiles.length+", for chan: "+thisChan);
 		if(listOfFiles == null || listOfFiles.length==0) {
 			CTFile basefolder = new CTFile(sourceFolder_fullpath);
 			listOfFiles = flatFileList(basefolder, new CTmap(chan), thisChan, true);
@@ -550,7 +549,10 @@ public class CTreader {
 		try {
 			// get updated list of folders
 			CTFile[] oldList = fileListByChan.get(thisChan);
-			boolean fileRefresh = oldList==null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime();
+			boolean fileRefresh = false;
+			if(oldList == null || oldList.length==0) fileRefresh = true;
+			if(!rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
+//			if(oldList!=null) System.err.println("oldList.size: "+oldList.length+", oldList.newTime: "+oldList[oldList.length-1].fileTime()+", thisChan: "+thisChan);
 			CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", fileRefresh: "+fileRefresh);
 			
 			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChan, fileRefresh);
@@ -675,7 +677,7 @@ public class CTreader {
 //		long startTime = System.nanoTime();
 
 		CTFile[] cachedList = fileListByChan.get(thisChan);
-//		System.err.println("flatFileList, refresh: "+fileRefresh+", chan: "+ictmap.getName(0)+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
+//		System.err.println("flatFileList, refresh: "+fileRefresh+", chan: "+thisChan+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
 
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
 		final CTmap ctmap = ictmap;
@@ -709,12 +711,11 @@ public class CTreader {
 				}
 			};
 			
-			
 			CTfileList(listOfFolders, fflist, endTime, ctmap);			// add any new files to end of list
 		}
 		
 //		System.err.println("flatFileList time: "+((System.nanoTime()-startTime)/1000000.)+" ms, New Points: "+fflist.size());
-
+//		System.err.println("new ffllist.size: "+fflist.size()+", cacheList.size: "+((cachedList==null)?0:cachedList.length));
 		if(fflist.size()==0) return cachedList;		// nothing new, save some work
 		
 		Collections.sort(fflist);
@@ -742,11 +743,12 @@ public class CTreader {
 	
 	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
 		
+//		System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
 			CTFile folder = listOfFolders[i];
 			
 			if(folder.isDirectory()) {
-//				System.err.println("CTfileList recurse!");
+//				System.err.println("CTfileList recurse into folder:"+folder.getName());
 				if(!CTfileList(folder.listFiles(), fflist, endTime, ctmap)) return false;		// pop recursion stack
 			}
 			else {
@@ -756,7 +758,7 @@ public class CTreader {
 
 				if(ftime>endTime) {		// time here may equal end of prior block???
 					fflist.add(new TimeFolder(folder,ftime));		
-//					System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
+//					System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath()+"fflist.size: "+fflist.size());
 				}
 				else {
 //					System.err.println("CTfileList SKIP time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
