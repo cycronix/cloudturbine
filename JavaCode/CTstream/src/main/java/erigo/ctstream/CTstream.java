@@ -125,7 +125,7 @@ import cycronix.ctlib.CTreader;
 public class CTstream implements ActionListener,ChangeListener,MouseMotionListener {
 
 	// Constants used by the UI
-	private final static double DEFAULT_FPS = 5.0;         // default frames/sec
+	private final static double DEFAULT_FPS = 5.0;         // default images/sec
 	private final static Double[] FPS_VALUES = {0.1,0.2,0.5,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0};
 	private final static double AUTO_FLUSH_DEFAULT = 1.0;  // default auto-flush in seconds
 
@@ -292,7 +292,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		option = Option.builder("fps")
                 .argName("framespersec")
                 .hasArg()
-                .desc("Frame rate (frames/sec); default = " + DEFAULT_FPS + "; accepted values = " + FPS_VALUES_STR + ".")
+                .desc("Image rate (images/sec); default = " + DEFAULT_FPS + "; accepted values = " + FPS_VALUES_STR + ".")
                 .build();
 		options.addOption(option);
 		option = Option.builder("f")
@@ -956,7 +956,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		textCheck = new JCheckBox("text", bText);
 		textCheck.setBackground(controlsPanel.getBackground());
 		textCheck.addActionListener(this);
-		JLabel fpsLabel = new JLabel("frames/sec",SwingConstants.LEFT);
+		JLabel fpsLabel = new JLabel("images/sec",SwingConstants.LEFT);
 		JComboBox<Double> fpsCB = new JComboBox<Double>(FPS_VALUES);
 		int tempIndex = Arrays.asList(FPS_VALUES).indexOf(new Double(framesPerSec));
 		fpsCB.setSelectedIndex(tempIndex);
@@ -1088,7 +1088,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		gbc.insets = new Insets(0, 0, 0, 0);
 		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
-		// (iii) frames/sec control
+		// (iii) images/sec control
 		panelgbl = new GridBagLayout();
 		subPanel = new JPanel(panelgbl);
 		panelgbc = new GridBagConstraints();
@@ -1347,7 +1347,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 			// Even when "change detect" is turned on, we always save an image at a rate which is
 			// the slower of 1.0fps or the current frame rate; this is kind of a "key frame" of
-			// sorts.  Because of this, the "change detect" checkbox is meaningless when frames/sec
+			// sorts.  Because of this, the "change detect" checkbox is meaningless when images/sec
 			// is 1.0 and lower.
 			if (framesPerSec <= 1.0) {
 				changeDetectCheck.setEnabled(false);
