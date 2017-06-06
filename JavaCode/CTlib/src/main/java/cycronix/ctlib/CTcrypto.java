@@ -81,8 +81,13 @@ public class CTcrypto {
 
 	// decrypt
 	byte[] decrypt(byte[] message) throws Exception {
-		if (message.length < GCM_NONCE_LENGTH + GCM_TAG_LENGTH) 			// needs room for message + IV + authentication tag
-			throw new IllegalArgumentException();
+		if(message==null || message.length < GCM_NONCE_LENGTH + GCM_TAG_LENGTH) {			// needs room for message + IV + authentication tag
+			if(optionalDecrypt) {
+				CTinfo.debugPrint("Warning: Decrypt failed, returning raw data");
+				return message;					// quietly fail
+			}
+			else 	throw new IllegalArgumentException();
+		}		
 
 		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");	
 		GCMParameterSpec params = new GCMParameterSpec(8*GCM_TAG_LENGTH, message, 0, GCM_NONCE_LENGTH);
