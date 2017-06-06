@@ -110,15 +110,13 @@ public class CTreader {
 //get:  direct-fetch time+data method
 // note:	this uses multi-channel ctmap internally, but only returns one channel (ctdata)
 //			retain ctmap as a cache?  prefetch from ctmap, fill in balance from files...
-	
-//	private Map<String, CTFile> CTFileMap = new TreeMap<String, CTFile>();		// cache
-	
+		
 	public CTdata getData(String source, String chan, double tget, double tdur, String tmode) throws Exception {
 		CTmap ctmap= new CTmap(chan);
-		CTFile sourceFolder;
+		String sourceFolder;
 
-		if(source == null) 	sourceFolder = new CTFile(rootFolder);
-		else				sourceFolder = new CTFile(rootFolder+File.separator+source);
+		if(source == null) 	sourceFolder = rootFolder;
+		else				sourceFolder = rootFolder+File.separator+source;
 
 		try {
 			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
@@ -145,25 +143,15 @@ public class CTreader {
 			tlimits[1] = newTime(sourceFolder, chan);
 			return tlimits;
 		}
-		
-		String sourceFolder_fullpath = sourceFolder;
-		if (rootFolder != null) sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
-		String thisChan = sourceFolder_fullpath + File.separator + chan;			// this is single channel function
-		if(!File.separator.equals("/")) thisChan = thisChan.replace(File.separator, "/");
-		thisChan = thisChan.replace("//", "/");										// firewall trim double-slash in key
-		
-//		System.err.println("timeLimits fileListByChan, thisChan: "+thisChan+", rootFolder: "+rootFolder+", sfull: "+sourceFolder_fullpath+", chan: "+chan+", sourceFolder: "+sourceFolder);
-		CTFile[] listOfFiles = fileListByChan.get(thisChan);				// get existing cached limits
-//		if(listOfFiles!=null)System.err.println("<<<<listOfFiles.length: "+listOfFiles.length+", for chan: "+thisChan);
-		if(listOfFiles == null || listOfFiles.length==0) {
-			CTFile basefolder = new CTFile(sourceFolder_fullpath);
-			listOfFiles = flatFileList(basefolder, new CTmap(chan), thisChan, true);
-//			System.err.println(">listOfFiles.length: "+listOfFiles.length);
-		}
+
+		String thisChanKey = chan2key(sourceFolder + File.separator + chan);			// this is single channel function
+
+		CTFile[] listOfFiles = fileListByChan.get(thisChanKey);				// get existing cached limits
+		if(listOfFiles == null || listOfFiles.length==0) 
+			listOfFiles = flatFileList(rootFolder + File.separator + sourceFolder, new CTmap(chan), thisChanKey, true);
 		
 		tlimits[0] = listOfFiles[0].fileTime();							// oldest
 		tlimits[1] = listOfFiles[listOfFiles.length-1].fileTime();		// newest
-//		System.err.println("timeLimits, chan: "+thisChan+", listOfFiles.length: "+listOfFiles.length+", tlimits[0]: "+tlimits[0]+", tlimits[1]:"+tlimits[1]);
 		return tlimits;
 	}
 	
@@ -190,21 +178,6 @@ public class CTreader {
 			else	sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
 		}
 		CTFile basefolder = new CTFile(sourceFolder_fullpath);
-
-		boolean newWay=false;		// until update flatFileList to track oldest
-		if(newWay) {
-			try {
-				String thisChan = sourceFolder_fullpath + File.separator + ctmap.getName(0);			// this is single channel function
-				CTFile[] listOfFiles = flatFileList(basefolder, ctmap, thisChan, true);
-				if(listOfFiles != null && listOfFiles.length>0) return listOfFiles[0].fileTime();
-				else return 0.;
-			} 
-			catch(Exception e) {		// should throw
-				System.err.println("OOPS, oldTime/flatFileList Exception: "+e);
-				return 0.;
-			}
-		}
-		
 		CTFile[] listOfFolders = basefolder.listFiles();
 		if(listOfFolders == null) return 0.;
 		return oldTime(listOfFolders, ctmap);
@@ -279,37 +252,19 @@ public class CTreader {
 	
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	//       in this method we prepend sourceFolder with rootFolder (if it is defined)
- 	public double newTime(String sourceFolder, CTmap ctmap) {
- 		String sourceFolder_fullpath = sourceFolder;
+	public double newTime(String sourceFolder, CTmap ctmap) {
+		String sourceFolder_fullpath = sourceFolder;
 		if (rootFolder != null) {
 			if(sourceFolder.startsWith(File.separator))
-					sourceFolder_fullpath = new String(rootFolder + sourceFolder);
+				sourceFolder_fullpath = new String(rootFolder + sourceFolder);
 			else	sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
 		}
 		CTFile basefolder = new CTFile(sourceFolder_fullpath);
-
-		boolean newWay=false;		// explicit newTime still gets robust old way search
-		if(newWay) {
-			try {
-				String thisChan = sourceFolder_fullpath + File.separator + ctmap.getName(0);			// this is single channel function
-//				System.err.println("newTime, source: "+sourceFolder_fullpath+", chan: "+thisChan+", sourceFolder: "+sourceFolder+", getName: "+ctmap.getName(0));
-				CTFile[] listOfFiles = flatFileList(basefolder, ctmap, thisChan, true);
-				if(listOfFiles != null && listOfFiles.length>0) return listOfFiles[listOfFiles.length-1].fileTime();
-				else return 0.;
-			} 
-			catch(Exception e) {		// should throw
-				System.err.println("OOPS, newTime/flatFileList Exception: "+e);
-				e.printStackTrace();
-				return 0.;
-			}
-		}
-		else {
-			CTFile[] listOfFolders = basefolder.listFiles();
-			if(listOfFolders == null) return 0.;
-			return(newTime(listOfFolders, ctmap));
-		}
+		CTFile[] listOfFolders = basefolder.listFiles();
+		if(listOfFolders == null) return 0.;
+		return(newTime(listOfFolders, ctmap));
 	}
-	
+
  	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double newTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
@@ -534,28 +489,15 @@ public class CTreader {
 	// do the file checking and return CTmap channel map of Time-Data
 	
 	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) throws Exception {
-		return(getDataMap(ctmap, new CTFile(rootfolder), getftime, duration, rmode));
-	}
-	
-	public CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode) throws Exception {
-		return getDataMap(ctmap, rootfolder, getftime, duration, rmode, false);
-	}
-	
-//	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
-	
-	private CTmap getDataMap(CTmap ctmap, CTFile rootfolder, double getftime, double duration, String rmode, boolean recurse) throws Exception {
 		long startTime = System.nanoTime();
-		String thisChan = rootfolder + File.separator + ctmap.getName(0);			// this is single channel function
+		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
 		try {
 			// get updated list of folders
-			CTFile[] oldList = fileListByChan.get(thisChan);
+			CTFile[] oldList = fileListByChan.get(thisChanKey);
 			boolean fileRefresh = false;
-			if(oldList == null || oldList.length==0) fileRefresh = true;
-			if(!rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
-//			if(oldList!=null) System.err.println("oldList.size: "+oldList.length+", oldList.newTime: "+oldList[oldList.length-1].fileTime()+", thisChan: "+thisChan);
-			CTinfo.debugPrint("getDataMap!, rootfolder: "+rootfolder+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", chan[0]: "+ctmap.getName(0)+", fileRefresh: "+fileRefresh);
-			
-			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChan, fileRefresh);
+			if(oldList == null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
+			CTinfo.debugPrint("getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh);
+			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChanKey, fileRefresh);
 			if(listOfFiles == null || listOfFiles.length < 1) return ctmap;
 					
 			if(rmode.equals("registration")) {				// handle registration
@@ -611,9 +553,10 @@ public class CTreader {
 		}
 
 		// loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
-		if(!recurse) ctmap.trim(getftime,  duration, rmode);	
+//		if(!recurse) 
+			ctmap.trim(getftime,  duration, rmode);	
 		
-		CTinfo.debugPrint("getDataMap("+thisChan+") time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+		CTinfo.debugPrint("getDataMap("+thisChanKey+") time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 
 		return ctmap;				// last folder
 	}
@@ -667,16 +610,13 @@ public class CTreader {
 	}
 	
 	//--------------------------------------------------------------------------------------------------------
-	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
-
-	// this should be its own Class with oldest, newest, etc properties...
 	
 //	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 	// beware: this will multi-thread
-	private CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
+	private CTFile[] flatFileList(String baseFolder, CTmap ictmap, String chanKey, boolean fileRefresh) throws Exception {
 //		long startTime = System.nanoTime();
 
-		CTFile[] cachedList = fileListByChan.get(thisChan);
+		CTFile[] cachedList = fileListByChan.get(chanKey);
 //		System.err.println("flatFileList, refresh: "+fileRefresh+", chan: "+thisChan+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
 
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
@@ -690,7 +630,7 @@ public class CTreader {
 		// initially build full flatFileList, subsequent calls update it by adding to oldList
 				
 		if(fileRefresh) {
-			CTFile[] listOfFolders = baseFolder.listFiles();
+			CTFile[] listOfFolders = new CTFile(baseFolder).listFiles();
 			if(listOfFolders==null) return null;
 			
 			// trim oldest if nec
@@ -707,7 +647,7 @@ public class CTreader {
 					CTFile[] tmpList = new CTFile[cachedList.length - ichk];
 					for(int j=ichk,k=0; j<cachedList.length; j++,k++) tmpList[k] = cachedList[j];
 					cachedList = tmpList;
-					fileListByChan.put(thisChan, cachedList);
+					fileListByChan.put(chanKey, cachedList);
 				}
 			};
 			
@@ -734,7 +674,7 @@ public class CTreader {
 		}
 		
 //		System.err.println("flatFileList update fileList key: "+thisChan);
-		fileListByChan.put(thisChan, ffarray);
+		fileListByChan.put(chanKey, ffarray);
 		return ffarray;
 	}
 	
@@ -795,10 +735,22 @@ public class CTreader {
         while(ifound > 0 && (ftime<fileList[ifound].fileTime())) ifound--;				// make sure at or BEFORE
         
 //      System.err.println("found: "+ifound+", start: "+start+", end: "+end+", mid: "+mid+", searchtime: "+ftime+", gottime-ftime: "+(fileList[mid].fileTime()-ftime));
-
         return ifound;
     }
 	
+	//--------------------------------------------------------------------------------------------------------
+	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
+//	private putFileListByChan(String chan)
+	// this should be its own Class with oldest, newest, etc properties...
+	// convert chan path to reliable key
+    private String chan2key(String chan) {
+    	String key = chan.replace(rootFolder, "");				// strip leading rootFolder if present
+    	key = key.replace(File.separator, "/");
+    	key = key.replace("//", "/");
+    	if(key.startsWith("/")) key = key.substring(1);
+//    	System.err.println("chan2key, chan: "+chan+", key: "+key);
+    	return key;
+    }
 }
 
 
