@@ -523,16 +523,43 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		} else if (eventI.getActionCommand().equals("Browse...")) {
 			// Code largely taken from http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
 			JFileChooser fc = new JFileChooser();
-			fc.setCurrentDirectory(new java.io.File("."));
+			String currentPath = ".";
+			String currentOutputFolder = outputFolderTF.getText();
+			File currentOutputFolderFileObj = new File(currentOutputFolder);
+			if (!currentOutputFolder.isEmpty() && currentOutputFolderFileObj.exists()) {
+				currentPath = currentOutputFolder;
+			}
+			fc.setCurrentDirectory(new java.io.File(currentPath));
 			fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 			int returnVal = fc.showSaveDialog(this);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {
 			    File selectedFolder = fc.getSelectedFile();
-			    try {
-					outputFolderTF.setText(selectedFolder.getCanonicalPath());
+				String fullPathStr = null;
+				try {
+					fullPathStr = selectedFolder.getCanonicalPath();
 				} catch (IOException e) {
 					e.printStackTrace();
+					return;
 				}
+				if (fullPathStr.endsWith(File.separator)) {
+					fullPathStr = fullPathStr.substring(0,fullPathStr.length()-1);
+				}
+				// The selected folder should exist
+				if (!selectedFolder.exists()) {
+					// Folder doesn't exist; could be caused by a MacOS "bug" whereby it doubly-adds the final folder
+					int finalSlashIdx = fullPathStr.lastIndexOf(File.separator);
+					if (finalSlashIdx > 0) {
+						String finalFolderPart = fullPathStr.substring(finalSlashIdx + 1);
+						if (fullPathStr.length() > 2*finalFolderPart.length()) {
+							String priorFolderPart = fullPathStr.substring(finalSlashIdx - finalFolderPart.length(), finalSlashIdx);
+							if (finalFolderPart.equals(priorFolderPart)) {
+								// We've got a duplicate ending!
+								fullPathStr = fullPathStr.substring(0, finalSlashIdx);
+							}
+						}
+					}
+				}
+				outputFolderTF.setText(fullPathStr);
 			}
 		} else if (eventI.getActionCommand().equals("OK")) {
 			okAction();
