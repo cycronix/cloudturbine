@@ -151,7 +151,15 @@ public class PreviewWindow {
 			System.err.println("ERROR: preview window not setup for plot");
 			return;
 		}
-		XYDataset dataset = createDataset(xDataI,yDataI);
+		if ( (xDataI == null) || xDataI.isEmpty() || (yDataI == null) || yDataI.isEmpty() ) {
+			System.err.println("Updating preview plot: empty x and/or y data, no data to display");
+			return;
+		}
+		XYDataset dataset = createDataset(xDataI, yDataI);
+		if (chart == null) {
+			System.err.println("Updating preview plot: chart is currently null (probably a startup transient)");
+			return;
+		}
 		chart.getXYPlot().setDataset(dataset);
 		if (bMakeSymmetricI) {
 			// Adjust the y-axis (Range) limits
