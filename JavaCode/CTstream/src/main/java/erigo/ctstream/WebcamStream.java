@@ -52,9 +52,9 @@ public class WebcamStream extends DataStream {
     private Timer webcamTimer = null;			    // Periodic Timer object
     private ImageTimerTask webcamTimerTask = null;	// TimerTask executed each time the periodic Timer expires
     public long capturePeriodMillis;                // capture period in milliseconds
-//    public static Webcam webcam = null;             // webcam object to grab images from
-    public static Video<MBFImage> webcam = null;             // webcam object to grab images from
-    static Dimension previewSize = new Dimension(640, 480);
+    // public static Webcam webcam = null;          // webcam object to grab images from
+    public static Video<MBFImage> webcam = null;    // webcam object to grab images from
+    private final static Dimension IMAGE_SIZE = new Dimension(640, 480);
     
     /**
      * WebcamStream constructor
@@ -123,9 +123,7 @@ public class WebcamStream extends DataStream {
         if (bPreview && bIsRunning && cts.bPreview && (webcam != null) /* && webcam.isOpen() */) {
             // Set the size of the preview window to match the image size plus some extra padding
             // so scrollbars aren't needed
-//            Dimension previewSize = webcam.getViewSize();
-            previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
-            previewWindow.setFrameSize(previewSize);
+            previewWindow.setFrameSize(new Dimension(IMAGE_SIZE.width+25,IMAGE_SIZE.height+55));
         }
     }
 
@@ -163,11 +161,10 @@ public class WebcamStream extends DataStream {
     private static void openWebCamera() throws Exception {
         if (webcam == null) {
             System.err.println("\nOpen web camera");
-//            webcam = Webcam.getDefault();
-//            webcam.setViewSize(WebcamResolution.VGA.getSize());
-//            webcam.open();
-//            webcam = new VideoCapture(previewSize.width, previewSize.height);
-            webcam = new VideoCapture(640, 480);
+            // webcam = Webcam.getDefault();
+            // webcam.setViewSize(WebcamResolution.VGA.getSize());
+            // webcam.open();
+            webcam = new VideoCapture(IMAGE_SIZE.width, IMAGE_SIZE.height);
         }
     }
 
