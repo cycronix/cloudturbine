@@ -30,6 +30,8 @@ import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
 
+import org.openimaj.image.ImageUtilities;
+
 /**
  * Generate an image for a DataStream and put it in the DataStream's queue.
  *
@@ -81,11 +83,12 @@ public class ImageTask extends TimerTask implements Runnable {
 			BufferedImage bufferedImage = null;
 			if (dataStream instanceof WebcamStream) {
 				capturePeriodMillis = ((WebcamStream)dataStream).capturePeriodMillis;
-				if ( (WebcamStream.webcam == null) || !WebcamStream.webcam.isOpen() ) {
+				if ( (WebcamStream.webcam == null) /* || !WebcamStream.webcam.isOpen() */) {
 					// Web camera hasn't been opened yet; just return
 					return;
 				}
-				bufferedImage = WebcamStream.webcam.getImage();
+//				bufferedImage = WebcamStream.webcam.getImage();
+	        	bufferedImage = ImageUtilities.createBufferedImageForDisplay(WebcamStream.webcam.getNextFrame());
 			}
 			else if (dataStream instanceof ScreencapStream) {
 				capturePeriodMillis = ((ScreencapStream)dataStream).capturePeriodMillis;

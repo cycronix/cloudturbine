@@ -16,8 +16,13 @@ limitations under the License.
 
 package erigo.ctstream;
 
-import com.github.sarxos.webcam.Webcam;
-import com.github.sarxos.webcam.WebcamResolution;
+//import com.github.sarxos.webcam.Webcam;
+//import com.github.sarxos.webcam.WebcamResolution;
+
+import org.openimaj.image.MBFImage;
+import org.openimaj.video.Video;
+import org.openimaj.video.capture.VideoCapture;
+import org.openimaj.image.ImageUtilities;
 
 import java.awt.*;
 import java.util.Timer;
@@ -47,8 +52,10 @@ public class WebcamStream extends DataStream {
     private Timer webcamTimer = null;			    // Periodic Timer object
     private ImageTimerTask webcamTimerTask = null;	// TimerTask executed each time the periodic Timer expires
     public long capturePeriodMillis;                // capture period in milliseconds
-    public static Webcam webcam = null;             // webcam object to grab images from
-
+//    public static Webcam webcam = null;             // webcam object to grab images from
+    public static Video<MBFImage> webcam = null;             // webcam object to grab images from
+    static Dimension previewSize = new Dimension(640, 480);
+    
     /**
      * WebcamStream constructor
      *
@@ -113,10 +120,10 @@ public class WebcamStream extends DataStream {
      */
     public void updatePreview() {
         super.updatePreview();
-        if (bPreview && bIsRunning && cts.bPreview && (webcam != null) && webcam.isOpen()) {
+        if (bPreview && bIsRunning && cts.bPreview && (webcam != null) /* && webcam.isOpen() */) {
             // Set the size of the preview window to match the image size plus some extra padding
             // so scrollbars aren't needed
-            Dimension previewSize = webcam.getViewSize();
+//            Dimension previewSize = webcam.getViewSize();
             previewSize = new Dimension(previewSize.width+25,previewSize.height+55);
             previewWindow.setFrameSize(previewSize);
         }
@@ -153,13 +160,14 @@ public class WebcamStream extends DataStream {
     /**
      * Start the web camera
      */
-    private static void openWebCamera() {
+    private static void openWebCamera() throws Exception {
         if (webcam == null) {
             System.err.println("\nOpen web camera");
-            webcam = Webcam.getDefault();
-            webcam.setViewSize(WebcamResolution.VGA.getSize());
-            // webcam.setDriver(new JmfDriver());
-            webcam.open();
+//            webcam = Webcam.getDefault();
+//            webcam.setViewSize(WebcamResolution.VGA.getSize());
+//            webcam.open();
+//            webcam = new VideoCapture(previewSize.width, previewSize.height);
+            webcam = new VideoCapture(640, 480);
         }
     }
 
