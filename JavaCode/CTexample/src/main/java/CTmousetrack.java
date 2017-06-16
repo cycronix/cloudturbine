@@ -40,15 +40,16 @@ public class CTmousetrack {
 	public static void main(String[] args) {
 		String dstFolder = "";
 		
-		System.err.println("CTmousetrack <dstFolder> <blockPts> <loopDur>");
 		if(args.length > 0) dstFolder = args[0];
 		else				dstFolder = "CTmousetrack";
 		
-		long blockPts = 20;			// points per block flush
+		long blockPts = 10;			// points per block flush
 		if(args.length > 1) blockPts = Integer.parseInt(args[1]);
 		
-		long loopDur = 20;			// msec between updates
-		if(args.length > 2) loopDur = Integer.parseInt(args[2]);
+		long sampInterval = 10;			// msec between sampling updates
+		if(args.length > 2) sampInterval = Integer.parseInt(args[2]);
+
+		System.err.println("CTmousetrack <dstFolder> <blockPts("+blockPts+")> <sampInterval("+sampInterval+")>");
 
 		try {
 			// setup CTwriter
@@ -82,7 +83,7 @@ public class CTmousetrack {
 					ctw.flush();
 					System.err.print(".");
 				}
-				try { Thread.sleep(loopDur); } catch(Exception e) {};
+				try { Thread.sleep(sampInterval); } catch(Exception e) {};
 			}
 			ctw.flush(); 	// wrap up
 		} catch(Exception e) {
