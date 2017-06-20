@@ -645,7 +645,7 @@ public class CTreader {
 				if(ichk>0) {
 //					System.err.println("oldTRIM "+ctmap.getName(0)+", from: "+oldList.length+", by N: "+ichk+", oldestTime: "+oldestTime+", oldList[0]: "+oldList[0].fileTime());
 					CTFile[] tmpList = new CTFile[cachedList.length - ichk];
-					for(int j=ichk,k=0; j<cachedList.length; j++,k++) tmpList[k] = cachedList[j];
+					for(int j=ichk,k=0; j<cachedList.length; j++,k++) tmpList[k] = cachedList[j];	// salvage old cache > updated oldestTime
 					cachedList = tmpList;
 					fileListByChan.put(chanKey, cachedList);
 				}

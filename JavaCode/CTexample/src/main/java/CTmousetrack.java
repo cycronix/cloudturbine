@@ -49,17 +49,20 @@ public class CTmousetrack {
 		long sampInterval = 10;			// msec between sampling updates
 		if(args.length > 2) sampInterval = Integer.parseInt(args[2]);
 
-		System.err.println("CTmousetrack <dstFolder> <blockPts("+blockPts+")> <sampInterval("+sampInterval+")>");
+		double trimTime = 0.;
+		if(args.length > 3) trimTime = Double.parseDouble(args[3]);
+		
+		System.err.println("CTmousetrack <dstFolder> <blockPts("+blockPts+")> <sampInterval("+sampInterval+")> <trimTime("+trimTime+")>");
 
 		try {
 			// setup CTwriter
-			CTwriter ctw = new CTwriter(dstFolder);
+			CTwriter ctw = new CTwriter(dstFolder, trimTime);	// trim old data
 
 			CTinfo.setDebug(false);
 			ctw.setBlockMode(blockPts>1,blockPts>1);		// pack, zip
 			ctw.autoFlush(0);								// no autoflush, no segments
 			ctw.autoSegment(0);
-
+			
 			// screen dims
 			Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 			double width = screenSize.getWidth();

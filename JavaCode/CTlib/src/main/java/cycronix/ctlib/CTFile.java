@@ -500,8 +500,8 @@ class CTFile extends File {
 				zis.close();
 				zfile.close();
 			} catch(Exception e) {
-				System.err.println("oops zipfile read failed: "+e+", zipfile: "+myZipFile+", entry: "+myPath);
-				e.printStackTrace();
+				System.err.println("CTFile.read: "+e /* +", zipfile: "+myZipFile+", entry: "+myPath */);
+//				e.printStackTrace();
 			}
 			break;
 //		}
