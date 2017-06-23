@@ -637,7 +637,7 @@ public class CTreader {
 //			double oldestTime = listOfFolders[0].fileTime();      	    // ref oldTime is oldest of any chan
 			double oldestTime = oldTime(listOfFolders[0]);			// this at least skips containsFile call, any chan oldest
 //			System.err.println("oldestTime: "+oldestTime+", list0: "+(oldList!=null?oldList[0].fileTime():0));
-			if(cachedList != null && (oldestTime > cachedList[0].fileTime())) {
+			if(cachedList != null && cachedList.length > 1 && (oldestTime > cachedList[0].fileTime())) {
 				int ichk;
 				for(ichk=0; ichk<cachedList.length; ichk++) {
 					if(oldestTime <= cachedList[ichk].fileTime()) break;
@@ -682,6 +682,7 @@ public class CTreader {
 	// CTfileList:  custom walkFileTree but skipping over subfolders
 	
 	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
+		if(listOfFolders == null) return false;					// fire-wall
 		
 //		System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
