@@ -673,7 +673,7 @@ class CTFile extends File {
   	 */
   	
   	private double fileTime(String fname) {
-//  		System.err.println("fileTime: "+fname);
+//  		System.err.println("CTFile fileTime: "+fname);
   		// special logic for TFOLDER (e.g. camera time.jpg files)
 //  		System.err.println("CTFile/fileTime, fname: "+fname+", ftype: "+fileType);
   		if(fileType==FileType.TFOLDER || fileType==FileType.TFILE) return tfolderTime(fname);

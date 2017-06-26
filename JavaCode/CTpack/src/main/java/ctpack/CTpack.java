@@ -107,11 +107,12 @@ public class CTpack {
 			ctw.autoSegment(segBlocks);								// auto create segments
 
 			for(double thisTime=oldTime; thisTime<=newTime; thisTime+=timePerBlock) {		// {Loop by Time}
-				if(debug) System.err.println("thisTime: "+thisTime);
+				ArrayList<String> chans = ctr.listChans(sourceFolder);
+				if(debug) System.err.println("CTpack thisTime: "+thisTime+", numChans: "+chans.size());
 				ctw.setTime(thisTime);			// write per request time?
 
-				for(String chan:ctr.listChans(sourceFolder)) {				// {Loop by Chan}
-					if(debug) System.err.println("thisChan: "+chan);
+				for(String chan:chans) {				// {Loop by Chan}
+					if(debug) System.err.println("CTpack thisChan: "+chan);
 					CTdata data = ctr.getData(sourceFolder, chan, thisTime, timePerBlock-0.000001, "absolute");	// get next chunk (less 1us no-overlap?)
 					/*		
      	NOTES: 
@@ -158,7 +159,7 @@ public class CTpack {
 						continue;
 					}
 
-					System.err.println("putChan: "+chan+", at time[0]: "+t[0]+", dataSize: "+data.size());
+					System.err.println("CTpack putChan: "+chan+", at time[0]: "+t[0]+", dataSize: "+data.size());
 					for(int j=0; j<data.size(); j++) {		// re-write fetched data per CTpack settings
 						ctw.setTime(t[j]);
 						if(numType) {
