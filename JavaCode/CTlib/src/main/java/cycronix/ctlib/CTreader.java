@@ -237,7 +237,7 @@ public class CTreader {
 		}
 		if(ftime > 0.) return ftime;
 
-		System.err.println("oldTime got ftime: "+ftime);
+//		System.err.println("oldTime got ftime: "+ftime);
 		return ftime;
 	}
 
