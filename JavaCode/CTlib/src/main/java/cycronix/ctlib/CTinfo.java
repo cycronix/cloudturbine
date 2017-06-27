@@ -231,16 +231,34 @@ public class CTinfo {
     	
 		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
 		String[] pathparts = fname.split(Pattern.quote(File.separator)+"|/");		// use either forward or backward slash (forward is used *inside* zip files)
-		Long sumtime = 0L;
-//		Double sumtime = 0.;
-		double ftime = 0.;
-//  		System.err.println("fileTime of: "+fname+", File.separator: "+File.separator);
-
-		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
+		long sumtime = 0L;
+		long timeResolution = 1;					// 1 sec, 1000 msec, 1000000 us
+		
+		final long usecTimeCheck = 1000000000000000L;	// usec	(valid trigger if basetime usec > 32 years (2002), msec <31000 years)
+		final long msecTimeCheck = 1000000000000L;		// msec (valid trigger if basetime msec > 32 years (2002), sec <31000 years, usec >12 days)
+				
+		// first parse left-to-right to establish base-time units (s, ms, us)
+		for(int i=0; i<pathparts.length; i++) {
+			try {
+				String thispart = pathparts[i];
+//				System.err.println("fileTime, fname: "+fname+", thispart: "+thispart);
+				long basetime = Long.parseLong(thispart);
+				if		(basetime > usecTimeCheck) 	timeResolution = 1000000;	// usec
+				else if	(basetime > msecTimeCheck) 	timeResolution = 1000;		// msec 
+				else								timeResolution = 1;			// sec
+				
+//				System.err.println("fileTime, file: "+fname+", basetime: "+basetime+", timeResolution: "+timeResolution);
+				break;
+			} catch(NumberFormatException e) {
+				continue;		// keep looking?
+			}
+		}
+		
+		// then parse right to left, adding up relative times from subfolders
+		for(int i=pathparts.length-1; i>=0; i--) {	
 			String thispart = pathparts[i];
-			Long thistime = 0L;
-//			Double thistime = 0.;
-
+			long thistime = 0L;
+			
 			try {
 				thistime = Long.parseLong(thispart);
 //				thistime = Double.parseDouble(thispart);
@@ -249,19 +267,23 @@ public class CTinfo {
 				continue;		// keep looking?
 			}
 			
-			// following bails on subfolder with absolute time (deprecated). It will also pop out on top-folder other than full-seconds.
-			if(thistime >= 1000000000000L) {	// stop when hit absolute msec > ~32 years
-				if(sumtime >= 1000000000000000L) ftime = (double)sumtime / 1000000.;		// usec
-				else							 ftime = (double)sumtime / 1000.;			// msec
-//				System.err.println("******ABS fileTime: "+ftime);
+			// following is for legacy (deprecated) absolute-time subfolders with msec or sec timestamps. 
+			// subfolder absolute usec timestamps not supported (would limit usec duration to <11 days).
+			// It will also trigger on top-folder msec (OK).
+			// someday eliminate all absolute-time subfolders?
+			if(timeResolution<=1000 && thistime >= msecTimeCheck) {		// stop when hit absolute msec > ~32 years
+				double ftime = (double)sumtime / 1000.;			// msec
+//				System.err.println("******ABS fileTime, file: "+fname+", ftime: "+ftime);
 				return ftime;
 			}
-			
-//			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
 		}
 		
-		// following processes sumTime depending on range (sec/msec/usec).
-		// with above in-loop absolute time check, only the full-sec case below will hit
+		// with above in-loop absolute time check, only the non-msec case below will hit
+		double ftime = (double)sumtime / (double)timeResolution;
+//		System.err.println("fileTime, file: "+fname+", ftime: "+ftime+", timeResolution: "+timeResolution);
+		return ftime;
+		
+/*
 		if(sumtime >= 1000000000000000L) {			// relative usec		
 			ftime = (double)sumtime / 1000000.;
 //			System.err.println("******usec fileTime: "+ftime);
@@ -280,5 +302,6 @@ public class CTinfo {
 		}
 
 //		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
+ */
   	}
 }
