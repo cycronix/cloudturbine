@@ -232,29 +232,41 @@ public class CTinfo {
 		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
 		String[] pathparts = fname.split(Pattern.quote(File.separator)+"|/");		// use either forward or backward slash (forward is used *inside* zip files)
 		Long sumtime = 0L;
+//		Double sumtime = 0.;
 		double ftime = 0.;
-
 //  		System.err.println("fileTime of: "+fname+", File.separator: "+File.separator);
 
 		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
 			String thispart = pathparts[i];
 			Long thistime = 0L;
+//			Double thistime = 0.;
+
 			try {
 				thistime = Long.parseLong(thispart);
+//				thistime = Double.parseDouble(thispart);
 				sumtime += thistime;							// presume consistent msec or sec times all levels
 			} catch(NumberFormatException e) {
 				continue;		// keep looking?
 			}
 			
-			if(thistime >= 1000000000000L) {	// absolute msec (deprecated).  absolute sec not used nor reliable.
-				ftime = (double)sumtime / 1000.;
-//				System.err.println("******msec fileTime: "+ftime);
+			// following bails on subfolder with absolute time (deprecated). It will also pop out on top-folder other than full-seconds.
+			if(thistime >= 1000000000000L) {	// stop when hit absolute msec > ~32 years
+				if(sumtime >= 1000000000000000L) ftime = (double)sumtime / 1000000.;		// usec
+				else							 ftime = (double)sumtime / 1000.;			// msec
+//				System.err.println("******ABS fileTime: "+ftime);
 				return ftime;
 			}
 			
 //			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
 		}
 		
+		// following processes sumTime depending on range (sec/msec/usec).
+		// with above in-loop absolute time check, only the full-sec case below will hit
+		if(sumtime >= 1000000000000000L) {			// relative usec		
+			ftime = (double)sumtime / 1000000.;
+//			System.err.println("******usec fileTime: "+ftime);
+			return ftime;
+		}
 		if(sumtime >= 1000000000000L) {			// relative msec		
 			ftime = (double)sumtime / 1000.;
 //			System.err.println("******msec fileTime: "+ftime);
@@ -266,7 +278,6 @@ public class CTinfo {
 //			System.err.println("******sec fileTime: "+ftime);
 			return ftime;
 		}
-
 
 //		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
   	}

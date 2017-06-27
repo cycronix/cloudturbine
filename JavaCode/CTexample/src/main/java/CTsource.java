@@ -50,6 +50,7 @@ public class CTsource {
 			ctw.setBlockMode(false,false);		// no pack, no zip
 			ctw.autoFlush(0);					// no autoflush, no segments
 			ctw.autoSegment(0);
+			ctw.setHiResTime(true);             // usec timestamps
 			
 			double time = 1460000000.;			// round-number starting time
 			double dt = 1.;

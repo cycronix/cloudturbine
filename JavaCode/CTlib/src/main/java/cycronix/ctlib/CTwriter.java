@@ -94,6 +94,7 @@ public class CTwriter {
 //	private long blockDuration=0;			// if non-zero, packMode block-duration (msec)
 	private CTcrypto ctcrypto=null;		// optional encryption class
 	
+	private long timeFactor=1000;		// convert double to long time units (e.g. 1000 ~ msec, 1000000 ~ usec)
 	//------------------------------------------------------------------------------------------------
 	// constructor
 	/**
@@ -132,6 +133,15 @@ public class CTwriter {
 	// set state flags
 	
 	/**
+	 * Set high-resolution timestamps (usec)
+	 * @param hiResTime 
+	 */
+	public void setHiResTime(boolean hiResTime) {
+		if(hiResTime) 	timeFactor = 1000000;
+		else			timeFactor = 1000;
+	}
+	
+	/**
 	 * Set encryption password, none if null.
 	 * @param password 
 	 */
@@ -162,7 +172,7 @@ public class CTwriter {
 	 * @param timePerBlock interval (sec) at which to flush data to new zip file
 	 */
 	public void autoFlush(double timePerBlock) {
-		autoFlush((long)(timePerBlock*1000.), false);
+		autoFlush((long)(timePerBlock*timeFactor), false);
 	}
 	
 	/**
@@ -170,7 +180,7 @@ public class CTwriter {
 	 * @param timePerBlock interval (msec) at which to flush data to new zip file
 	 */
 	public void autoFlush(double timePerBlock, boolean asyncFlag) {
-		autoFlush((long)(timePerBlock*1000.), asyncFlag);
+		autoFlush((long)(timePerBlock*timeFactor), asyncFlag);
 	}
 	
 	/**
@@ -310,7 +320,7 @@ public class CTwriter {
 	 */
 	
 	public void setTime() {
-		setTime(System.currentTimeMillis());	// default
+		setTime(System.currentTimeMillis() * (timeFactor/1000));	// default
 	}
 
 	/**
@@ -329,7 +339,7 @@ public class CTwriter {
 	 * @param ftime time (sec)
 	 */
 	public void setTime(double ftime) {
-		setTime((long)(ftime * 1000.));				// convert to msec (eventually carry thru sec)
+		setTime((long)(ftime * timeFactor));				// convert to msec or usec (eventually carry thru sec)
 	}
 
 	//------------------------------------------------------------------------------------------------	
@@ -418,8 +428,8 @@ public class CTwriter {
 				if(baos.size() > 0) writeToStream(destName, baos.toByteArray());	
 			}
 			
-			if(trimTime > 0 && blockTime > 0) {			// trim old data (trimTime=0 if ftp Mode)
-				double trim = blockTime/1000. - trimTime;	// relative to putData time, 
+			if(trimTime > 0 && blockTime > 0) {					// trim old data (trimTime=0 if ftp Mode)
+				double trim = blockTime/(double)timeFactor - trimTime;	// relative to putData time, 
 				// use blockTime (less than thisFtime) as trim will only look at old block-times
 				CTinfo.debugPrint("trimming at: "+trim);
 				dotrim(trim);			
@@ -499,7 +509,7 @@ public class CTwriter {
 		// blockTime:  parent folder (zip) time, set to match first add/put frame-entry time
 		thisFtime = fTime;
 		if(thisFtime == 0) {
-			thisFtime = System.currentTimeMillis();
+			thisFtime = System.currentTimeMillis() * (timeFactor/1000);
 			if(initBaseTime) segmentTime(thisFtime);		// catch alternate initialization
 		}
 
@@ -545,7 +555,7 @@ public class CTwriter {
 	private synchronized void addData(String name, byte[] bdata) throws Exception {
 //		prevFtime = thisFtime;
 		thisFtime = fTime;
-		if(thisFtime == 0) thisFtime = System.currentTimeMillis();
+		if(thisFtime == 0) thisFtime = System.currentTimeMillis() * (timeFactor/1000);
 
 		if(lastFtime == 0) lastFtime = thisFtime;				// initialize	
 		else if(!asyncFlush && ((thisFtime - lastFtime) >= autoFlush)) {			// autoFlush prior data (at prior thisFtime!)
@@ -927,32 +937,6 @@ public class CTwriter {
 		return true;
 	}
 
-	//------------------------------------------------------------------------------------------------
-	//fileTime:  parse time from file name, units: full-seconds (dupe from CTreader, should consolidate)
-/*	
-	private double fileTime(Path fpath) {
-		return fileTime(fpath.toFile());
-	}
-	
-	private double fileTime(File file) {
-		String fname = file.getName();
-		System.err.println("fileTime: "+fname);
-		if(fname.endsWith(".zip")) {
-			fname = fname.split("\\.")[0];		// grab first part
-		}
-		
-		double msec = 1;
-		double ftime = 0.;
-		if(fname.length() > 10) msec = 1000.;
-		try {
-			ftime = (double)(Long.parseLong(fname)) / msec;
-		} catch(NumberFormatException e) {
-			//				System.err.println("warning, bad time format, folder: "+fname);
-			ftime = 0.;
-		}
-		return ftime;
-	}
-*/	
 	//------------------------------------------------------------------------------------------------
 	/**
 	 *  cleanup.  for now, just flush.
