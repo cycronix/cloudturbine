@@ -53,7 +53,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 public class CTreader {
 	private static String rootFolder = null;
 	private CTcrypto ctcrypto=null;		// optional encryption class
-
+	private static boolean readProfile = false;
+	
 //---------------------------------------------------------------------------------	
  // constructor for CTread.get() method
 	public CTreader() {
@@ -337,7 +338,7 @@ public class CTreader {
 		int i=0;
 		while(true) {
 			CTFile thisFile = listOfFiles[i];
-			CTinfo.debugPrint("listChans, check folder: "+thisFile.getAbsolutePath()+", isDir: "+thisFile.isDirectory()+", time: "+thisFile.fileTime());
+			CTinfo.debugPrint(readProfile, "listChans, check folder: "+thisFile.getAbsolutePath()+", isDir: "+thisFile.isDirectory()+", time: "+thisFile.fileTime());
 
 			if(thisFile.isDirectory() && thisFile.fileTime()!=0) {
 //				System.err.println("RootTime: "+i+"/"+last+", file: "+thisFile.getAbsolutePath());
@@ -349,6 +350,8 @@ public class CTreader {
 		} 
 
 		Collections.sort(ChanList);
+		CTinfo.debugPrint(readProfile, "listChans, got ChanList, length: "+ChanList.size());
+
 		return ChanList;
 	}
 
@@ -358,7 +361,7 @@ public class CTreader {
 	private void buildChanList(CTFile sourceFolder, ArrayList<String>ChanList, boolean fastSearch) {
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null) return;
-		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
+//		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
 		int expedite = 1;
 		if(fastSearch) expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 100);		// blocks (was 10000)
@@ -503,7 +506,7 @@ public class CTreader {
 			CTFile[] oldList = fileListByChan.get(thisChanKey);
 			boolean fileRefresh = false;
 			if(oldList == null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
-			CTinfo.debugPrint("getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh);
+			CTinfo.debugPrint(readProfile,"GET getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh+", fileListByChan.length: "+((oldList!=null)?oldList.length:0));
 			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChanKey, fileRefresh);
 			if(listOfFiles == null || listOfFiles.length < 1) return ctmap;
 					
@@ -563,7 +566,7 @@ public class CTreader {
 //		if(!recurse) 
 			ctmap.trim(getftime,  duration, rmode);	
 		
-		CTinfo.debugPrint("getDataMap("+thisChanKey+") time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+		CTinfo.debugPrint(readProfile,"GOT getDataMap("+thisChanKey+"), rmode: "+rmode+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 
 		return ctmap;				// last folder
 	}
@@ -624,7 +627,7 @@ public class CTreader {
 //		long startTime = System.nanoTime();
 
 		CTFile[] cachedList = fileListByChan.get(chanKey);
-//		System.err.println("flatFileList, refresh: "+fileRefresh+", chan: "+thisChan+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
+		CTinfo.debugPrint(readProfile,"flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
 
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
 		final CTmap ctmap = ictmap;
@@ -680,7 +683,7 @@ public class CTreader {
 			}
 		}
 		
-//		System.err.println("flatFileList update fileList key: "+thisChan);
+		CTinfo.debugPrint(readProfile,"flatFileList update fileList chankey: "+chanKey+", listLen: "+ffarray.length);
 		fileListByChan.put(chanKey, ffarray);
 		return ffarray;
 	}
@@ -690,28 +693,42 @@ public class CTreader {
 	
 	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
 		if(listOfFolders == null) return false;					// fire-wall
+		long startTime = System.nanoTime();
+		boolean pdebug=false;
 		
-//		System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
+//		if(pdebug) System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
+//			if(pdebug) System.err.println("i: "+i+", time1: "+((System.nanoTime()-startTime)/1000000.));
 			CTFile folder = listOfFolders[i];
 			
 			if(folder.isDirectory()) {
-//				System.err.println("CTfileList recurse into folder:"+folder.getName());
-				if(!CTfileList(folder.listFiles(), fflist, endTime, ctmap)) return false;		// pop recursion stack
+//				if(pdebug) System.err.println("time2a: "+((System.nanoTime()-startTime)/1000000.));
+
+//				if(pdebug) System.err.println("CTfileList recurse into folder:"+folder.getName());
+				if(!CTfileList(folder.listFiles(), fflist, endTime, ctmap)) {
+					if(pdebug) System.err.println("pop out of subfolder, time: "+((System.nanoTime()-startTime)/1000000.));
+					return false;		// pop recursion stack
+				}
 			}
 			else {
+//				if(pdebug) System.err.println("time2b: "+((System.nanoTime()-startTime)/1000000.));
+
 				String fname = folder.getName();
 				double ftime = folder.fileTime();			
-				if(!ctmap.checkName(fname)) continue;
+				if(!ctmap.checkName(fname)) continue;			// cache every channel here vs skip?
+
+//				if(pdebug) System.err.println("time3: "+((System.nanoTime()-startTime)/1000000.));
 
 				if(ftime>endTime) {		// time here may equal end of prior block???
 					fflist.add(new TimeFolder(folder,ftime));		
-//					System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath()+"fflist.size: "+fflist.size());
+//					if(pdebug) System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath()+", fflist.size: "+fflist.size());
 				}
 				else {
-//					System.err.println("CTfileList SKIP time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
+//					if(pdebug) System.err.println("CTfileList SKIP time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
 					return false;
 				}
+//				if(pdebug) System.err.println("time4: "+((System.nanoTime()-startTime)/1000000.));
+
 				return true;			// keep going
 			}
 		}

@@ -76,6 +76,7 @@ class CTFile extends File {
 		TFILE						// time-folder-data 
 	}
 	public FileType fileType = FileType.FILE;		// default is regular file
+	private static boolean cacheProfile = false;
 	
 	//---------------------------------------------------------------------------------	
 	// constructors
@@ -221,7 +222,8 @@ class CTFile extends File {
 	 */
 	public CTFile[] listFiles() {
 		CTFile[] clist = null;
-		
+		long startTime = System.nanoTime();
+
 //		System.err.println("listFiles for: "+myPath+", fileType: "+fileType);
 		switch(fileType) {
 		case ZIP:				// top level file.zip
@@ -230,15 +232,18 @@ class CTFile extends File {
 			
 			Object[] sfiles = zipMap.keySet().toArray();				// need to concat dupes?
 			clist = new CTFile[sfiles.length];
-
+			CTinfo.debugPrint(cacheProfile,"case ZIP: "+myPath+", sfiles.length: "+sfiles.length+", time: "+((System.nanoTime()-startTime)/1000000.));
 			for(int i=0; i<sfiles.length; i++) {
 //				System.err.println("ZIP file: "+sfiles[i]+", zipmap.get: "+zipMap.get(sfiles[i]));
 				String[] files = zipMap.get(sfiles[i]);
 				clist[i] = new CTFile((String) sfiles[i], files, myZipFile);	
 			}
+			
+			CTinfo.debugPrint(cacheProfile,"unsorted zips, length: "+clist.length+", time: "+((System.nanoTime()-startTime)/1000000.));
+//			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
+			Arrays.sort(clist, fileNameComparator);			// zip files in order of write, not guaranteed time-sorted
 
-			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
-//			System.err.println("sorted zips:");
+			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.));
 //			for(CTFile c:clist) System.err.println(c);
 			return clist;
 
@@ -438,16 +443,20 @@ class CTFile extends File {
 //	private byte[] myData=null;				// cache?
 //	static private TreeMap<String, byte[]> DataCache = new TreeMap<String, byte[]>();		// cache (need logic to cap size)
 	// cache limits, max entries, max filesize any entry, jvm size at which to dump old cache...
-	private static final int MAX_ENTRIES = 10000;			// limit total entries in cache	(10K led to "too many open files"?)
+	private static final int MAX_ENTRIES = 100000;			// limit total entries in cache	(10K led to "too many open files"?)
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
-	private static final int MAX_JVMSIZE = 200000000;		// 200MB. max overall JVM memory use at which to dump old entries
+//	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
+	private static final double MAX_MEMUSE = 0.9;			// fraction available memory to use before dumping cache
 	
 	static private LinkedHashMap<String, byte[]> DataCache = new LinkedHashMap<String, byte[]>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
 			 	Runtime runtime = Runtime.getRuntime();
 			 	long usedmem = runtime.totalMemory() - runtime.freeMemory();
-//			 	System.err.println("usedmem: "+usedmem+", size: "+size());
-	            return ((size() >  MAX_ENTRIES) || (usedmem > MAX_JVMSIZE));
+			 	long availableMem = runtime.maxMemory(); 
+			 	double usedMemFraction = (double)usedmem / (double)availableMem;
+			 	CTinfo.debugPrint(cacheProfile, "DataCache stats, usedmem: "+usedmem+", size: "+size()+", availableMem: "+availableMem+", usedMemPerc: "+usedMemFraction);
+//	            return ((size() >  MAX_ENTRIES) || (usedmem > MAX_JVMSIZE));
+	            return ((size() >  MAX_ENTRIES) || (usedMemFraction > MAX_MEMUSE));
 	         }
 	};		// cache (need logic to cap size based on memory vs number of entries)
 
@@ -456,15 +465,17 @@ class CTFile extends File {
 	 * @return byte[] data read
 	 */
 	byte[] read() {
-		String cacheKey = myZipFile+":"+myPath;
+//		String cacheKey = myZipFile+":"+myPath;
+		String cacheKey = myPath;			// 6/2017:  myPath now unique full path into zip?
+		
 //		String cacheKey = myPath;	// myPath includes zipfile name?  Nope, inconsistent but myPath for zip-entry is not full time-path
 //		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
 		if(data != null) {
-//			System.err.println("File.read: cache hit: "+myPath);
+			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+DataCache.size());
 			return data;					// use cached data
 		}
-//		else System.err.println("File.read: cache miss: "+myPath);
+		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+DataCache.size());
 		
 //		if(myData!=null) return myData;		// cache
 		switch(fileType) {
@@ -521,7 +532,7 @@ class CTFile extends File {
 			break;
 		}
 		
-//		System.err.println("cache: "+cacheKey+", size: "+data.length);
+		CTinfo.debugPrint(cacheProfile, "DataCache put: "+cacheKey+", datasize: "+data.length+", cacheLen: "+DataCache.size());
 		if(data!=null && data.length <= MAX_FILESIZE) DataCache.put(cacheKey, data);		// only cache small files
 		return data;
 	}
@@ -532,6 +543,7 @@ class CTFile extends File {
 	
 	static private Map<String, Map<String, String[]>>ZipCache = new LinkedHashMap<String, Map<String, String[]>>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
+			 	CTinfo.debugPrint(cacheProfile,"ZipCache stats, size: "+size());
 	            return size() >  MAX_ENTRIES;
 	         }
 	};		// cache (need logic to cap size based on memory vs number of entries)
@@ -539,9 +551,11 @@ class CTFile extends File {
 	private void ZipMap(String zipfile) {
 		zipMap = ZipCache.get(myPath);
 		if(zipMap != null) {
-//			System.err.println("zip cache hit: "+myPath);
+			CTinfo.debugPrint(cacheProfile,"ZipCache hit: "+myPath);
 			return;					
 		}
+		else CTinfo.debugPrint(cacheProfile,"ZipCache miss: "+myPath);
+		
 		zipMap = new TreeMap<String, String[]>();		// make a new one
 		try{		//get the zip file content
 //			System.err.println("Building ZipMap for: "+myPath);
@@ -592,6 +606,7 @@ class CTFile extends File {
 
 			zfile.close();
 			
+			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
 			ZipCache.put(myPath, zipMap);			// cache
 			
 //		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
@@ -852,6 +867,18 @@ class CTFile extends File {
   	    }
   	};
   	
+    //---------------------------------------------------------------------------------	
+  	// To sort by file name
+  	Comparator<CTFile> fileNameComparator = new Comparator<CTFile>() {
+  	    public int compare(CTFile filea, CTFile fileb) {
+  	    	int la = filea.myPath.length();
+  	    	int lb = fileb.myPath.length();
+  	    	if		(la>lb) return  1;
+  	    	else if (la<lb) return -1;
+  	    	else
+  	    	return	( filea.myPath.compareTo(fileb.myPath) );
+  	    }
+  	};
   	
 	//--------------------------------------------------------------------------------------------------------
 	// containsFile:  see if folder contains a file (channel) in ctmap

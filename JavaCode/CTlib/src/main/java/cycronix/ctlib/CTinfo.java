@@ -267,11 +267,11 @@ public class CTinfo {
 				continue;		// keep looking?
 			}
 			
-			// following is for legacy (deprecated) absolute-time subfolders with msec or sec timestamps. 
+			// following is for legacy (deprecated) absolute-time subfolders with msec timestamps. 
 			// subfolder absolute usec timestamps not supported (would limit usec duration to <11 days).
 			// It will also trigger on top-folder msec (OK).
 			// someday eliminate all absolute-time subfolders?
-			if(timeResolution<=1000 && thistime >= msecTimeCheck) {		// stop when hit absolute msec > ~32 years
+			if(timeResolution==1000 && thistime >= msecTimeCheck) {		// stop when hit absolute msec > ~32 years
 				double ftime = (double)sumtime / 1000.;			// msec
 //				System.err.println("******ABS fileTime, file: "+fname+", ftime: "+ftime);
 				return ftime;
