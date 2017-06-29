@@ -224,7 +224,7 @@ class CTFile extends File {
 		CTFile[] clist = null;
 		long startTime = System.nanoTime();
 
-//		CTinfo.debugPrint(cacheProfile,"listFiles for: "+myPath+", fileType: "+fileType);
+		CTinfo.debugPrint(cacheProfile,"listFiles for: "+myPath+", fileType: "+fileType);
 		switch(fileType) {
 		case ZIP:				// top level file.zip
 			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
@@ -234,8 +234,8 @@ class CTFile extends File {
 			clist = new CTFile[sfiles.length];
 			CTinfo.debugPrint(cacheProfile,"case ZIP: "+myPath+", sfiles.length: "+sfiles.length+", time: "+((System.nanoTime()-startTime)/1000000.));
 			for(int i=0; i<sfiles.length; i++) {
-//				System.err.println("ZIP file: "+sfiles[i]+", zipmap.get: "+zipMap.get(sfiles[i]));
 				String[] files = zipMap.get(sfiles[i]);
+//				System.err.println("ZIP file: "+sfiles[i]+", files.len: "+files.length);
 				clist[i] = new CTFile((String) sfiles[i], files, myZipFile);	
 			}
 			
@@ -244,7 +244,7 @@ class CTFile extends File {
 //			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
 //			Arrays.sort(clist, fileNameComparator);			// zip files in order of write, not guaranteed time-sorted
 			// zipMap is pre-sorted as TreeMap with folderTimeComparator
-			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.));
+			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.)+", clist.size: "+clist.length);
 //			for(CTFile c:clist) System.err.println(c);
 			return clist;
 
@@ -604,45 +604,38 @@ class CTFile extends File {
 		
 		zipMap = new TreeMap<String, String[]>(folderTimeComparator);		// make a new one, sorted by folder time
 		try{		//get the zip file content
-//			System.err.println("Building ZipMap for: "+myPath);
 
 			ZipFile zfile = cachedZipFile(zipfile);		// this can throw exception being created in RT
 			Enumeration<? extends ZipEntry> zenum = zfile.entries();
 			int numEntries = zfile.size();		// convert to array, easier loop control
 			String[] entry = new String[numEntries];
+//			System.err.println("Building ZipMap for: "+myPath+", numEntries: "+numEntries);
+
 			for(int i=0; i<numEntries; i++) entry[i] = zenum.nextElement().getName();
-			
-			// needed:?
-//			Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
+			Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
 			
 			String thisfolder=null;
 			ArrayList<String>flist=null;
 
 			// loop thru zipfile entries, add them to TreeMap
 			for(int i=0; i<numEntries; i++) {
-//				Path pentry = Paths.get(entry[i]);
 //				System.err.println("ZipMap entry["+i+"]: "+entry[i]);
-//				String[] spentry = entry[i].split(File.separator);	// Java 1.6 compat
 				String[] spentry = entry[i].split("/");				// Java 1.6 compat 
 
-//				String folder = pentry.getName(0).toString();		
 				String folder = spentry[0];
-//System.err.println("folder: "+pentry.getName(0).toString()+", sfolder: "+spentry[0]);
-//System.err.println("pcount: "+pentry.getNameCount()+", plen: "+spentry.length);
-//				if(pentry.getNameCount() > 1) {
 				if(spentry.length > 1) {							// Java 1.6 compat
-					if(!folder.equals(thisfolder)) {			// new subfolder
+					if(!folder.equals(thisfolder)) {			// new subfolder (presumes sorted!!)
 						if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
 						thisfolder = folder;
 						flist=new ArrayList<String>();
-//						flist.add(pentry.toString());			// put first entry as value
+//						System.err.println("zipmap add new subfolder: "+entry[i]);
 						flist.add(entry[i]);			// Java 1.6 compat
 					}
 					else {
 						if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
+//						System.err.println("zipmap add to existing subfolder: "+entry[i]);
 						flist.add(entry[i]);			// Java 1.6 compat
 					} 
-//System.err.println("pentry: "+pentry.toString()+", entry: "+entry[i]);
 				}
 				else {
 					zipMap.put(folder, null);

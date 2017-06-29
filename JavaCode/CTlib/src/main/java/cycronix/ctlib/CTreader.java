@@ -54,7 +54,7 @@ public class CTreader {
 	private static String rootFolder = null;
 	private CTcrypto ctcrypto=null;		// optional encryption class
 	private static boolean readProfile = false;
-	
+
 //---------------------------------------------------------------------------------	
  // constructor for CTread.get() method
 	public CTreader() {
@@ -325,13 +325,13 @@ public class CTreader {
 //			CTinfo.debugPrint("listChans: adding rootfolder to sfolder: "+sfolder);
 		}
 		
-		CTinfo.debugPrint("listChans for sfolder: "+sfolder+", fastSearch: "+fastSearch);
 		CTFile sourceFolder = new CTFile(sfolder);
 		ArrayList<String> ChanList = new ArrayList<String>();		// for registration
 		ChanList.clear();										// ChanList built in listFiles()
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null || listOfFiles.length < 1) return null;
-		
+		CTinfo.debugPrint(readProfile, "listChans for sfolder: "+sfolder+", fastSearch: "+fastSearch+", nfile: "+listOfFiles.length);
+
 		int last = listOfFiles.length-1;
 		int expedite = 1;
 //		if(fastSearch) expedite=expediteLimit(sfolder, listOfFiles.length, 100);		// segments (was 1000)
@@ -364,7 +364,7 @@ public class CTreader {
 
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null) return;
-//		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
+		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
 		int expedite = 1;
 		if(fastSearch) expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 100);		// blocks (was 10000)
