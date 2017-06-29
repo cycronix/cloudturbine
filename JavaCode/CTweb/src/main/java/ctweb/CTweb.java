@@ -114,12 +114,13 @@ public class CTweb {
 	private static int sslport = 8443;					// HTTPS port (0 means none)
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
+    private static boolean fastSearch=false;			// fast channel search, reduces startup time 
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTweb -r -x -l -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> rootFolder");
+    		System.err.println("CTweb -r -x -X -F -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -127,6 +128,7 @@ public class CTweb {
      		if(args[dirArg].equals("-r")) 	swapFlag = true;
      		if(args[dirArg].equals("-x")) 	debug = true;
      		if(args[dirArg].equals("-X")) 	Debug=true; 
+     		if(args[dirArg].equals("-F")) 	fastSearch = !fastSearch;
      		if(args[dirArg].equals("-p")) 	port = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-P")) 	sslport = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-f"))  	resourceBase = args[++dirArg]; 
@@ -445,7 +447,7 @@ public class CTweb {
     				for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
     				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
-    				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname);
+    				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
 
     				if(clist == null) sbresp.append("<NULL>");
     				else {

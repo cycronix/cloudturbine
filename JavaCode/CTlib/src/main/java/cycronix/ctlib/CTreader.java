@@ -318,6 +318,8 @@ public class CTreader {
 	
 	// fastSearch galumps thru chans if lots
 	public ArrayList<String> listChans(String sfolder, boolean fastSearch) {
+		long startTime = System.nanoTime();
+
 		if(sfolder.indexOf(File.separator)<0) {
 			sfolder = rootFolder + File.separator + sfolder;		// auto-fullpath
 //			CTinfo.debugPrint("listChans: adding rootfolder to sfolder: "+sfolder);
@@ -350,7 +352,7 @@ public class CTreader {
 		} 
 
 		Collections.sort(ChanList);
-		CTinfo.debugPrint(readProfile, "listChans, got ChanList, length: "+ChanList.size());
+		CTinfo.debugPrint(readProfile,"listChans sFolder: "+sfolder+", length: "+ChanList.size()+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 
 		return ChanList;
 	}
@@ -359,6 +361,7 @@ public class CTreader {
 	// buildChanList:  build list of channels in all folders (private utility of registerChans)
 	
 	private void buildChanList(CTFile sourceFolder, ArrayList<String>ChanList, boolean fastSearch) {
+
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null) return;
 //		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
@@ -389,14 +392,14 @@ public class CTreader {
 					String fname = listOfFiles[i].getName();
 					if(ChanList.indexOf(fname) < 0 && !fname.endsWith(".tmp"))  {		// MJM 1/9/17:  skip tmp files
 						ChanList.add(fname);	// add if not already there
-						expedite = 1;													// no expedite channel list themselves
+						expedite = 1;													// no expedite channels within a time folder
 						//	CTinfo.debugPrint("Chanlist.add: "+fname);
 					}
 				}
 			}
 			
 			if(i>=last) break;
-			i+=expedite;
+			i+=expedite;				// expedite (skip over) time folders
 			if(i>last) 	i = last;		// make sure first and last are checked
 		}
 	}
@@ -624,10 +627,10 @@ public class CTreader {
 //	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 	// beware: this will multi-thread
 	private CTFile[] flatFileList(String baseFolder, CTmap ictmap, String chanKey, boolean fileRefresh) throws Exception {
-//		long startTime = System.nanoTime();
+		long startTime = System.nanoTime();
 
 		CTFile[] cachedList = fileListByChan.get(chanKey);
-		CTinfo.debugPrint(readProfile,"flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
+//		CTinfo.debugPrint(readProfile,"flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
 
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
 		final CTmap ctmap = ictmap;
@@ -661,7 +664,9 @@ public class CTreader {
 				}
 			};
 			
+			long t1 = System.nanoTime();
 			CTfileList(listOfFolders, fflist, endTime, ctmap);			// add any new files to end of list
+			CTinfo.debugPrint(readProfile,"CTfileList chan: "+chanKey+", dt: "+((System.nanoTime()-t1)/1000000.));
 		}
 		
 //		System.err.println("flatFileList time: "+((System.nanoTime()-startTime)/1000000.)+" ms, New Points: "+fflist.size());
@@ -683,8 +688,9 @@ public class CTreader {
 			}
 		}
 		
-		CTinfo.debugPrint(readProfile,"flatFileList update fileList chankey: "+chanKey+", listLen: "+ffarray.length);
+		CTinfo.debugPrint(readProfile,"flatFileList update, chankey: "+chanKey+", listLen: "+ffarray.length+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 		fileListByChan.put(chanKey, ffarray);
+		
 		return ffarray;
 	}
 	
@@ -692,42 +698,49 @@ public class CTreader {
 	// CTfileList:  custom walkFileTree but skipping over subfolders
 	
 	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap) {
+		return CTfileList(listOfFolders, fflist, endTime, ctmap, 0);
+	}
+	
+	private boolean CTfileList(CTFile[] listOfFolders, ArrayList<TimeFolder>fflist, double endTime, CTmap ctmap, int recursionLevel) {
 		if(listOfFolders == null) return false;					// fire-wall
 		long startTime = System.nanoTime();
 		boolean pdebug=false;
+//		if(recursionLevel <= 2) pdebug = true;
 		
-//		if(pdebug) System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
+		if(pdebug) System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
-//			if(pdebug) System.err.println("i: "+i+", time1: "+((System.nanoTime()-startTime)/1000000.));
+			if(pdebug) System.err.println("i: "+i+", time1: "+((System.nanoTime()-startTime)/1000000.));
 			CTFile folder = listOfFolders[i];
 			
 			if(folder.isDirectory()) {
-//				if(pdebug) System.err.println("time2a: "+((System.nanoTime()-startTime)/1000000.));
+				if(pdebug) System.err.println("time2a: "+((System.nanoTime()-startTime)/1000000.));
 
-//				if(pdebug) System.err.println("CTfileList recurse into folder:"+folder.getName());
-				if(!CTfileList(folder.listFiles(), fflist, endTime, ctmap)) {
+				CTFile[] listOfFiles = folder.listFiles();
+				if(pdebug) System.err.println("CTfileList recurse into folder:"+folder.getName()+", time: "+((System.nanoTime()-startTime)/1000000.));
+
+				if(!CTfileList(listOfFiles, fflist, endTime, ctmap, recursionLevel+1)) {
 					if(pdebug) System.err.println("pop out of subfolder, time: "+((System.nanoTime()-startTime)/1000000.));
 					return false;		// pop recursion stack
 				}
 			}
 			else {
-//				if(pdebug) System.err.println("time2b: "+((System.nanoTime()-startTime)/1000000.));
+				if(pdebug) System.err.println("time2b: "+((System.nanoTime()-startTime)/1000000.));
 
 				String fname = folder.getName();
-				double ftime = folder.fileTime();			
 				if(!ctmap.checkName(fname)) continue;			// cache every channel here vs skip?
 
-//				if(pdebug) System.err.println("time3: "+((System.nanoTime()-startTime)/1000000.));
+				if(pdebug) System.err.println("time3: "+((System.nanoTime()-startTime)/1000000.));
+				double ftime = folder.fileTime();			
 
 				if(ftime>endTime) {		// time here may equal end of prior block???
 					fflist.add(new TimeFolder(folder,ftime));		
-//					if(pdebug) System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath()+", fflist.size: "+fflist.size());
+					if(pdebug) System.err.println("CTfileList GOT time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath()+", fflist.size: "+fflist.size());
 				}
 				else {
-//					if(pdebug) System.err.println("CTfileList SKIP time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
+					if(pdebug) System.err.println("CTfileList SKIP time: "+ftime+", endTime: "+endTime+", checkTime: "+(ftime-endTime)+", newLen: "+fflist.size()+", file: "+folder.getPath());
 					return false;
 				}
-//				if(pdebug) System.err.println("time4: "+((System.nanoTime()-startTime)/1000000.));
+				if(pdebug) System.err.println("time4: "+((System.nanoTime()-startTime)/1000000.));
 
 				return true;			// keep going
 			}

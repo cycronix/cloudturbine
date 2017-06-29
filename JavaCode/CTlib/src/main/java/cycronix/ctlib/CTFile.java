@@ -224,7 +224,7 @@ class CTFile extends File {
 		CTFile[] clist = null;
 		long startTime = System.nanoTime();
 
-//		System.err.println("listFiles for: "+myPath+", fileType: "+fileType);
+//		CTinfo.debugPrint(cacheProfile,"listFiles for: "+myPath+", fileType: "+fileType);
 		switch(fileType) {
 		case ZIP:				// top level file.zip
 			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
@@ -239,10 +239,11 @@ class CTFile extends File {
 				clist[i] = new CTFile((String) sfiles[i], files, myZipFile);	
 			}
 			
-			CTinfo.debugPrint(cacheProfile,"unsorted zips, length: "+clist.length+", time: "+((System.nanoTime()-startTime)/1000000.));
+//			CTinfo.debugPrint(cacheProfile,"unsorted zips, length: "+clist.length+", time: "+((System.nanoTime()-startTime)/1000000.));
+			// Arrays.sort is expensive as it is called lots at lowest level loop
 //			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
-			Arrays.sort(clist, fileNameComparator);			// zip files in order of write, not guaranteed time-sorted
-
+//			Arrays.sort(clist, fileNameComparator);			// zip files in order of write, not guaranteed time-sorted
+			// zipMap is pre-sorted as TreeMap with folderTimeComparator
 			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.));
 //			for(CTFile c:clist) System.err.println(c);
 			return clist;
@@ -257,7 +258,10 @@ class CTFile extends File {
 //				System.err.println("ZENTRY, myFiles["+i+"]: "+myFiles[i]+", fname: "+fname);
 				clist[i] = new CTFile(fname,myZipFile,myFiles[i]);
 			}
-			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
+			
+			// clist built from myFiles which is side-effect of listFiles-type-ZIP above.  Sorted TreeMap.
+//			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
+//			for(CTFile c:clist) System.err.println(c);
 			return clist;	// return its list of files
 
 		case TFOLDER:
@@ -440,6 +444,9 @@ class CTFile extends File {
 		return len;
 	}
 
+	//---------------------------------------------------------------
+	// cache functions
+	
 //	private byte[] myData=null;				// cache?
 //	static private TreeMap<String, byte[]> DataCache = new TreeMap<String, byte[]>();		// cache (need logic to cap size)
 	// cache limits, max entries, max filesize any entry, jvm size at which to dump old cache...
@@ -447,6 +454,14 @@ class CTFile extends File {
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
 	private static final double MAX_MEMUSE = 0.9;			// fraction available memory to use before dumping cache
+	
+	
+	static private Map<String, Map<String, String[]>>ZipMapCache = new LinkedHashMap<String, Map<String, String[]>>() {
+		 protected boolean removeEldestEntry(Map.Entry  eldest) {
+			 	CTinfo.debugPrint(cacheProfile,"ZipCache stats, size: "+size());
+	            return size() >  MAX_ENTRIES;
+	         }
+	};		// cache (need logic to cap size based on memory vs number of entries)
 	
 	static private LinkedHashMap<String, byte[]> DataCache = new LinkedHashMap<String, byte[]>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
@@ -460,22 +475,48 @@ class CTFile extends File {
 	         }
 	};		// cache (need logic to cap size based on memory vs number of entries)
 
+	static private LinkedHashMap<String, ZipFile> ZipFileCache = new LinkedHashMap<String, ZipFile>() {
+		 protected boolean removeEldestEntry(Map.Entry  eldest) {
+			 	Runtime runtime = Runtime.getRuntime();
+			 	long usedmem = runtime.totalMemory() - runtime.freeMemory();
+			 	long availableMem = runtime.maxMemory(); 
+			 	double usedMemFraction = (double)usedmem / (double)availableMem;
+			 	CTinfo.debugPrint(cacheProfile, "ZipFileCache stats, usedmem: "+usedmem+", size: "+size()+", availableMem: "+availableMem+", usedMemPerc: "+usedMemFraction);
+//	            return ((size() >  MAX_ENTRIES) || (usedmem > MAX_JVMSIZE));
+	            return ((size() >  MAX_ENTRIES) || (usedMemFraction > MAX_MEMUSE));
+	         }
+	};		// cache (need logic to cap size based on memory vs number of entries)
+	
+	// cache open zipfiles, lots of child-folders reference parent zip, (re)opening ZipFile takes CPU time
+	private ZipFile cachedZipFile(String myZipFile) throws Exception {
+		ZipFile thisZipFile = ZipFileCache.get(myZipFile);
+		if(thisZipFile == null) {
+			CTinfo.debugPrint(cacheProfile,"OPEN ZIPFILE");
+			thisZipFile = new ZipFile(myZipFile);
+			ZipFileCache.put(myZipFile, thisZipFile);
+		}
+		return thisZipFile;
+	}
+	
+	//---------------------------------------------------------------
 	/**
 	 * CTfile reader.  uses parent File read if native file, else reads data from within zip-entry
 	 * @return byte[] data read
 	 */
+
 	byte[] read() {
 //		String cacheKey = myZipFile+":"+myPath;
 		String cacheKey = myPath;			// 6/2017:  myPath now unique full path into zip?
-		
+		long startTime = System.nanoTime();
+
 //		String cacheKey = myPath;	// myPath includes zipfile name?  Nope, inconsistent but myPath for zip-entry is not full time-path
 //		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
 		if(data != null) {
-			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+DataCache.size());
+//			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
 			return data;					// use cached data
 		}
-		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+DataCache.size());
+		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
 		
 //		if(myData!=null) return myData;		// cache
 		switch(fileType) {
@@ -486,7 +527,12 @@ class CTFile extends File {
 		case ZFILE:			// zipoutput
 //		if(isFile) {		
 			try {
-				ZipFile zfile = new ZipFile(myZipFile);
+				CTinfo.debugPrint(cacheProfile, "zip ckp1 dt: "+((System.nanoTime()-startTime)/1000000.)+", myZipFile: "+myZipFile);
+				ZipFile thisZipFile = cachedZipFile(myZipFile);
+
+//				ZipFile thisZipFile = new ZipFile(myZipFile);
+//				CTinfo.debugPrint(cacheProfile, "zip ckp1b dt: "+((System.nanoTime()-startTime)/1000000.));
+
 				// note:  myPath for zip-entry is not full-path as it is with other CTFile...  <---FIXED and adjusted right below!
 				String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
 				
@@ -494,22 +540,29 @@ class CTFile extends File {
 				String[] subDirs = mypathfs.split(Pattern.quote("/"));	
 				if(subDirs.length >= 2) mypathfs = subDirs[subDirs.length-2] + "/" + subDirs[subDirs.length-1];
 				else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
-				
-				ZipEntry ze = zfile.getEntry(mypathfs);			// need fullpath!
+//				CTinfo.debugPrint(cacheProfile, "zip ckpc dt: "+((System.nanoTime()-startTime)/1000000.));
+
+				ZipEntry ze = thisZipFile.getEntry(mypathfs);			// need fullpath!
+//				CTinfo.debugPrint(cacheProfile, "zip ckp2 dt: "+((System.nanoTime()-startTime)/1000000.)+", ze: "+ze);
+
 				if(ze == null) {
-					zfile.close();
+//					thisZipFile.close();
+//					CTinfo.debugPrint(cacheProfile, "zip NULL ZE: "+((System.nanoTime()-startTime)/1000000.));
 					throw new IOException("Null ZipEntry, zipfile: "+myZipFile+", entry: "+mypathfs);
 				}
-				
+//				CTinfo.debugPrint(cacheProfile, "zip ckp1 dt: "+((System.nanoTime()-startTime)/1000000.)+", ze: "+ze.getName());
+
 				//		    		System.err.println("zip read, myZipFile: "+myZipFile+", myPath: "+myPath+", mypathfs: "+mypathfs);
 				int zsize = (int)ze.getSize();
 				data = new byte[zsize];
-				InputStream zis = zfile.getInputStream(ze);
+				InputStream zis = thisZipFile.getInputStream(ze);
 				int len, nread=0;
 				while ((len = zis.read(data,nread,zsize-nread)) > 0) nread+=len;
 				//		    		System.err.println("zip nread: "+nread+", ze.size: "+ze.getSize());
 				zis.close();
-				zfile.close();
+//				thisZipFile.close();
+				CTinfo.debugPrint(cacheProfile, "zip ckp2 dt: "+((System.nanoTime()-startTime)/1000000.));
+
 			} catch(Exception e) {
 				System.err.println("CTFile.read: "+e /* +", zipfile: "+myZipFile+", entry: "+myPath */);
 //				e.printStackTrace();
@@ -540,33 +593,27 @@ class CTFile extends File {
 	//---------------------------------------------------------------------------------	
 	// ZipMap:  create index of zipped files
 	// this probably should be a class with constructor...
-	
-	static private Map<String, Map<String, String[]>>ZipCache = new LinkedHashMap<String, Map<String, String[]>>() {
-		 protected boolean removeEldestEntry(Map.Entry  eldest) {
-			 	CTinfo.debugPrint(cacheProfile,"ZipCache stats, size: "+size());
-	            return size() >  MAX_ENTRIES;
-	         }
-	};		// cache (need logic to cap size based on memory vs number of entries)
-	
+
 	private void ZipMap(String zipfile) {
-		zipMap = ZipCache.get(myPath);
+		zipMap = ZipMapCache.get(myPath);
 		if(zipMap != null) {
 			CTinfo.debugPrint(cacheProfile,"ZipCache hit: "+myPath);
 			return;					
 		}
 		else CTinfo.debugPrint(cacheProfile,"ZipCache miss: "+myPath);
 		
-		zipMap = new TreeMap<String, String[]>();		// make a new one
+		zipMap = new TreeMap<String, String[]>(folderTimeComparator);		// make a new one, sorted by folder time
 		try{		//get the zip file content
 //			System.err.println("Building ZipMap for: "+myPath);
 
-			ZipFile zfile = new ZipFile(zipfile);		// this can throw exception being created in RT
+			ZipFile zfile = cachedZipFile(zipfile);		// this can throw exception being created in RT
 			Enumeration<? extends ZipEntry> zenum = zfile.entries();
-
 			int numEntries = zfile.size();		// convert to array, easier loop control
 			String[] entry = new String[numEntries];
 			for(int i=0; i<numEntries; i++) entry[i] = zenum.nextElement().getName();
-			Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
+			
+			// needed:?
+//			Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
 			
 			String thisfolder=null;
 			ArrayList<String>flist=null;
@@ -604,15 +651,17 @@ class CTFile extends File {
 			if(flist!=null && flist.size()>0 && thisfolder!=null) 					// wrap up
 				zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
 
-			zfile.close();
+//			zfile.close();
 			
 			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
-			ZipCache.put(myPath, zipMap);			// cache
+			// pre-sort zipMap here
+			
+			ZipMapCache.put(myPath, zipMap);			// cache
 			
 //		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
 		} catch(Exception ex) { 
 			zipMap = null;
-			System.err.println("ZipMap Exception on zipfile: "+zipfile); 
+			System.err.println("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
 //			ex.printStackTrace(); 
 		}
 
@@ -859,6 +908,20 @@ class CTFile extends File {
   		return (fileTime(fname)>0.);
   	}
   	
+    //---------------------------------------------------------------------------------	
+  	// To sort by file time
+  	Comparator<String> folderTimeComparator = new Comparator<String>() {
+  	    public int compare(String filea, String fileb) {
+  	    	int la = filea.length();
+  	    	int lb = fileb.length();
+  	    	if		(la>lb) return  1;
+  	    	else if (la<lb) return -1;
+  	    	else
+  	    	return	( filea.compareTo(fileb) );
+  	    }
+  	};
+  	
+  
     //---------------------------------------------------------------------------------	
   	// To sort by file time
   	Comparator<CTFile> fileTimeComparator = new Comparator<CTFile>() {
