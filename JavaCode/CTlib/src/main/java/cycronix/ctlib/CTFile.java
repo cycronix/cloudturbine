@@ -450,18 +450,18 @@ class CTFile extends File {
 //	private byte[] myData=null;				// cache?
 //	static private TreeMap<String, byte[]> DataCache = new TreeMap<String, byte[]>();		// cache (need logic to cap size)
 	// cache limits, max entries, max filesize any entry, jvm size at which to dump old cache...
-	private static final int MAX_ENTRIES = 100000;			// limit total entries in cache	(10K led to "too many open files"?)
+	private static final int MAX_ENTRIES = 100000;			// limit total entries in data cache	(10K led to "too many open files"?)
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
-	private static final double MAX_MEMUSE = 0.9;			// fraction available memory to use before dumping cache
-	
+	private static final double MAX_MEMUSE = 0.9;			// fraction available JVM memory to use before limiting cache
+	private static final int MAX_FILES = 100;				// max number open zip files
 	
 	static private Map<String, Map<String, String[]>>ZipMapCache = new LinkedHashMap<String, Map<String, String[]>>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
 			 	CTinfo.debugPrint(cacheProfile,"ZipCache stats, size: "+size());
 	            return size() >  MAX_ENTRIES;
 	         }
-	};		// cache (need logic to cap size based on memory vs number of entries)
+	};		
 	
 	static private LinkedHashMap<String, byte[]> DataCache = new LinkedHashMap<String, byte[]>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
@@ -473,19 +473,14 @@ class CTFile extends File {
 //	            return ((size() >  MAX_ENTRIES) || (usedmem > MAX_JVMSIZE));
 	            return ((size() >  MAX_ENTRIES) || (usedMemFraction > MAX_MEMUSE));
 	         }
-	};		// cache (need logic to cap size based on memory vs number of entries)
+	};		
 
 	static private LinkedHashMap<String, ZipFile> ZipFileCache = new LinkedHashMap<String, ZipFile>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
-			 	Runtime runtime = Runtime.getRuntime();
-			 	long usedmem = runtime.totalMemory() - runtime.freeMemory();
-			 	long availableMem = runtime.maxMemory(); 
-			 	double usedMemFraction = (double)usedmem / (double)availableMem;
-			 	CTinfo.debugPrint(cacheProfile, "ZipFileCache stats, usedmem: "+usedmem+", size: "+size()+", availableMem: "+availableMem+", usedMemPerc: "+usedMemFraction);
-//	            return ((size() >  MAX_ENTRIES) || (usedmem > MAX_JVMSIZE));
-	            return ((size() >  MAX_ENTRIES) || (usedMemFraction > MAX_MEMUSE));
+//			 System.err.println("ZipMapCache size: "+size());
+	            return ((size() >  MAX_FILES));
 	         }
-	};		// cache (need logic to cap size based on memory vs number of entries)
+	};		
 	
 	// cache open zipfiles, lots of child-folders reference parent zip, (re)opening ZipFile takes CPU time
 	private ZipFile cachedZipFile(String myZipFile) throws Exception {
@@ -591,7 +586,8 @@ class CTFile extends File {
 	}
 	
 	//---------------------------------------------------------------------------------	
-	// ZipMap:  create index of zipped files
+	// ZipMap:  create index of zipped folder/files.  
+	// Map keys are timestamp-folders, map values are string-arrays of channels per folder
 	// this probably should be a class with constructor...
 
 	private void ZipMap(String zipfile) {
