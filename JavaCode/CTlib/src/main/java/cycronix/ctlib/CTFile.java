@@ -456,6 +456,7 @@ class CTFile extends File {
 	private static final double MAX_MEMUSE = 0.9;			// fraction available JVM memory to use before limiting cache
 	private static final int MAX_FILES = 100;				// max number open zip files
 	
+	// ZipMapCache has small effect versus rebuilding map every time (versus caching zipmap file object itself)
 	static private Map<String, Map<String, String[]>>ZipMapCache = new LinkedHashMap<String, Map<String, String[]>>() {
 		 protected boolean removeEldestEntry(Map.Entry  eldest) {
 			 	CTinfo.debugPrint(cacheProfile,"ZipCache stats, size: "+size());
@@ -524,7 +525,6 @@ class CTFile extends File {
 			try {
 				CTinfo.debugPrint(cacheProfile, "zip ckp1 dt: "+((System.nanoTime()-startTime)/1000000.)+", myZipFile: "+myZipFile);
 				ZipFile thisZipFile = cachedZipFile(myZipFile);
-
 //				ZipFile thisZipFile = new ZipFile(myZipFile);
 //				CTinfo.debugPrint(cacheProfile, "zip ckp1b dt: "+((System.nanoTime()-startTime)/1000000.));
 
@@ -546,8 +546,6 @@ class CTFile extends File {
 					throw new IOException("Null ZipEntry, zipfile: "+myZipFile+", entry: "+mypathfs);
 				}
 //				CTinfo.debugPrint(cacheProfile, "zip ckp1 dt: "+((System.nanoTime()-startTime)/1000000.)+", ze: "+ze.getName());
-
-				//		    		System.err.println("zip read, myZipFile: "+myZipFile+", myPath: "+myPath+", mypathfs: "+mypathfs);
 				int zsize = (int)ze.getSize();
 				data = new byte[zsize];
 				InputStream zis = thisZipFile.getInputStream(ze);
@@ -563,9 +561,7 @@ class CTFile extends File {
 //				e.printStackTrace();
 			}
 			break;
-//		}
 		default:		// conventional file
-//		else {		
 			long fileLength = this.length();
 			data = new byte[(int)(fileLength)];	// read file update
 			try {
@@ -732,39 +728,6 @@ class CTFile extends File {
   		if(fileType==FileType.TFOLDER || fileType==FileType.TFILE) return tfolderTime(fname);
 	
   		return CTinfo.fileTime(fname);		// generalize
-/*  		
-  		if(fname.endsWith(".zip")) fname = fname.substring(0,fname.length()-4);		// strip (only) trailing ".zip"
-    	
-		// new multi-part timestamp logic:  parse path up from file, sum relative times until first absolute fulltime
-		String[] pathparts = fname.split(Pattern.quote(File.separator));
-		Long sumtime = 0L;
-		double ftime = 0.;
-		
-		for(int i=pathparts.length-1; i>=0; i--) {		// parse right to left
-			String thispart = pathparts[i];
-			Long thistime = 0L;
-			try {
-				thistime = Long.parseLong(thispart);
-				sumtime += thistime;
-			} catch(NumberFormatException e) {
-				continue;		// keep looking?
-			}
-//			System.err.println("***fileTime fname: "+fname+", thispart: "+thispart+", thistime: "+thistime+", sumtime: "+sumtime);
-
-			if(thistime >= 1000000000000L) {	// absolute msec
-				ftime = (double)sumtime / 1000.;
-//				System.err.println("******msec fileTime: "+ftime);
-				return ftime;
-			}
-			if(thistime >= 1000000000L) {		// absolute sec
-				ftime = (double)sumtime;
-//				System.err.println("******sec fileTime: "+ftime);
-				return ftime;
-			}
-		}
-		
-		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
-*/
   	}
 
     //---------------------------------------------------------------------------------	
