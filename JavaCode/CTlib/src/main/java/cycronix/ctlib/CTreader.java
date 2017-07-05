@@ -203,7 +203,7 @@ public class CTreader {
 			if(files.length == 0) continue;
 
 			for(int j=0; j<files.length; j++) {	
-				System.err.println("oldTime check file: "+files[j].getPath());
+//				System.err.println("oldTime check file: "+files[j].getPath());
 				if(files[j].isDirectory()) 	ftime = oldTime(new CTFile[] {files[j]}, ctmap);	// recurse
 				else {
 //					System.err.println("fileTime: "+files[j].fileTime()+", baseTime: "+files[j].baseTime());

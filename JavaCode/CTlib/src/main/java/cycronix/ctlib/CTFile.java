@@ -275,6 +275,7 @@ class CTFile extends File {
 			File[] flist = super.listFiles(new FileFilter() {
 			    @Override
 			    public boolean accept(File file) {
+			    	if(file.getName().startsWith("_")) return false;			// "_" is CT-hidden prefix
 			        return !file.isHidden();			// skip hidden files
 			    }
 			});
