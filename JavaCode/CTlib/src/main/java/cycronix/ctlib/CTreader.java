@@ -162,6 +162,7 @@ public class CTreader {
 	
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double oldTime(String sourceFolder) {
+//		System.err.println("oldTime sourceFolder: "+sourceFolder);
 		return oldTime(sourceFolder, (CTmap)null);
 	}
 	
@@ -176,11 +177,12 @@ public class CTreader {
 		String sourceFolder_fullpath = sourceFolder;
 		if (rootFolder != null) {
 			if(sourceFolder.startsWith(File.separator))
-				sourceFolder_fullpath = new String(rootFolder + sourceFolder);
+					sourceFolder_fullpath = new String(rootFolder + sourceFolder);
 			else	sourceFolder_fullpath = new String(rootFolder + File.separator + sourceFolder);
 		}
 		CTFile basefolder = new CTFile(sourceFolder_fullpath);
 		CTFile[] listOfFolders = basefolder.listFiles();
+//		System.err.println("oldTime, sfolder_fullpath: "+sourceFolder_fullpath+", listlen: "+listOfFolders.length);
 		if(listOfFolders == null) return 0.;
 		return oldTime(listOfFolders, ctmap);
 	}
@@ -188,8 +190,9 @@ public class CTreader {
 	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double oldTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
-		if(!listOfFolders[0].isDirectory()) {
-			CTinfo.debugPrint("oldTime, listOfFolders.ftime: "+listOfFolders[0].baseTime()+", listlen: "+listOfFolders.length);
+		if(!listOfFolders[0].isDirectory() && listOfFolders[0].baseTime()!=0) {
+//			CTinfo.debugPrint
+//			System.err.println("oldTime, listOfFolders.baseTime: "+listOfFolders[0].baseTime()+", listlen: "+listOfFolders.length+", l0: "+listOfFolders[0].getAbsolutePath());
 //			return(listOfFolders[0]).fileTime();  // presume list of files
 			return(listOfFolders[0]).baseTime();  // presume list of files
 		}
@@ -248,6 +251,7 @@ public class CTreader {
 	
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double newTime(String sourceFolder) {
+//		System.err.println("newTime: "+sourceFolder);
 		return newTime(sourceFolder, (CTmap)null);
 	}
 	
@@ -274,7 +278,7 @@ public class CTreader {
  	// NOTE: Each folder in listOfFolders should already be prepended with the rootFolder
 	private double newTime(CTFile[] listOfFolders, CTmap ctmap) {
 		if(listOfFolders == null) return 0.;
-		if(!listOfFolders[0].isDirectory()) {
+		if(!listOfFolders[0].isDirectory() && listOfFolders[0].baseTime()!=0) {
 			if(ctmap == null) return(listOfFolders[listOfFolders.length-1]).fileTime();  // presume (prefiltered!) list of files
 			else {
 				System.err.println("ERROR, unimplemented filtered file list newTime");
@@ -320,7 +324,8 @@ public class CTreader {
 	public ArrayList<String> listChans(String sfolder, boolean fastSearch) {
 		long startTime = System.nanoTime();
 
-		if(sfolder.indexOf(File.separator)<0) {
+//		if(sfolder.indexOf(File.separator)<0) {
+		if(!sfolder.startsWith(rootFolder)) {
 			sfolder = rootFolder + File.separator + sfolder;		// auto-fullpath
 //			CTinfo.debugPrint("listChans: adding rootfolder to sfolder: "+sfolder);
 		}
@@ -329,7 +334,10 @@ public class CTreader {
 		ArrayList<String> ChanList = new ArrayList<String>();		// for registration
 		ChanList.clear();										// ChanList built in listFiles()
 		CTFile[] listOfFiles = sourceFolder.listFiles();
-		if(listOfFiles == null || listOfFiles.length < 1) return null;
+		if(listOfFiles == null || listOfFiles.length < 1) {
+			CTinfo.debugPrint("listChans empty source: "+sourceFolder);
+			return null;
+		}
 		CTinfo.debugPrint(readProfile, "listChans for sfolder: "+sfolder+", fastSearch: "+fastSearch+", nfile: "+listOfFiles.length);
 
 		int last = listOfFiles.length-1;
@@ -364,7 +372,7 @@ public class CTreader {
 
 		CTFile[] listOfFiles = sourceFolder.listFiles();
 		if(listOfFiles == null) return;
-		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
+//		CTinfo.debugPrint("buildChanList, folder: "+sourceFolder+", listOfFiles.length: "+listOfFiles.length);
 		
 		int expedite = 1;
 		if(fastSearch) expedite=expediteLimit(sourceFolder.getName(), listOfFiles.length, 100);		// blocks (was 10000)

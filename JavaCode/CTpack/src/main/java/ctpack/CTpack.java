@@ -51,12 +51,13 @@ public class CTpack {
 	
 	boolean packMode=true;				// warning:  non-block audio is deadly inefficient
 	boolean zipMode=true;				// zip on by default
-	static long segBlocks=10;			// blocks per segment (was 10)
+	static long segBlocks=100;			// blocks per segment (was 10)
 	static double timePerBlock=10.;		// time interval per block on output
 	boolean singleFolder = false;		// pack everything into single zip file
 	boolean binaryMode = false;			// convert CSV to float-binary?
-	int binaryFmt = 32;				// convert to f32 or f64
-
+	int binaryFmt = 32;					// convert to f32 or f64
+	boolean hiResTime = false;			// usec vs msec times	
+	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
 		new CTpack(arg);
@@ -67,7 +68,7 @@ public class CTpack {
 
 		if(!parseArgs(args)) return;
 
-		CTinfo.setDebug(debug);
+//		CTinfo.setDebug(debug);
 		if(singleFolder)	System.err.println("CTpack singleFolder output to "+packSource);
 		else				System.err.println("CTpack output to "+packSource+", zipMode: "+zipMode+", packMode: "+packMode+", timeperBlock: "+timePerBlock+", segBlocks: "+segBlocks);
 		if(!packMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
@@ -105,14 +106,15 @@ public class CTpack {
 			ctw.setBlockMode(packMode,zipMode); 					// pack into binary blocks (linear timestamps per block)
 			ctw.autoFlush(0);							
 			ctw.autoSegment(segBlocks);								// auto create segments
-
+			ctw.setHiResTime(hiResTime);
+			
 			for(double thisTime=oldTime; thisTime<=newTime; thisTime+=timePerBlock) {		// {Loop by Time}
 				ArrayList<String> chans = ctr.listChans(sourceFolder);
 				if(debug) System.err.println("CTpack thisTime: "+thisTime+", numChans: "+chans.size());
 				ctw.setTime(thisTime);			// write per request time?
 
 				for(String chan:chans) {				// {Loop by Chan}
-					if(debug) System.err.println("CTpack thisChan: "+chan);
+//					if(debug) System.err.println("CTpack thisChan: "+chan);
 					CTdata data = ctr.getData(sourceFolder, chan, thisTime, timePerBlock-0.000001, "absolute");	// get next chunk (less 1us no-overlap?)
 					/*		
      	NOTES: 
@@ -203,6 +205,7 @@ public class CTpack {
 		options.addOption("f", "binarymode", true, "convert CSV to float binary, -f32, -f64");
 		options.addOption("p", "packmode", false, "pack mode"+", default: "+packMode);
 		options.addOption("1", "singleFile", false, "single zip file mode"+", default: "+singleFolder);
+		options.addOption("H", "hiResTime", false, "high resolution time"+", default: "+hiResTime);
 
 		options.addOption(Option.builder("o").argName("packSource").hasArg().desc("name of output source"+", default: sourceFolder.pack").build());
 		options.addOption(Option.builder("t").argName("timePerBlock").hasArg().desc("time per output block (sec)"+", default: "+timePerBlock).build());
@@ -237,7 +240,8 @@ public class CTpack {
 		zipMode 	 = !line.hasOption("zipmode"); 				// flag turns OFF mode
 		packMode 	 = !line.hasOption("packmode");
 		singleFolder = line.hasOption("singleFile");
-
+		hiResTime 	 = line.hasOption("hiResTime");
+		
 		packSource = line.getOptionValue("o",sourceFolder + ".pack");
 		rootFolder = line.getOptionValue("r", rootFolder);
 		timePerBlock = Double.parseDouble(line.getOptionValue("t",""+timePerBlock));
