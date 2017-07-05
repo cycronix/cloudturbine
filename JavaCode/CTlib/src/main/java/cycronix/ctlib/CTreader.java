@@ -147,7 +147,7 @@ public class CTreader {
 
 		String thisChanKey = chan2key(sourceFolder + File.separator + chan);			// this is single channel function
 
-		CTFile[] listOfFiles = fileListByChan.get(thisChanKey);				// get existing cached limits
+		CTFile[] listOfFiles = CTcache.fileListByChan.get(thisChanKey);				// get existing cached limits
 		if(listOfFiles == null || listOfFiles.length==0) 
 			listOfFiles = flatFileList(rootFolder + File.separator + sourceFolder, new CTmap(chan), thisChanKey, true);
 		
@@ -514,7 +514,7 @@ public class CTreader {
 		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
 		try {
 			// get updated list of folders
-			CTFile[] oldList = fileListByChan.get(thisChanKey);
+			CTFile[] oldList = CTcache.fileListByChan.get(thisChanKey);
 			boolean fileRefresh = false;
 			if(oldList == null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
 			CTinfo.debugPrint(readProfile,"GET getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh+", fileListByChan.length: "+((oldList!=null)?oldList.length:0));
@@ -637,7 +637,7 @@ public class CTreader {
 	private CTFile[] flatFileList(String baseFolder, CTmap ictmap, String chanKey, boolean fileRefresh) throws Exception {
 		long startTime = System.nanoTime();
 
-		CTFile[] cachedList = fileListByChan.get(chanKey);
+		CTFile[] cachedList = CTcache.fileListByChan.get(chanKey);
 //		CTinfo.debugPrint(readProfile,"flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
 
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
@@ -668,7 +668,7 @@ public class CTreader {
 					CTFile[] tmpList = new CTFile[cachedList.length - ichk];
 					for(int j=ichk,k=0; j<cachedList.length; j++,k++) tmpList[k] = cachedList[j];	// salvage old cache > updated oldestTime
 					cachedList = tmpList;
-					fileListByChan.put(chanKey, cachedList);
+					CTcache.fileListByChan.put(chanKey, cachedList);
 				}
 			};
 			
@@ -697,7 +697,7 @@ public class CTreader {
 		}
 		
 		CTinfo.debugPrint(readProfile,"flatFileList update, chankey: "+chanKey+", listLen: "+ffarray.length+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
-		fileListByChan.put(chanKey, ffarray);
+		CTcache.fileListByChan.put(chanKey, ffarray);
 		
 		return ffarray;
 	}
@@ -785,7 +785,7 @@ public class CTreader {
     }
 	
 	//--------------------------------------------------------------------------------------------------------
-	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
+//	private HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
 //	private putFileListByChan(String chan)
 	// this should be its own Class with oldest, newest, etc properties...
 	// convert chan path to reliable key
