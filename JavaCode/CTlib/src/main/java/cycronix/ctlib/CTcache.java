@@ -43,7 +43,7 @@ public class CTcache {
 	private static final int MAX_ENTRIES = 100000;			// limit total entries in data cache	(10K led to "too many open files"?)
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
-	private static final double MAX_MEMUSE = 0.9;			// fraction available JVM memory to use before limiting cache
+	private static final double MAX_MEMUSE = 0.8;			// fraction available JVM memory to use before limiting cache
 	private static final int MAX_ZIPFILES = 1000;			// max number open zip files
 	
 	private static boolean cacheProfile = false;
