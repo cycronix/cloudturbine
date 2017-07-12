@@ -460,7 +460,7 @@ class CTFile extends File {
 //		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = CTcache.DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
 		if(data != null) {
-//			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
+//			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+CTcache.DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
 			return data;					// use cached data
 		}
 		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+CTcache.DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
@@ -474,10 +474,8 @@ class CTFile extends File {
 		case ZFILE:			// zipoutput
 //		if(isFile) {		
 			try {
-				CTinfo.debugPrint(cacheProfile, "zip ckp1 dt: "+((System.nanoTime()-startTime)/1000000.)+", myZipFile: "+myZipFile);
 				ZipFile thisZipFile = CTcache.cachedZipFile(myZipFile);
 //				ZipFile thisZipFile = new ZipFile(myZipFile);
-//				CTinfo.debugPrint(cacheProfile, "zip ckp1b dt: "+((System.nanoTime()-startTime)/1000000.));
 
 				// note:  myPath for zip-entry is not full-path as it is with other CTFile...  <---FIXED and adjusted right below!
 				String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
@@ -486,17 +484,14 @@ class CTFile extends File {
 				String[] subDirs = mypathfs.split(Pattern.quote("/"));	
 				if(subDirs.length >= 2) mypathfs = subDirs[subDirs.length-2] + "/" + subDirs[subDirs.length-1];
 				else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
-//				CTinfo.debugPrint(cacheProfile, "zip ckpc dt: "+((System.nanoTime()-startTime)/1000000.));
 
 				ZipEntry ze = thisZipFile.getEntry(mypathfs);			// need fullpath!
-//				CTinfo.debugPrint(cacheProfile, "zip ckp2 dt: "+((System.nanoTime()-startTime)/1000000.)+", ze: "+ze);
 
 				if(ze == null) {
 //					thisZipFile.close();
 //					CTinfo.debugPrint(cacheProfile, "zip NULL ZE: "+((System.nanoTime()-startTime)/1000000.));
 					throw new IOException("Null ZipEntry, zipfile: "+myZipFile+", entry: "+mypathfs);
 				}
-//				CTinfo.debugPrint(cacheProfile, "zip ckp1 dt: "+((System.nanoTime()-startTime)/1000000.)+", ze: "+ze.getName());
 				int zsize = (int)ze.getSize();
 				data = new byte[zsize];
 				InputStream zis = thisZipFile.getInputStream(ze);
@@ -505,7 +500,6 @@ class CTFile extends File {
 				//		    		System.err.println("zip nread: "+nread+", ze.size: "+ze.getSize());
 				zis.close();
 //				thisZipFile.close();
-				CTinfo.debugPrint(cacheProfile, "zip ckp2 dt: "+((System.nanoTime()-startTime)/1000000.));
 
 			} catch(Exception e) {
 				System.err.println("CTFile.read: "+e /* +", zipfile: "+myZipFile+", entry: "+myPath */);
@@ -617,7 +611,11 @@ class CTFile extends File {
     	String zfile = gfile.replace(".gz", "");
  	   	zfile = tempFile(zfile);		// need full path to avoid collisions?
     	File zFile = new File(zfile);
-    	if(zFile.exists()) return zfile;				// done
+    	if(zFile.exists()) {
+//        	System.err.println("gunzip file exists!: "+gfile);
+    		return zfile;				// done
+    	}
+//    	System.err.println("gunzip file new: "+gfile);
 
     	byte[] buffer = new byte[65536];
     	try {
@@ -644,7 +642,7 @@ class CTFile extends File {
     static long uniqueID = 0;
     private static String tempFile(String fileName){
     	if(uniqueID == 0) uniqueID = System.currentTimeMillis();
-        String tempFile = System.getProperty("java.io.tmpdir") + File.separator + "com.cycronix.CloudTurbine" + File.separator + uniqueID + File.separator + fileName;
+        String tempFile = System.getProperty("java.io.tmpdir") + File.separator + "com.cycronix.CloudTurbine" + File.separator + "CT"+uniqueID + File.separator + fileName;
         File tfile = new File(tempFile);
         tfile.getParentFile().mkdirs();
         tfile.deleteOnExit();

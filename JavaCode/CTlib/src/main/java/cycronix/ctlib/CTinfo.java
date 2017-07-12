@@ -233,6 +233,7 @@ public class CTinfo {
 		String[] pathparts = fname.split(Pattern.quote(File.separator)+"|/");		// use either forward or backward slash (forward is used *inside* zip files)
 		long sumtime = 0L;
 		long timeResolution = 1;					// 1 sec, 1000 msec, 1000000 us
+		int baseIndex = 0;
 		
 		final long usecTimeCheck = 1000000000000000L;	// usec	(valid trigger if basetime usec > 32 years (2002), msec <31000 years)
 		final long msecTimeCheck = 1000000000000L;		// msec (valid trigger if basetime msec > 32 years (2002), sec <31000 years, usec >12 days)
@@ -250,12 +251,13 @@ public class CTinfo {
 //				System.err.println("fileTime, file: "+fname+", basetime: "+basetime+", timeResolution: "+timeResolution);
 				break;
 			} catch(NumberFormatException e) {
+				baseIndex++;
 				continue;		// keep looking?
 			}
 		}
 		
 		// then parse right to left, adding up relative times from subfolders
-		for(int i=pathparts.length-1; i>=0; i--) {	
+		for(int i=pathparts.length-1; i>=baseIndex; i--) {	
 			String thispart = pathparts[i];
 			long thistime = 0L;
 			
@@ -264,6 +266,7 @@ public class CTinfo {
 //				thistime = Double.parseDouble(thispart);
 				sumtime += thistime;							// presume consistent msec or sec times all levels
 			} catch(NumberFormatException e) {
+//				System.err.println("non-time folder: "+thispart+", fullpath: "+fname+", baseIndex: "+baseIndex);
 				continue;		// keep looking?
 			}
 			

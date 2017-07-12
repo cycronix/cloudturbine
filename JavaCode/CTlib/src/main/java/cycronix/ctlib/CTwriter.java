@@ -641,6 +641,7 @@ public class CTwriter {
 				else				name = time + "/" + outName;
 				
 				ZipEntry entry = new ZipEntry(name);
+				entry.setTime(time / (timeFactor/1000));     	// internal zipentry time; let it match folder-time
 				try {
 					zos.putNextEntry(entry);
 				} catch(IOException e) {
