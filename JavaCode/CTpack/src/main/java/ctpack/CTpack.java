@@ -57,6 +57,8 @@ public class CTpack {
 	boolean binaryMode = false;			// convert CSV to float-binary?
 	int binaryFmt = 32;					// convert to f32 or f64
 	boolean hiResTime = false;			// usec vs msec times	
+	String password=null;				// CTcrypto password
+	boolean gzipmode = false;			// gzip on top of zip ("solid" compression)
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -104,10 +106,13 @@ public class CTpack {
 			// setup CTwriter for each root source
 			CTwriter ctw = new CTwriter(rootFolder+File.separator+packSource);		// new CTwriter at root/source folder
 			ctw.setBlockMode(packMode,zipMode); 					// pack into binary blocks (linear timestamps per block)
+			ctw.setGZipMode(gzipmode);
+			
 			ctw.autoFlush(0);							
 			ctw.autoSegment(segBlocks);								// auto create segments
 			ctw.setHiResTime(hiResTime);
-			
+	     	if(password!=null) ctw.setPassword(password);			// optional encrypt
+
 			for(double thisTime=oldTime; thisTime<=newTime; thisTime+=timePerBlock) {		// {Loop by Time}
 				ArrayList<String> chans = ctr.listChans(sourceFolder);
 				if(debug) System.err.println("CTpack thisTime: "+thisTime+", numChans: "+chans.size());
@@ -206,11 +211,13 @@ public class CTpack {
 		options.addOption("p", "packmode", false, "pack mode"+", default: "+packMode);
 		options.addOption("1", "singleFile", false, "single zip file mode"+", default: "+singleFolder);
 		options.addOption("H", "hiResTime", false, "high resolution time"+", default: "+hiResTime);
+		options.addOption("g", "gzipmode", false, "gzip mode"+", default: "+gzipmode);
 
 		options.addOption(Option.builder("o").argName("packSource").hasArg().desc("name of output source"+", default: sourceFolder.pack").build());
 		options.addOption(Option.builder("t").argName("timePerBlock").hasArg().desc("time per output block (sec)"+", default: "+timePerBlock).build());
 		options.addOption(Option.builder("s").argName("segBlocks").hasArg().desc("blocks per segment"+", default: "+segBlocks).build());
 		options.addOption(Option.builder("r").argName("rootFolder").hasArg().desc("rootFolder"+", default: "+rootFolder).build());
+		options.addOption(Option.builder("e").argName("passWord").hasArg().desc("encryption password").build());
 
 		// 2. Parse command line options
 		CommandLineParser parser = new DefaultParser();
@@ -241,7 +248,8 @@ public class CTpack {
 		packMode 	 = !line.hasOption("packmode");
 		singleFolder = line.hasOption("singleFile");
 		hiResTime 	 = line.hasOption("hiResTime");
-		
+		gzipmode 	 = line.hasOption("gzipmode"); 				// flag turns OFF mode
+
 		packSource = line.getOptionValue("o",sourceFolder + ".pack");
 		rootFolder = line.getOptionValue("r", rootFolder);
 		timePerBlock = Double.parseDouble(line.getOptionValue("t",""+timePerBlock));
@@ -250,7 +258,8 @@ public class CTpack {
 			binaryMode = true;
 			binaryFmt = Integer.parseInt(line.getOptionValue("f",""+32));
 		}
-		
+		password = line.getOptionValue("e", password);
+
 		return true; 		// OK to go
 	}
 	

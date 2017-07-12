@@ -286,7 +286,7 @@ public class CTdata {
 				if(time < start && i<(nframe-1)) continue;			// check last frame for duration=0 case
 				if(time > end) break;
 				
-				CTinfo.debugPrint("CTdata frame add, time: "+time);
+//				CTinfo.debugPrint("CTdata frame add, time: "+time);
 				ctd.add(time, datalist.get(i));			// add current frame
 			}
 			else {			//  multi-point blocks
