@@ -258,6 +258,7 @@ public class CTwriter {
 	 */
 	public void setGZipMode(boolean gzipflag) {
 		gzipFlag = gzipflag;
+		if(gzipflag) zipFlag = true;			// enforce zip first then gzip for file.zip.gz
 	}
 	//------------------------------------------------------------------------------------------------
 	// various options (too many?) to set compression mode
@@ -283,6 +284,7 @@ public class CTwriter {
 		zipFlag = zipflag;
 		compressLevel = clevel;
 		gzipFlag = gzipflag;
+		if(gzipflag) zipFlag = true;			// enforce zip first then gzip for file.zip.gz
 	}
 	
 	//------------------------------------------------------------------------------------------------

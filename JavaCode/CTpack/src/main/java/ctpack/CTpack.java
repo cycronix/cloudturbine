@@ -73,7 +73,6 @@ public class CTpack {
 //		CTinfo.setDebug(debug);
 		if(singleFolder)	System.err.println("CTpack singleFolder output to "+packSource);
 		else				System.err.println("CTpack output to "+packSource+", zipMode: "+zipMode+", packMode: "+packMode+", timeperBlock: "+timePerBlock+", segBlocks: "+segBlocks);
-		if(!packMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
 
 		// setup CTreader
 		if(singleFolder) {
@@ -81,6 +80,8 @@ public class CTpack {
 			zipMode = true;
 			segBlocks = 0;
 		}
+
+		if(!packMode && !zipMode) System.err.println("Warning: unpacked blocks may result in very large number of files!!");
 
 		try {
 			CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
