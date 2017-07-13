@@ -31,10 +31,8 @@ import java.nio.ByteOrder;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -68,7 +66,7 @@ public class CTwriter {
 	protected boolean packFlag=false;		// pack multiple puts of numeric data into bigger blocks
 	protected boolean byteSwap=false;		// false: Intel little-endian, true: Java/network big-endian
 	
-	private boolean gzipFlag=false;
+	private boolean gzipFlag=false;			// gzip mode passes each file through gzip on output for "solid" compression
 	private long fTime=0;
 	private long blockTime=0;				// parent (zip) folder time, sets start of block interval
 	private long prevblockTime=0;
@@ -76,7 +74,6 @@ public class CTwriter {
 	private long sourceTime=0;				// top-level absolute time for entire source (msec)
 	private long segmentTime=0;				// segment time, block subfolders relative to this.  
 	private String baseTimeStr="";			// string representation of sourceTime/segmentTime
-//	private boolean rebaseFlag=false;		// auto-rebase segmentTime
 	private long blocksPerSegment=0;		// auto new segment every so many blocks (default=off)
 	private long blockCount=0;				// keep track of flushes
 	private boolean initBaseTime = true;	// first-time startup init flag
@@ -87,11 +84,9 @@ public class CTwriter {
 	
 	private long lastFtime=0;
 	private long thisFtime=0;
-//	private long prevFtime=0;				// prior frame time (for autoflush)
 	private double trimTime=0.;				// trim delta time (sec relative to last flush)
 	private int compressLevel=1;			// 1=best_speed, 9=best_compression
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
-//	private long blockDuration=0;			// if non-zero, packMode block-duration (msec)
 	private CTcrypto ctcrypto=null;		// optional encryption class
 	
 	private long timeFactor=1000;		// convert double to long time units (e.g. 1000 ~ msec, 1000000 ~ usec)
@@ -308,7 +303,6 @@ public class CTwriter {
 	 * Force a new time segment
 	 */
 	public void newSegment() {
-//		rebaseFlag = true;
 		segmentTime(blockTime);
 	}
 	
@@ -376,32 +370,10 @@ public class CTwriter {
 	}
 
 	// preflush is not needed, simply do an initial setTime() to establish blockTime
-	/*
+/*
 	public void preflush(long time) {
 		blockTime = time;
 		if(initBaseTime) newSegment();
-	}
-*/
-	// blockflush is bad idea:  adjusting blockTime after other putData in queue messes up time-sync: Zip entry names (with time) set at time of put.
-	// could maybe pre-queue everything by time and data then generate entry/file names at flush, but lot of work
-	// simpler for now to use "preflush()" method - very simple, works, but obscure.
-/*
-	// put and flush block of data over interval in single call (e.g. audio)
-	public void blockFlush(String chan, byte[] data, long time, long duration) throws Exception { 
-		if(!zipFlag) throw new IOException("cannot block-flush in non-zip mode");		// need to fix this by queuing all types of data
-		
-		blockTime = time - duration;							// force this blockTime to start of block-interval
-//		System.err.println("\n< block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
-
-		if(initBaseTime || blockTime < segmentTime || segmentTime < sourceTime || blockTime < sourceTime) {
-			if(segmentTime < sourceTime || blockTime < sourceTime) initBaseTime = true;		// no negative segments
-			newSegment();											// no negative blocks
-//			System.err.println("\n> block flush, start: "+time+", duration: "+duration+", blockTime: "+blockTime+", segmentTime: "+segmentTime+", sourceTime: "+sourceTime);
-		}
-		
-		setTime(time);									// given time is *end* time of this block
-		putData(chan, data);							// add this data
-		flush();										// do a normal flush at this point
 	}
 */
 	
@@ -523,7 +495,6 @@ public class CTwriter {
 			flush();
 		}
 		if(blockTime == 0) blockTime = thisFtime;
-//		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
 
 		writeData(thisFtime, outName, bdata);
 	}
@@ -555,7 +526,6 @@ public class CTwriter {
 	private HashMap<String, Long>timeData = new HashMap<String, Long>();
 
 	private synchronized void addData(String name, byte[] bdata) throws Exception {
-//		prevFtime = thisFtime;
 		thisFtime = fTime;
 		if(thisFtime == 0) thisFtime = System.currentTimeMillis() * (timeFactor/1000);
 
@@ -565,7 +535,6 @@ public class CTwriter {
 			flush();
 		}
 		if(blockTime == 0) blockTime = thisFtime;
-//		if(rebaseFlag) segmentTime(blockTime);		// rebase top level folder time
 		
 		CTinfo.debugPrint("addData: "+name+", thisFtime: "+thisFtime+", blockTime: "+blockTime+", fTime: "+fTime);
 
@@ -875,25 +844,6 @@ public class CTwriter {
 		
 		File rootFolder = new File(destPath);
 		return deleteOldTimes(rootFolder, oldTime);
-
-/*		
-		File[] flist = rootFolder.listFiles();
-		Arrays.sort(flist);						// make sure sorted 
-
-		for(File file:flist) {
-			double ftime = fileTime(file);
-//			System.err.println("CTtrim file: "+file.getAbsolutePath()+", ftime: "+ftime+", oldTime: "+oldTime+", diff: "+(ftime-oldTime));
-			if(ftime <= 0) continue;				// not a CT time file
-			if(ftime >= oldTime) return true;		// all done (sorted)
-			System.err.println("CTtrim delete: "+file.getAbsolutePath());
-			boolean status;
-			if(file.isFile()) status = file.delete();				// only trims top-level zip files 
-			else			  status = deleteRecursive(file);	  	// recursive (scary)
-			if(!status) System.err.println("CTtrim warning, failed to delete: "+file.getAbsolutePath());
-		}
-		
-		return true;
-*/
 	}
 	
 	private boolean deleteOldTimes(File rootFolder, double trimTime) throws IOException {
