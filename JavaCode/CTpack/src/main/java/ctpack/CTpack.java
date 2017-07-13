@@ -107,7 +107,8 @@ public class CTpack {
 			// setup CTwriter for each root source
 			CTwriter ctw = new CTwriter(rootFolder+File.separator+packSource);		// new CTwriter at root/source folder
 			ctw.setBlockMode(packMode,zipMode); 					// pack into binary blocks (linear timestamps per block)
-			ctw.setGZipMode(gzipmode);
+//			ctw.setGZipMode(gzipmode);
+			if(gzipmode) ctw.setZipMode(true, 10);
 			
 			ctw.autoFlush(0);							
 			ctw.autoSegment(segBlocks);								// auto create segments

@@ -271,15 +271,15 @@ public class CTwriter {
 	 * @param clevel zip compression level (0=none, 1-fastest, 9-max, 10=auto-gzip).  default=1
 	 */
 	public void setZipMode(boolean zipflag, int clevel) {
-		if(compressLevel == 10) setZipMode(zipflag, 0, true);
-		else					setZipMode(zipflag, clevel, false);
+		if(clevel == 10) setZipMode(zipflag, 0, true);
+		else			 setZipMode(zipflag, clevel, false);
 	}
 	
 	private void setZipMode(boolean zipflag, int clevel, boolean gzipflag) {
 		zipFlag = zipflag;
 		compressLevel = clevel;
 		gzipFlag = gzipflag;
-		if(gzipflag) zipFlag = true;			// enforce zip first then gzip for file.zip.gz
+		if(gzipFlag) zipFlag = true;			// enforce zip first then gzip for file.zip.gz
 	}
 	
 	//------------------------------------------------------------------------------------------------
