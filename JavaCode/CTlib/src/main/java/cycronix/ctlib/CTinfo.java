@@ -243,6 +243,7 @@ public class CTinfo {
 			try {
 				String thispart = pathparts[i];
 //				System.err.println("fileTime, fname: "+fname+", thispart: "+thispart);
+				if(!isNumeric(thispart)) continue;			// faster fail than exception
 				long basetime = Long.parseLong(thispart);
 				if		(basetime > usecTimeCheck) 	timeResolution = 1000000;	// usec
 				else if	(basetime > msecTimeCheck) 	timeResolution = 1000;		// msec 
@@ -262,6 +263,7 @@ public class CTinfo {
 			long thistime = 0L;
 			
 			try {
+				if(!isNumeric(thispart)) continue;			// faster fail than exception
 				thistime = Long.parseLong(thispart);
 //				thistime = Double.parseDouble(thispart);
 				sumtime += thistime;							// presume consistent msec or sec times all levels
@@ -286,25 +288,16 @@ public class CTinfo {
 //		System.err.println("fileTime, file: "+fname+", ftime: "+ftime+", timeResolution: "+timeResolution);
 		return ftime;
 		
-/*
-		if(sumtime >= 1000000000000000L) {			// relative usec		
-			ftime = (double)sumtime / 1000000.;
-//			System.err.println("******usec fileTime: "+ftime);
-			return ftime;
-		}
-		if(sumtime >= 1000000000000L) {			// relative msec		
-			ftime = (double)sumtime / 1000.;
-//			System.err.println("******msec fileTime: "+ftime);
-			return ftime;
-		}
-		else {									// relative sec
-			//			if(thistime >= 1000000000L) {		
-			ftime = (double)sumtime;
-//			System.err.println("******sec fileTime: "+ftime);
-			return ftime;
-		}
-
-//		return 0.;		// not a problem if a non-timestamp (e.g. channel) folder
- */
   	}
+  	
+  	private static boolean isNumeric(String str) {
+//  		return Character.isDigit(str.charAt(0));		// quick check first char
+  	    if (str == null) return false;
+  	    int sz = str.length();
+  	    for (int i = 0; i < sz; i++) {
+  	        if (Character.isDigit(str.charAt(i)) == false) return false;
+  	    }
+  	    return true;
+  	}
+
 }

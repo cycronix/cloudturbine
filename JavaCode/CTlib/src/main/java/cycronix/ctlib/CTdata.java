@@ -200,7 +200,7 @@ public class CTdata {
 //		if(tmode.equals("oldest")) start = timelist.get(0);		// defer until find first point, may need to deduct block-duration 
 		
 		double end = start + duration;		// presume absolute time provided
-		CTinfo.debugPrint("timeRange, start: "+start+", end: "+end+", duration: "+duration+", timelist(0): "+timelist.get(0)+", wordSize: "+wordSize);
+		CTinfo.debugPrint("timeRange, start: "+start+", end: "+end+", duration: "+duration+", timelist(0): "+timelist.get(0)+", wordSize: "+wordSize+", timelist.size: "+timelist.size());
 	
 		if(start==0. || duration < 0.) end = Double.MAX_VALUE;		// use full range if relative timestamp 
 		int nframe = datalist.size();
@@ -235,16 +235,47 @@ public class CTdata {
 //		if(duration==0) nframe = 1;			// cluge to get rid of double-returns?
 		
 		// step through elements of timelist, datalist Arrays
+		
+		// optimize special case for single-point frames:
+		if(duration>0 && tmode.equals("absolute") && datalist!=null && (datalist.get(0).length==wordSize)) {
+			int istart = 0;
+			int iend = nframe -1;
+			for(int i=0; i<nframe; i++) {
+				if(timelist.get(i) >= start) { istart = i; break; }
+			}
+			for(int i=nframe-1; i>=0; i--) {
+				if(timelist.get(i) <= end) { iend = i; break; }
+			}
+			if(istart==0 && iend==(nframe-1)) {
+//				System.err.println("quick list!");
+				return this;
+			}
+			else {
+//				System.err.println("sublist!, istart: "+istart+", iend: "+iend+", nframe: "+nframe);
+				timelist = new ArrayList<Double> (timelist.subList(istart, iend));		// faster to sublist than to create new copy?
+				datalist = new ArrayList<byte[]> (datalist.subList(istart, iend));
+				filelist = new ArrayList<CTFile> (filelist.subList(istart, iend));
+				return this;
+			}
+		}
+		
 		for(int i=0; i<nframe; i++) {					// multiple frames per arraylist element
 			double time = timelist.get(i);
 
-			CTinfo.debugPrint("frame: "+i+", tframe: "+time+", nframe: "+nframe+", start: "+start+", end: "+end);
 			if(time == prevtime) continue;				// skip dupes		
 			
 			int count = 0;
 			try{ count = datalist.get(i).length/wordSize; } catch (Exception e) {};		// for timeonly, data could be nullptr
-			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time+", count: "+count);
-
+//			CTinfo.debugPrint("wordSize: "+wordSize+", duration: "+duration+", tmode: "+tmode+", i: "+i+", nframe: "+nframe+", time: "+time+", count: "+count);
+			CTinfo.debugPrint("frame: "+i+", tframe: "+time+", nframe: "+nframe+", start: "+start+", end: "+end+", count: "+count);
+//			double ts = timelist.get(0);
+//			double te = timelist.get(timelist.size()-1);
+//			System.err.println("start: "+start+", end: "+end+", t0: "+ts+", te: "+te+", dts: "+(ts-start)+", dte: "+(end-te));
+//			if(ts >= start && te <= end) {
+//				System.err.println("easy trim!");
+//				return this;
+//			}
+			
 			if(wordSize <= 1 || count<=1) {							// full intact frames 
 				
 //				if(duration==0 && nframe==1) {		// special single-frame intact-frame case (e.g. images) MJM 8/16
@@ -340,7 +371,7 @@ public class CTdata {
 				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
 				
-				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count+", end: "+end);
+				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count+", end: "+end+", nframe: "+nframe);
 //				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
 				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
 

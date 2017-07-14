@@ -66,7 +66,8 @@ class CTFile extends File {
 	private String 	myZipFile=null;
 	private String[] myFiles=null;
 	private Map<String, String[]> zipMap;
-
+	private double myTime= -1.;
+	
 	enum FileType {
 		FILE,						// regular file or folder
 		ZIP,						// parent.zip file
@@ -660,8 +661,9 @@ class CTFile extends File {
      * @return double time in seconds
      */
   	double fileTime() {
-//  		return fileTime(getName());
-  		return fileTime(getMyPath());	// provide full pathname (support relative timestamps)
+  		if(myTime < 0.) myTime = fileTime(getMyPath());		// remember (save work)
+  		return myTime;
+//  		return fileTime(getMyPath());	// provide full pathname (support relative timestamps)
   	}
 
   	/**
