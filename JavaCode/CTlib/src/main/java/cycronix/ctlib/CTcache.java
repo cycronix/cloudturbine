@@ -1,18 +1,3 @@
-package cycronix.ctlib;
-
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.zip.ZipFile;
-
-/**
- * CloudTurbine utility class that provides caching storage and access functions
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 2017/07/05
- * 
-*/
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -31,6 +16,21 @@ import java.util.zip.ZipFile;
  * specific language governing permissions and limitations
  * under the License.
  *******************************************************************************/
+
+package cycronix.ctlib;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.zip.ZipFile;
+
+/**
+ * CloudTurbine utility class that provides caching storage and access functions
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 2017/07/05
+ * 
+*/
 
 public class CTcache {
 

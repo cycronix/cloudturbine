@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Map.Entry;
 import java.nio.file.attribute.BasicFileAttributes;
 
 /**
@@ -634,7 +635,7 @@ public class CTreader {
 //	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 	// beware: this will multi-thread
 	private CTFile[] flatFileList(String baseFolder, CTmap ictmap, String chanKey, boolean fileRefresh) throws Exception {
-		long startTime = System.nanoTime();
+//		long startTime = System.nanoTime();
 
 		CTFile[] cachedList = CTcache.fileListByChan.get(chanKey);
 //		CTinfo.debugPrint(readProfile,"flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
@@ -671,8 +672,9 @@ public class CTreader {
 				}
 			};
 			
-			long t1 = System.nanoTime();
+//			long t1 = System.nanoTime();
 			CTfileList(listOfFolders, fflist, endTime, ctmap);			// add any new files to end of list
+						
 //			CTinfo.debugPrint(readProfile,"CTfileList chan: "+chanKey+", dt: "+((System.nanoTime()-t1)/1000000.));
 		}
 		

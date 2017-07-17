@@ -1,39 +1,3 @@
-package cycronix.ctlib;
-
-//---------------------------------------------------------------------------------	
-//CTFile:  extended File class, list file and/or zip entries
-//Matt Miller, Cycronix
-//02/18/2014
-
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.text.SimpleDateFormat;
-//import java.nio.file.Path;
-//import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-
-/**
- * CloudTurbine utility class that extends File class to include zip-files
- * <p>
- * @author Matt Miller (MJM), Cycronix
- * @version 2014/03/06
- * 
-*/
-
 /*******************************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -52,6 +16,41 @@ import java.util.zip.ZipFile;
  * specific language governing permissions and limitations
  * under the License.
  *******************************************************************************/
+
+package cycronix.ctlib;
+
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+//import java.nio.file.Path;
+//import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+
+/**
+ * CloudTurbine utility class that extends File class to include zip-files
+ * <p>
+ * @author Matt Miller (MJM), Cycronix
+ * @version 2014/03/06
+ * 
+*/
+
+//---------------------------------------------------------------------------------	
+//CTFile:  extended File class, list file and/or zip entries
+//Matt Miller, Cycronix
+//02/18/2014
 
 //---------------------------------------------------------------------------------	
 //CTFile:  extended File class, list file and/or zip entries
@@ -455,8 +454,8 @@ class CTFile extends File {
 	byte[] read() {
 //		String cacheKey = myZipFile+":"+myPath;
 		String cacheKey = myPath;			// 6/2017:  myPath now unique full path into zip?
-		long startTime = System.nanoTime();
-
+//		long startTime = System.nanoTime();	long thisTime = startTime;
+		
 //		String cacheKey = myPath;	// myPath includes zipfile name?  Nope, inconsistent but myPath for zip-entry is not full time-path
 //		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = CTcache.DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
@@ -464,7 +463,7 @@ class CTFile extends File {
 //			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+CTcache.DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
 			return data;					// use cached data
 		}
-		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+CTcache.DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
+		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+CTcache.DataCache.size());
 		
 //		if(myData!=null) return myData;		// cache
 		switch(fileType) {
@@ -475,8 +474,10 @@ class CTFile extends File {
 		case ZFILE:			// zipoutput
 //		if(isFile) {		
 			try {
+//				thisTime = System.nanoTime(); System.err.println("ckp1: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
 				ZipFile thisZipFile = CTcache.cachedZipFile(myZipFile);
 //				ZipFile thisZipFile = new ZipFile(myZipFile);
+//				thisTime = System.nanoTime(); System.err.println("ckp2: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
 
 				// note:  myPath for zip-entry is not full-path as it is with other CTFile...  <---FIXED and adjusted right below!
 				String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
@@ -487,6 +488,7 @@ class CTFile extends File {
 				else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
 
 				ZipEntry ze = thisZipFile.getEntry(mypathfs);			// need fullpath!
+//				thisTime = System.nanoTime(); System.err.println("ckp3: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
 
 				if(ze == null) {
 //					thisZipFile.close();
@@ -500,6 +502,8 @@ class CTFile extends File {
 				while ((len = zis.read(data,nread,zsize-nread)) > 0) nread+=len;
 				//		    		System.err.println("zip nread: "+nread+", ze.size: "+ze.getSize());
 				zis.close();
+//				thisTime = System.nanoTime(); System.err.println("ckp4: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
+
 //				thisZipFile.close();
 
 			} catch(Exception e) {
@@ -600,8 +604,8 @@ class CTFile extends File {
 
 	//---------------------------------------------------------------------------------	
 	static private String fileName(String path) {
-//		System.err.println("path: "+path+", fileName: "+path.substring(path.lastIndexOf(File.separator) + 1));
 //		return path.substring(path.lastIndexOf(File.separator) + 1);
+//		System.err.println("CTFile fileName, path: "+path+", fileName: "+new File(path).getName());
 		return new File(path).getName();
 	}
 	
