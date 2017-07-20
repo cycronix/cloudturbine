@@ -511,9 +511,11 @@ public class CTreader {
 	// do the file checking and return CTmap channel map of Time-Data
 	
 	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) throws Exception {
-		long startTime = System.nanoTime();
+//		long startTime = System.nanoTime();
 		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
 		try {
+			if(rmode.equals("newest")) clearFileListCache(thisChanKey);							// clean up potentially "stale" data (can happen if insert data with time<end)
+
 			// get updated list of folders
 			CTFile[] oldList = CTcache.fileListByChan.get(thisChanKey);
 			boolean fileRefresh = false;
@@ -634,6 +636,16 @@ public class CTreader {
 	
 //	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 	// beware: this will multi-thread
+	
+	private void clearFileListCache() {
+		CTcache.fileListByChan.clear();
+	}
+	
+	private void clearFileListCache(String chanKey) {
+		CTinfo.debugPrint("CLEAR fileListCache!: "+chanKey);
+		CTcache.fileListByChan.put(chanKey, null);
+	}
+	
 	private CTFile[] flatFileList(String baseFolder, CTmap ictmap, String chanKey, boolean fileRefresh) throws Exception {
 //		long startTime = System.nanoTime();
 
@@ -652,7 +664,7 @@ public class CTreader {
 				
 		if(fileRefresh) {
 			CTFile[] listOfFolders = new CTFile(baseFolder).listFiles();
-			if(listOfFolders==null) return null;
+			if(listOfFolders==null || listOfFolders.length==0) return null;
 			
 			// trim oldest if nec
 //			double oldestTime = listOfFolders[0].fileTime();      	    // ref oldTime is oldest of any chan
@@ -716,7 +728,7 @@ public class CTreader {
 		boolean pdebug=false;
 //		if(recursionLevel <= 2) pdebug = true;
 		
-		if(pdebug) System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length);
+		if(pdebug) System.err.println("CTfileList, listOfFolders.length: "+listOfFolders.length+", endTime: "+endTime);
 		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
 			if(pdebug) System.err.println("i: "+i+", time1: "+((System.nanoTime()-startTime)/1000000.));
 			CTFile folder = listOfFolders[i];
