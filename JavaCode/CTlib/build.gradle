@@ -13,8 +13,7 @@ dependencies {
 }
 
 // JAR settings
-// Specify ".doFirst" to force this to run in the Execution phase.
-jar.doFirst {
+jar {
     // Include license in the JAR's META-INF directory
     into("META-INF") {
     	from "$rootDir/../LICENSE", "$rootDir/../NOTICE" 
