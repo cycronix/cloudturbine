@@ -1,5 +1,17 @@
 
 // JAR settings
+jar {
+	// Gradle 4.0+ doesn't want this configuration step included in the
+	// "jar.doFirst" found below.
+	// Copy Third_Party/RBNB_EULA.html to the JAR's META-INF directory.
+    // An alternate approach would be to simply include RBNB_EULA.html
+    // in the src\main\resources\META-INF folder under this project (any file
+    // in that folder will be included in the JAR's META-INF folder).
+    from ('../Third_Party') {
+        include 'RBNB_EULA.html'
+        into ("META-INF/RBNB")
+    }
+}
 // Specify ".doFirst" to force this to run in the Execution phase.  Without
 // this specification, this would be run during the Configuration phase, which
 // would fail if CTlib.jar didn't yet exist; at Execution phase, CTlib.jar
@@ -16,15 +28,6 @@ jar.doFirst {
         (configurations.runtime).collect {
             it.isDirectory() ? it : zipTree(it)
         }
-    }
-    
-    // Copy Third_Party/RBNB_EULA.html to the JAR's META-INF directory.
-    // An alternate approach would be to simply include RBNB_EULA.html
-    // in the src\main\resources\META-INF folder under this project (any file
-    // in that folder will be included in the JAR's META-INF folder).
-    from ('../Third_Party') {
-        include 'RBNB_EULA.html'
-        into ("META-INF/RBNB")
     }
     
     // Build up a string containing all the runtime dependencies; this will be
