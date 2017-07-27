@@ -89,6 +89,8 @@ public class CTwriter {
 	private boolean timeRelative=true;		// if set, writeData to relative-timestamp subfolders
 	private CTcrypto ctcrypto=null;		// optional encryption class
 	
+	// NOTE:  following timeFactor logic needs to be extended to handle sec/msec/usec/nsec
+	// idea:  deprecate all but double-time public methods, track all internal time in doubles, use enum timeRes to write file name digits
 	private long timeFactor=1000;		// convert double to long time units (e.g. 1000 ~ msec, 1000000 ~ usec)
 	//------------------------------------------------------------------------------------------------
 	// constructor
@@ -129,11 +131,17 @@ public class CTwriter {
 	
 	/**
 	 * Set high-resolution timestamps (usec)
+	 * <p>Beware, this will be replaced by more flexible sec/msec/usec/nsec time resolution method
+	 * 
 	 * @param hiResTime 
 	 */
+	@Deprecated
 	public void setHiResTime(boolean hiResTime) {
 		if(hiResTime) 	timeFactor = 1000000;
 		else			timeFactor = 1000;
+		
+		// cluge in case autoFlush set before timeFactor:
+		if(autoFlush<Long.MAX_VALUE) autoFlush = autoFlush * timeFactor / 1000;		
 	}
 	
 	/**
