@@ -549,6 +549,7 @@ public class CTreader {
 
 			int ifound = fileSearch(listOfFiles, getftime);				// found is at or before getftime
 			if(rmode.equals("prev")) ifound = ifound - 1;
+			if(ifound < 0) ifound = 0;									// firewall
 			
 //			System.err.println("FOUND chan: "+thisChan+", ftime: "+getftime+", index: "+found+", size: "+listOfFiles.length+", searchTime-foundTime: "+(getftime-listOfFiles[found].fileTime()));
 			if(duration==0 && rmode.equals("absolute")) {
