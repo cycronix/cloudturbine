@@ -42,8 +42,7 @@ package erigo.ctserial;
  * 
  */
 
-import java.io.InputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.Scanner;
 
 import org.apache.commons.cli.*;
@@ -56,14 +55,14 @@ public class CTserial {
 	
 	private boolean zipMode = true;
 	private boolean debug = false;
-	private double autoFlushDefault = 1.;	  // default flush interval (sec)
-	private long autoFlushMillis;			  // flush interval (msec)
+	private double autoFlush = 1.0;			  // flush interval (msec)
 	private double trimTime = 0.;			  // trimtime (sec)
 	private String srcName = new String("CTserial");
 	private CTwriter ctw;
 	private boolean bShutdown = false;
 	private static final int baudRateDefault = 9600;
 	private static final String defaultPortStr = "COM1";
+	private String inFileName = null;         // can optionally read input from a file rather than from serial port
 	
 	// The main workers in this program
 	private SerialRead serialRead = null;	// the main object which defined what to do
@@ -124,9 +123,10 @@ public class CTserial {
 		options.addOption(Option.builder("c").argName("channel name(s)").hasArg().desc("name of channel(s) to write data to (comma-separated list)").build());
 		options.addOption(Option.builder("p").argName("serial port").hasArg().desc("port number to listen for serial packets on; default = " + defaultPortStr).build());
 		options.addOption(Option.builder("d").argName("delta-time").hasArg().desc("fixed delta-time (msec) between frames; dt=0 (which is the default) to use arrival-times").build());
-		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile); default = " + Double.toString(autoFlushDefault)).build());
+		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile); default = " + Double.toString(autoFlush)).build());
 		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec); trimTime=0 (which is the default) for indefinite").build());
 		options.addOption(Option.builder("b").argName("baudrate").hasArg().desc(new String("baud rate; default = " + baudRateDefault)).build());
+		options.addOption(Option.builder("i").argName("input file").hasArg().desc("read input from a file rather than a serial port").build());
 		options.addOption("time_in_str", false, "the first entry in the received CSV string is the data time; in this case, do not include the time channel as the first entry in the specified channels list");
 		options.addOption("x", "debug", false, "debug mode");
 		options.addOption("z", "sim_mode", false, "turn on simulate mode (don't read serial port)");
@@ -163,8 +163,7 @@ public class CTserial {
 		dt = Double.parseDouble(dtStr);
 		
 		// Auto-flush time
-		double autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlushDefault));
-		autoFlushMillis = (long)(autoFlush*1000.);
+		autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlush));
 		
 		trimTime = Double.parseDouble(line.getOptionValue("t","0"));
 		
@@ -180,15 +179,21 @@ public class CTserial {
 			System.err.println("Must specify \"delta-time\" when in simulate mode.");
 			return;
 		}
-		
+
 		debug = line.hasOption("debug");
 		
 		int baudrate = Integer.parseInt(line.getOptionValue("br",Integer.toString(baudRateDefault)));
+
+		inFileName = null;
+		if (line.hasOption("i")) {
+			inFileName = line.getOptionValue("i");
+		}
 		
 		// setup CTwriter
 		try {
 			ctw = new CTwriter(srcName,trimTime);	
 			ctw.setZipMode(zipMode);
+			ctw.autoFlush(autoFlush);
 			CTinfo.setDebug(debug);
 		} catch(Exception e) {
 			System.err.println("Caught exception trying to setup CTwriter:");
@@ -196,7 +201,11 @@ public class CTserial {
 			return;
 		}
 
-		System.err.print("Source name: " + srcName + "\nSerial port: " + portStr + "\nBaud rate: " + baudrate + "\nChannels: ");
+		if (inFileName != null) {
+			System.err.print("Source name: " + srcName + "\nInput file: " + inFileName + "\nChannels: ");
+		} else {
+			System.err.print("Source name: " + srcName + "\nSerial port: " + portStr + "\nBaud rate: " + baudrate + "\nChannels: ");
+		}
 		for(int i=0; i<(chanNames.length-1); ++i) {
 			System.err.print(chanNames[i] + ",");
 		}
@@ -206,7 +215,7 @@ public class CTserial {
 		}
 		
 		try {
-			serialRead = new SerialRead(portStr, chanNames, dt, bFirstValIsTime, baudrate, bSimulateMode);
+			serialRead = new SerialRead(inFileName, portStr, chanNames, dt, bFirstValIsTime, baudrate, bSimulateMode);
 			serialReadThread = new Thread(serialRead);
 			serialReadThread.start();
 		} catch (Exception e) {
@@ -215,15 +224,9 @@ public class CTserial {
 		}
 	}
 	
-	//--------------------------------------------------------------------------------------------------------
-	// note: multi-channel auto-flush with dt=spec can cause inconsistent times in zipfiles.
-	//		 suggest manual-flush with check on t>tflush each thread.
-	//		 this will also keep multi-channels semi-synced (eliminate drift) at expense of occasional jitter/gaps
-	
-	double flushTime = 0; // time of last flush
-	long firstFlush = 0; // sync multi-channels to first at start
 	private class SerialRead implements Runnable {
-		
+
+		private String inFileName;
 		private String portStr;
 		private String[] chanNames;
 		private double dt = 0;
@@ -232,8 +235,10 @@ public class CTserial {
 		private boolean bSimulateMode = false;
 		private SerialPort serPort = null;		// the serial port we are reading from
 		private Scanner scanner = null;			// to read lines from the serial port
+		private BufferedReader br = null;       // to read lines from file
 		
-		SerialRead(String portStrI, String[] chanNamesI, double dtI, boolean bFirstValIsTimeI, int baudrateI, boolean bSimulateModeI) throws Exception {
+		SerialRead(String inFileNameI, String portStrI, String[] chanNamesI, double dtI, boolean bFirstValIsTimeI, int baudrateI, boolean bSimulateModeI) throws Exception {
+			inFileName = inFileNameI;
 			portStr = portStrI;
 			chanNames = chanNamesI;
 			dt = dtI;
@@ -241,8 +246,8 @@ public class CTserial {
 			baudrate = baudrateI;
 			bSimulateMode = bSimulateModeI;
 			
-			// Open serial port (if not in simulate mode)
-			if (!bSimulateMode) {
+			// Open serial port (if not in simulate mode and not reading from input file)
+			if (!bSimulateMode && (inFileName == null)) {
 				serPort = SerialPort.getCommPort(portStr);
 				serPort.setBaudRate(baudrate);
 				serPort.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
@@ -254,7 +259,17 @@ public class CTserial {
 		
 		public void run() {
 			InputStream inputStream = null;
-			if (!bSimulateMode) {
+			if ( (!bSimulateMode) && (inFileName != null) ) {
+				// Read from an input file
+				try {
+					inputStream = new FileInputStream(new File(inFileName));
+					br = new BufferedReader(new InputStreamReader(inputStream));
+				} catch (Exception e) {
+					e.printStackTrace();
+					return;
+				}
+			} else if (!bSimulateMode) {
+				// Read from serial port
 				inputStream = serPort.getInputStream();
 				scanner = new Scanner(inputStream);
 			}
@@ -262,8 +277,7 @@ public class CTserial {
 			try {
 				double oldtime = 0;
 				double time = 0;
-				if(flushTime == 0) flushTime = System.currentTimeMillis();
-				
+
 				int expectedNumCSVEntries = chanNames.length;
 				if (bFirstValIsTime) {
 					// Add one more for the time given as the first entry
@@ -274,14 +288,23 @@ public class CTserial {
 				int loopIdx = 0;
 				int loopIdxDontReset = 0;
 				
-				while(!bShutdown && ( bSimulateMode || scanner.hasNextLine() ) ) {
+				// while(!bShutdown && ( bSimulateMode || scanner.hasNextLine() )) {
+				while(!bShutdown) {
 					if ( bSimulateMode && ((loopIdx%50) == 0) ) {
 						// To make "jumps" in the simulated data
 						loopIdx = 0;
 					}
+					if ( !bSimulateMode && (scanner != null) && !scanner.hasNextLine() ) {
+						// Wait for more input
+						while (!bShutdown) {
+							Thread.sleep(50);
+						}
+					}
 					String line = null;
-					if (!bSimulateMode) {
+					if (!bSimulateMode && (scanner != null)) {
 						line = scanner.nextLine();
+					} else if (!bSimulateMode && (br != null)) {
+						line = br.readLine();
 					} else {
 						int new_time = (int)(loopIdxDontReset*dt);
 						line = new String("");
@@ -324,26 +347,26 @@ public class CTserial {
 									continue;
 								}
 							} else if (dt==0) {
+								// use current wall-clock time
 								time = System.currentTimeMillis();
-							} else if (time==0) {
-								if(firstFlush == 0) time = firstFlush = System.currentTimeMillis();
-								else				time = firstFlush;
 							} else {
-								time += dt;	// automatically paced data, just add dt with each loop
+								// automatically paced data, just add dt with each loop
+								if (time==0) {
+									// initialize time
+									time = System.currentTimeMillis();
+								} else {
+									time += dt;
+								}
 							}
 						}
-						if(time < flushTime) {
-							System.err.println("------------autoFlush skootch time: " + time + " -> " + flushTime);
-							time = flushTime; // no backwards-going times
-						}
-						
+
 						if (time <= oldtime) {
 							time=oldtime+1; // no dupes
 						}
 						oldtime = time;
 						
 						//if(debug) {
-							System.err.println("CTserial t: " + time + ", last flush time: " + flushTime + ", data string: " + line);
+							System.err.println("CTserial t: " + time + ", data string: " + line);
 						//}
 						
 						try {
@@ -360,12 +383,6 @@ public class CTserial {
 										// Put data as String
 										ctw.putData(chanNames[i], dataStr);
 									}
-								}
-								if ((time - flushTime) > autoFlushMillis) {
-									// time to flush
-									System.err.println("---CTserial flush: t: " + String.format("%.3f",time/1000.0));
-									flushTime = time;
-									ctw.flush();
 								}
 							}
 						} catch(Exception e) {
@@ -391,11 +408,24 @@ public class CTserial {
 					System.err.println("Caught exception closing InputStream");
 					e.printStackTrace();
 				}
-				System.err.println("Close serial port...");
-				serPort.closePort();
-				System.err.println("Close Scanner...");
-				scanner.close();
+				if (serPort != null) {
+					System.err.println("Close serial port...");
+					serPort.closePort();
+				}
+				if (scanner != null) {
+					System.err.println("Close Scanner...");
+					scanner.close();
+				}
+				if (br != null) {
+					System.err.println("Close BufferedReader...");
+					try {
+						br.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
 			}
+			ctw.close();
 			
 			System.err.println("SerialRead is exiting");
 		}
