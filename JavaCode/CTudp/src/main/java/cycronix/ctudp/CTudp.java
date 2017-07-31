@@ -308,10 +308,10 @@ public class CTudp {
 								ctw.putData(chanName, data);
 								// If requested, split the incoming csv string up and save each channel
 								if (csvChanNames != null) {
-									String csvStr = data.toString();
+									String csvStr = new String(data);
 									String[] chanDataStr = csvStr.split(",");
 									if (chanDataStr.length != csvChanNames.length) {
-										System.err.println("Received string with incorrect number of csv entries");
+										System.err.println("Received string with incorrect number of csv entries (" + chanDataStr.length + "), was expecting " + csvChanNames.length);
 									} else {
 										for (int i=0; i<csvChanNames.length; ++i) {
 											// If this entry is numeric, putData as a number
