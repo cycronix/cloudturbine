@@ -54,6 +54,7 @@ public class CTudp {
 	//--------------------------------------------------------------------------------------------------------
 	public CTudp(String[] arg) {
 		String[] 	chanName	=	new String[32];
+		String[]    csvChanNames = null;
 		int			ssNum[]		=	new int[32];
 		double			dt[] = new double[32];
 		int numChan = 0;
@@ -64,6 +65,7 @@ public class CTudp {
 		options.addOption("h", "help", false, "Print this message");
 		options.addOption(Option.builder("s").argName("source name").hasArg().desc("name of source to write packets to").build());
 		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("name of channel to write packets to").build());
+		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("comma-separated list of channel names; split the incoming CSV string into a series of channels with the given names").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("multicast UDP address (224.0.0.1 to 239.255.255.255)").build());
 		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("port number to listen for UDP packets on").build());
 		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("fixed delta-time (msec) between frames (dt=0 for arrival-times)").build());
@@ -93,6 +95,11 @@ public class CTudp {
 		String chanNameL = line.getOptionValue("c","udpchan");
 		chanName = chanNameL.split(","); 
 		numChan = chanName.length;
+
+		if (line.hasOption("csplit")) {
+			chanNameL = line.getOptionValue("csplit");
+			csvChanNames = chanNameL.split(",");
+		}
 
 		multiCast = line.getOptionValue("m",multiCast);
 
@@ -200,6 +207,13 @@ public class CTudp {
 			System.err.println("Channel["+i+"]: " + chanName[i]);
 			System.err.println("UDPport["+i+"]: " + ssNum[i]);
 		}
+		if (csvChanNames != null) {
+			System.err.println("\nIncoming csv strings will be split into the following channels:");
+			for(int i=0; i<(csvChanNames.length-1); ++i) {
+				System.err.print(csvChanNames[i] + ",");
+			}
+			System.err.println(csvChanNames[ csvChanNames.length-1 ]);
+		}
 		
 		// setup CTwriter
 		try {
@@ -216,7 +230,7 @@ public class CTudp {
 		// start a thread for each port
 		for(int i=0; i<numSock; i++) {
 			System.err.println("start thread for port: "+ssNum[i]+", chan: "+chanName[i]);
-			new UDPread(ssNum[i], chanName[i], dt[i]).start();
+			new UDPread(ssNum[i], chanName[i], csvChanNames, dt[i]).start();
 		}
 	}
 	
@@ -231,13 +245,15 @@ public class CTudp {
 		
 		private int port = 0;
 		private String chanName;
+		private String[] csvChanNames = null;
 		private DatagramSocket ds=null; 				//listen for data here
 		private MulticastSocket ms=null;
 		private double dt=0;
 		
-		UDPread(int iport, String ichanName, double idt) {
+		UDPread(int iport, String ichanName, String[] csvChanNamesI, double idt) {
 			port = iport;
 			chanName = ichanName;
+			csvChanNames = csvChanNamesI;
 			dt = idt;
 			
 			try {				//open port for incoming UDP
@@ -290,6 +306,27 @@ public class CTudp {
 							synchronized(ctw) {
 								ctw.setTime((long)time);
 								ctw.putData(chanName, data);
+								// If requested, split the incoming csv string up and save each channel
+								if (csvChanNames != null) {
+									String csvStr = data.toString();
+									String[] chanDataStr = csvStr.split(",");
+									if (chanDataStr.length != csvChanNames.length) {
+										System.err.println("Received string with incorrect number of csv entries");
+									} else {
+										for (int i=0; i<csvChanNames.length; ++i) {
+											// If this entry is numeric, putData as a number
+											String dataStr = chanDataStr[i];
+											double dataNum = 0.0;
+											try {
+												dataNum = Double.parseDouble(dataStr);
+												ctw.putData(csvChanNames[i], dataNum);
+											} catch (NumberFormatException nfe) {
+												// Put data as String
+												ctw.putData(csvChanNames[i], dataStr);
+											}
+										}
+									}
+								}
 //								long thisTime = System.currentTimeMillis();
 								if((time - flushTime) > autoFlushMillis) {
 									System.err.println("---CTudp flush: "+chanName+", t: "+time);
