@@ -34,9 +34,9 @@ public class CTperf {
 	static String rootFolder = "CTexample";
 	static boolean blockMode = true;
 	// read-performance:
-	static int nfile=10;						// Rate is proportional to: ~1/nfile
-	static int nchan = 1;						// ~1/sqrt(nchan)
-	static int blocksize = 1000;				// ~blocksize
+	static int nfile=100;						// Rate is proportional to: ~1/nfile
+	static int nchan = 10;						// ~1/sqrt(nchan)
+	static int blocksize = 10000;				// ~blocksize
 	static int ncount = blocksize * nfile;
 	static boolean debug = false;
 	
@@ -80,7 +80,7 @@ public class CTperf {
 			}
 			long stopTime = System.currentTimeMillis();
 			long PPS = (long)(1000.*(nchan*ncount)/(stopTime-startTime));
-			System.out.println("CTperf, Total Time (ms): "+(stopTime-startTime)+", Pts/Sec: "+PPS+", PPS/Chan: "+(PPS/nchan));
+			System.out.println("CTsource, Total Time (ms): "+(stopTime-startTime)+", Pts/Sec: "+PPS+", PPS/Chan: "+(PPS/nchan));
 		} catch(Exception e) {
 			System.err.println("CTperf exception: "+e);
 			e.printStackTrace();
@@ -118,10 +118,10 @@ public class CTperf {
 			long stopTime = System.currentTimeMillis();
 			long PPS = (long)(1000.*(ncount)/(stopTime-startTime));
 			long FPS = (long)(1000.*(cidx*nfile)/(stopTime-startTime));
-			System.out.println("CTsink2, Total Time (ms): "+(stopTime-startTime)+", Pts/Sec: "+PPS+", PPS/Chan: "+(PPS/nchan)+", FPS: "+FPS+", RateFactor F: "+(PPS * Math.sqrt(cidx)/blocksize));
+			System.out.println("CTsink, Total Time (ms): "+(stopTime-startTime)+", Pts/Sec: "+PPS+", PPS/Chan: "+(PPS/nchan)+", FPS: "+FPS);
 		}
 		catch(Exception e) {
-			System.err.println("CTsink2 exception: "+e);
+			System.err.println("CTsink exception: "+e);
 			e.printStackTrace();
 		} 
 	}
