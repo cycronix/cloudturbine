@@ -237,7 +237,7 @@ public class CTdata {
 		// step through elements of timelist, datalist Arrays
 		
 		// optimize special case for single-point frames:
-		if(duration>0 && tmode.equals("absolute") && datalist!=null && (datalist.get(0).length==wordSize)) {
+		if(duration>0 && tmode.equals("absolute") && datalist!=null && nframe>0 && datalist.get(0)!=null && (datalist.get(0).length==wordSize)) {
 			int istart = 0;
 			int iend = nframe -1;
 			for(int i=0; i<nframe; i++) {
