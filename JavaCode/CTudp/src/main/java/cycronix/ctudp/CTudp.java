@@ -45,6 +45,7 @@ public class CTudp {
 	String srcName 	= 	new String("CTudp");
 	static int numSock = 0;
 	CTwriter ctw;
+	double exceptionVal = 0.0;       // When splitting up a given CSV string and an expected double val is bogus, use this value in its place
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -53,24 +54,30 @@ public class CTudp {
 	
 	//--------------------------------------------------------------------------------------------------------
 	public CTudp(String[] arg) {
-		String[] 	chanName	=	new String[32];
-		String[]    csvChanNames = null;
-		int			ssNum[]		=	new int[32];
-		double			dt[] = new double[32];
+		String[] chanName = new String[32];
+		String defaultChanName = "udpchan";
+		String[] csvChanNames = null;
+		int ssNum[] = new int[32];
+		int defaultPort = 4445;
+		double dt[] = new double[32];
+		double defaultDT = 0.0;
 		int numChan = 0;
-		
-	// Argument processing using Apache Commons CLI
+
+		//
+		// Argument processing using Apache Commons CLI
+		//
 		// 1. Setup command line options
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message.");
-		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to.").build());
-		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to.").build());
-		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names.").build());
+		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to; default = \"" + srcName + "\".").build());
+		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to; default = \"" + defaultChanName + "\".").build());
+		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .f64 (64-bit floating point).").build());
+		options.addOption(Option.builder("e").argName("exception val").hasArg().desc("If a CSV string is being parsed (using the -csplit option) and there is an error saving one of the string components as a 64-bit floating point value, use this exception value in its place; default = " + Double.toString(exceptionVal) + ".").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
-		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on.").build());
-		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("Fixed delta-time (msec) between frames (dt=0 for arrival-times).").build());
-		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("Flush interval (sec) (amount of data per zipfile).").build());
-		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("Trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite).").build());
+		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on; default = " + Integer.toString(defaultPort) + ".").build());
+		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("Fixed delta-time (msec) between frames; specify 0 to use arrival-times; default = " + Double.toString(defaultDT) + ".").build());
+		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("Flush interval (sec); amount of data per zipfile; default = " + Double.toString(autoFlush) + ".").build());
+		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("Trim (ring-buffer loop) time (sec); specify 0 for indefinite; default = " + Double.toString(trimTime) + ".").build());
 		options.addOption("x", "debug", false, "Debug mode.");
 
 		// 2. Parse command line options
@@ -92,8 +99,8 @@ public class CTudp {
 
 		srcName = line.getOptionValue("s",srcName);
 
-		String chanNameL = line.getOptionValue("c","udpchan");
-		chanName = chanNameL.split(","); 
+		String chanNameL = line.getOptionValue("c",defaultChanName);
+		chanName = chanNameL.split(",");
 		numChan = chanName.length;
 
 		if (line.hasOption("csplit")) {
@@ -103,99 +110,42 @@ public class CTudp {
 				System.err.println("Error: don't use the \"-csplit\" option when receiving packets from multiple UDP ports.");
 				System.exit(0);
 			}
+			// Make sure that the channel names either have no suffix or will end in .txt, .csv, .f64
+			for(int i=0; i<csvChanNames.length; ++i) {
+				int dotIdx = csvChanNames[i].lastIndexOf('.');
+				if ( (dotIdx > -1) && (!csvChanNames[i].endsWith(".txt")) && (!csvChanNames[i].endsWith(".csv")) && (!csvChanNames[i].endsWith(".f64")) ) {
+					System.err.println("Error: illegal channel name specified in the \"-csplit\" list: " + csvChanNames[i]);
+					System.err.println("\tAccepted channel names: channels with no suffix or with .txt, .csv or .f64 suffixes.");
+					System.exit(0);
+				}
+			}
+		}
+
+		String exceptionValStr = line.getOptionValue("e",Double.toString(exceptionVal));
+		try {
+			exceptionVal = Double.parseDouble(exceptionValStr);
+		} catch (NumberFormatException nfe) {
+			System.err.println("Error parsing the given exception value (\"-e\" flag).");
+			System.exit(0);
 		}
 
 		multiCast = line.getOptionValue("m",multiCast);
 
-		String nss=line.getOptionValue("p", "4445");
+		String nss=line.getOptionValue("p", Integer.toString(defaultPort));
 		String[] ssnums = nss.split(",");
 		numSock=ssnums.length;
 		for(int i=0; i<numSock; i++) ssNum[i]=Integer.parseInt(ssnums[i]);
 
-		String sdt=line.getOptionValue("d","0");				
+		String sdt=line.getOptionValue("d",Double.toString(defaultDT));
 		String[] ssdt = sdt.split(",");
 		for(int i=0; i<ssdt.length; i++) dt[i]=Double.parseDouble(ssdt[i]);
 
 		autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlush));
 		
-		trimTime = Double.parseDouble(line.getOptionValue("t","0"));
+		trimTime = Double.parseDouble(line.getOptionValue("t",Double.toString(trimTime)));
 
 		debug = line.hasOption("debug");
-		
-/*		// old ArgHandler implementation
-		try {
-	//	    System.err.println("");
-			ArgHandler ah=new ArgHandler(arg);
-			if (ah.checkFlag('h') || arg.length==0) {
-				throw new Exception("show usage");
-			}
-			if (ah.checkFlag('s')) {
-				String nameL = ah.getOption('s');
-				if (nameL != null) srcName = nameL;
-			}
-			if (ah.checkFlag('c')) {
-				String chanNameL = ah.getOption('c');
-				if (chanNameL != null) {
-					chanName = chanNameL.split(",");
-					numChan = chanName.length;
-				}
-			}
-			if (ah.checkFlag('m')) {
-				String maddr = ah.getOption('m');
-				if (maddr != null) multiCast = maddr;
-			}
-			if (ah.checkFlag('p')) {
-				String nss=ah.getOption('p');
-				if (nss!=null) {
-					String[] ssnums = nss.split(",");
-					numSock=ssnums.length;
-					for(int i=0; i<numSock; i++) ssNum[i]=Integer.parseInt(ssnums[i]);
-				}
-			}
-			if (ah.checkFlag('d')) {
-				String sdt=ah.getOption('d');				
-				if (sdt!=null) {
-					String[] ssdt = sdt.split(",");
-					for(int i=0; i<ssdt.length; i++) dt[i]=Double.parseDouble(ssdt[i]);
-				}
-			}
-			if (ah.checkFlag('f')) {
-				String saf=ah.getOption('f');
-				if (saf!=null) autoFlush=Double.parseDouble(saf);
-			}
-			if (ah.checkFlag('t')) {
-				String st=ah.getOption('t');
-				if (st!=null) trimTime=Double.parseDouble(st);
-			}
-			if (ah.checkFlag('x')) {
-				debug = true;
-			}
-		} catch (Exception e) {
-			String msgStr = e.getMessage();
-			if ( (msgStr == null) || (!msgStr.equalsIgnoreCase("show usage")) ) {
-			    System.err.println("Exception parsing arguments:");
-			    e.printStackTrace();
-			}
-			System.err.println("CTudp");
-			System.err.println(" -h                     : print this usage info");
-			System.err.println(" -x                     : debug mode");
-			System.err.println(" -s <source name>       : name of source to write packets to");
-			System.err.println("                default : " + srcName);
-			System.err.println(" -c <channel name>      : name of channel to write packets to");
-			System.err.println("                default : " + chanName[0]);
-			System.err.println(" -p <UDP port>          : socket number to listen for UDP packets on");
-			System.err.println("                default : "+ssNum[0]);
-			System.err.println(" -m <multicast addr>     : multicast UDP address (224.0.0.1 to 239.255.255.255)");
-			System.err.println("                default : none");
-			System.err.println(" -d <fixed dt>          : fixed delta-time (msec) between frames (dt=0 for arrival-times");
-			System.err.println("                default : "+dt);
-			System.err.println(" -f <flush (sec)>       : flush interval (sec) (amount of data per zipfile)");
-			System.err.println("                default : "+autoFlush);
-			System.err.println(" -t <trimTime (sec)>  : trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite)");
-			System.err.println("                default : "+trimTime);
-			System.exit(0);
-		}
-*/		
+
 		if(numSock != numChan) {
 			System.err.println("Error:  must specify same number of channels and ports!");
 			System.exit(0);
@@ -308,9 +258,16 @@ public class CTudp {
 
 						try {
 							synchronized(ctw) {
+								//
+								// Put data for the default ("-c") channel
+								// Data is always saved as a byte array
+								//
 								ctw.setTime((long)time);
 								ctw.putData(chanName, data);
+								//
 								// If requested, split the incoming csv string up and save each channel
+								// (this is the "-csplit" option)
+								//
 								if (csvChanNames != null) {
 									String csvStr = new String(data);
 									String[] chanDataStr = csvStr.split(",");
@@ -318,20 +275,28 @@ public class CTudp {
 										System.err.println("Received string with incorrect number of csv entries (" + chanDataStr.length + "), was expecting " + csvChanNames.length);
 									} else {
 										for (int i=0; i<csvChanNames.length; ++i) {
-											// If this entry is numeric, putData as a number
+											// When we parsed the command line args, we made sure that the channel names
+											// will either have no suffix or will end in .txt, .csv, .f64
+											// - if chan name ends in .f64, put data as double
+											// - if chan name doesn't have a suffix or it ends in .txt or it ends in .csv, put data as string
 											String dataStr = chanDataStr[i];
-											double dataNum = 0.0;
-											try {
-												dataNum = Double.parseDouble(dataStr);
-												ctw.putData(csvChanNames[i], dataNum);
-											} catch (NumberFormatException nfe) {
-												// Put data as String
+											if (!csvChanNames[i].endsWith(".f64")) {
+												// Put data as String, let CT sort out the data type depending on what the channel name extension is
 												ctw.putData(csvChanNames[i], dataStr);
+											} else {
+												// Put data as double
+												try {
+													double dataNum = Double.parseDouble(dataStr);
+													ctw.putData(csvChanNames[i], dataNum);
+												} catch (NumberFormatException nfe) {
+													// Error parsing the data as double, put the default exceptionVal instead
+													ctw.putData(csvChanNames[i], exceptionVal);
+												}
 											}
 										}
 									}
 								}
-//								long thisTime = System.currentTimeMillis();
+								// long thisTime = System.currentTimeMillis();
 								if((time - flushTime) > autoFlushMillis) {
 									System.err.println("---CTudp flush: "+chanName+", t: "+time);
 									flushTime = time;
