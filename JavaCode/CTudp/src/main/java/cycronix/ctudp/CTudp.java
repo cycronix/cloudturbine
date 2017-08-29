@@ -62,16 +62,16 @@ public class CTudp {
 	// Argument processing using Apache Commons CLI
 		// 1. Setup command line options
 		Options options = new Options();
-		options.addOption("h", "help", false, "Print this message");
-		options.addOption(Option.builder("s").argName("source name").hasArg().desc("name of source to write packets to").build());
-		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("name of channel to write packets to").build());
-		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("comma-separated list of channel names; split the incoming CSV string into a series of channels with the given names").build());
-		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("multicast UDP address (224.0.0.1 to 239.255.255.255)").build());
-		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("port number to listen for UDP packets on").build());
-		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("fixed delta-time (msec) between frames (dt=0 for arrival-times)").build());
-		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("flush interval (sec) (amount of data per zipfile)").build());
-		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite)").build());
-		options.addOption("x", "debug", false, "debug mode");
+		options.addOption("h", "help", false, "Print this message.");
+		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to.").build());
+		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to.").build());
+		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names.").build());
+		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
+		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on.").build());
+		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("Fixed delta-time (msec) between frames (dt=0 for arrival-times).").build());
+		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("Flush interval (sec) (amount of data per zipfile).").build());
+		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("Trim (ring-buffer loop) time (sec) (trimTime=0 for indefinite).").build());
+		options.addOption("x", "debug", false, "Debug mode.");
 
 		// 2. Parse command line options
 		CommandLineParser parser = new DefaultParser();
@@ -99,6 +99,10 @@ public class CTudp {
 		if (line.hasOption("csplit")) {
 			chanNameL = line.getOptionValue("csplit");
 			csvChanNames = chanNameL.split(",");
+			if (numChan > 1) {
+				System.err.println("Error: don't use the \"-csplit\" option when receiving packets from multiple UDP ports.");
+				System.exit(0);
+			}
 		}
 
 		multiCast = line.getOptionValue("m",multiCast);
