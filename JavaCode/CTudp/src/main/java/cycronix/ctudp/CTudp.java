@@ -40,15 +40,17 @@ public class CTudp {
 	
 	// params common to all sockets:
 	String multiCast=null;			// multicast address
-	boolean zipMode=true;
-	boolean debug=false;
+	boolean zipMode=true;           // ZIP data?
+	boolean packMode=false;         // turn on pack mode?
+	boolean debug=false;            // turn on debug?
 	double autoFlush=1.;			// flush interval (sec)	
 	long autoFlushMillis;			// flush interval (msec)
-	double trimTime=0.;				// trimtime (sec)	
-	String srcName 	= 	new String("CTudp");
+	double trimTime=0.;				// trimtime (sec)
+	long blocksPerSegment = 0;      // number of blocks per segment; 0 = no segment layer
+	String srcName = new String("CTudp");
 	static int numSock = 0;
 	CTwriter ctw;
-	double exceptionVal = 0.0;       // When splitting up a given CSV string and an expected double val is bogus, use this value in its place
+	double exceptionVal = 0.0;      // When splitting up a given CSV string and an expected double val is bogus, use this value in its place
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -78,10 +80,11 @@ public class CTudp {
 		// 1. Setup command line options
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message.");
+		options.addOption("pack", false, "Blocks of data should be packed?  default = " + Boolean.toString(packMode) + ".");
 		options.addOption("csvtest", false, "Specifying this option along with enabling the UDP heartbeat will write out a heartbeat message which is itself a CSV string; useful for loopback testing CTudp functionality.");
 		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to; default = \"" + srcName + "\".").build());
 		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to; default = \"" + defaultChanName + "\".").build());
-		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .f64 (64-bit floating point).").build());
+		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .f32 (32-bit floating point), .f64 (64-bit floating point).").build());
 		options.addOption(Option.builder("e").argName("exception val").hasArg().desc("If a CSV string is being parsed (using the -csplit option) and there is an error saving one of the string components as a 64-bit floating point value, use this exception value in its place; default = " + Double.toString(exceptionVal) + ".").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
 		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on; default = " + Integer.toString(defaultPort) + ".").build());
@@ -89,6 +92,7 @@ public class CTudp {
 		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("Flush interval (sec); amount of data per zipfile; default = " + Double.toString(autoFlush) + ".").build());
 		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("Trim (ring-buffer loop) time (sec); specify 0 for indefinite; default = " + Double.toString(trimTime) + ".").build());
 		options.addOption(Option.builder("a").argName("server,port,period_msec").hasArg().desc("Send a periodic keep-alive heartbeat message to a UDP server; specify the server name (or IP address), the server port and the heartbeat period (msec); fields are separated by a comma.").build());
+		options.addOption(Option.builder("bps").argName("blocks_per_seg").hasArg().desc("Number of blocks per segment; specify 0 for no segments; default = " + Long.toString(blocksPerSegment) + ".").build());
 		options.addOption("x", "debug", false, "Debug mode.");
 
 		// 2. Parse command line options
@@ -121,12 +125,12 @@ public class CTudp {
 				System.err.println("Error: don't use the \"-csplit\" option when receiving packets from multiple UDP ports.");
 				System.exit(0);
 			}
-			// Make sure that the channel names either have no suffix or will end in .txt, .csv, .f64
+			// Make sure that the channel names either have no suffix or will end in .txt, .csv, .f32, .f64
 			for(int i=0; i<csvChanNames.length; ++i) {
 				int dotIdx = csvChanNames[i].lastIndexOf('.');
-				if ( (dotIdx > -1) && (!csvChanNames[i].endsWith(".txt")) && (!csvChanNames[i].endsWith(".csv")) && (!csvChanNames[i].endsWith(".f64")) ) {
+				if ( (dotIdx > -1) && (!csvChanNames[i].endsWith(".txt")) && (!csvChanNames[i].endsWith(".csv")) && (!csvChanNames[i].endsWith(".f32")) && (!csvChanNames[i].endsWith(".f64")) ) {
 					System.err.println("Error: illegal channel name specified in the \"-csplit\" list: " + csvChanNames[i]);
-					System.err.println("\tAccepted channel names: channels with no suffix or with .txt, .csv or .f64 suffixes.");
+					System.err.println("\tAccepted channel names: channels with no suffix or with .txt, .csv, .f32 or .f64 suffixes.");
 					System.exit(0);
 				}
 			}
@@ -154,6 +158,12 @@ public class CTudp {
 		autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlush));
 		
 		trimTime = Double.parseDouble(line.getOptionValue("t",Double.toString(trimTime)));
+
+		blocksPerSegment = Long.parseLong(line.getOptionValue("bps",Long.toString(blocksPerSegment)));
+
+		if (line.hasOption("pack")) {
+			packMode = true;
+		}
 
 		debug = line.hasOption("debug");
 
@@ -203,18 +213,23 @@ public class CTudp {
 			System.err.println(csvChanNames[ csvChanNames.length-1 ]);
 		}
 
+		//
 		// If user requested it, start the UDP heartbeat
+		//
 		if (heartbeatIP != null) {
 			Timer time = new Timer();
-			UDPHeartbeatTask heartbeatTask = new UDPHeartbeatTask(heartbeatIP, heartbeatPort, bCSVTest);
+			UDPHeartbeatTask heartbeatTask = new UDPHeartbeatTask(heartbeatIP, heartbeatPort, bCSVTest, csvChanNames.length);
 			time.schedule(heartbeatTask, 0, heartbeatPeriod_msec);
 		}
-		
+
+		//
 		// setup CTwriter
+		//
 		try {
-			ctw = new CTwriter(srcName,trimTime);	
-			ctw.setZipMode(zipMode);
+			ctw = new CTwriter(srcName,trimTime);
+			ctw.setBlockMode(packMode,zipMode);
 			CTinfo.setDebug(debug);
+			ctw.autoSegment(blocksPerSegment);
 			autoFlushMillis = (long)(autoFlush*1000.);
 //			ctw.autoFlush(autoFlush);		// auto flush to zip once per interval (sec) of data
 		} catch(Exception e) {
@@ -222,7 +237,9 @@ public class CTudp {
 			System.exit(0);
 		}
 
+		//
 		// start a thread for each port
+		//
 		for(int i=0; i<numSock; i++) {
 			System.err.println("start thread for port: "+ssNum[i]+", chan: "+chanName[i]);
 			new UDPread(ssNum[i], chanName[i], csvChanNames, dt[i]).start();
@@ -301,10 +318,14 @@ public class CTudp {
 							synchronized(ctw) {
 								//
 								// Put data for the default ("-c") channel
-								// Data is always saved as a byte array
+								// This data is saved as byte array, which doesn't get packed
+								// Only do this if we aren't splitting up/saving the individual CSV components
 								//
-								ctw.setTime((long)time);
-								ctw.putData(chanName, data);
+								ctw.setTime((long) time);
+								if (csvChanNames == null) {
+									// Save as byte array
+									ctw.putData(chanName, data);
+								}
 								//
 								// If requested, split the incoming csv string up and save each channel
 								// (this is the "-csplit" option)
@@ -317,18 +338,28 @@ public class CTudp {
 									} else {
 										for (int i=0; i<csvChanNames.length; ++i) {
 											// When we parsed the command line args, we made sure that the channel names
-											// will either have no suffix or will end in .txt, .csv, .f64
+											// will either have no suffix or will end in .txt, .csv, .f32, .f64
 											// - if chan name ends in .f64, put data as double
+											// - if chan name ends in .f32, put data as float
 											// - if chan name doesn't have a suffix or it ends in .txt or it ends in .csv, put data as string
 											String dataStr = chanDataStr[i];
-											if (!csvChanNames[i].endsWith(".f64")) {
+											if ( (!csvChanNames[i].endsWith(".f64")) && (!csvChanNames[i].endsWith(".f32")) ) {
 												// Put data as String, let CT sort out the data type depending on what the channel name extension is
 												ctw.putData(csvChanNames[i], dataStr);
-											} else {
+											} else if (csvChanNames[i].endsWith(".f32")) {
+												// Put data as float
+												try {
+													float dataNumF = Float.parseFloat(dataStr);
+													ctw.putData(csvChanNames[i], dataNumF);
+												} catch (NumberFormatException nfe) {
+													// Error parsing the data as float, put the default exceptionVal instead
+													ctw.putData(csvChanNames[i], (float)exceptionVal);
+												}
+											} else if (csvChanNames[i].endsWith(".f64")) {
 												// Put data as double
 												try {
-													double dataNum = Double.parseDouble(dataStr);
-													ctw.putData(csvChanNames[i], dataNum);
+													double dataNumD = Double.parseDouble(dataStr);
+													ctw.putData(csvChanNames[i], dataNumD);
 												} catch (NumberFormatException nfe) {
 													// Error parsing the data as double, put the default exceptionVal instead
 													ctw.putData(csvChanNames[i], exceptionVal);
@@ -362,11 +393,13 @@ public class CTudp {
 		private InetAddress heartbeatIP = null;
 		private int heartbeatPort = 0;
 		private boolean bTest = false;
+		private int numChans = 0;
 
-		public UDPHeartbeatTask(InetAddress heartbeatIPI, int heartbeatPortI, boolean bTestI) {
+		public UDPHeartbeatTask(InetAddress heartbeatIPI, int heartbeatPortI, boolean bTestI, int numChansI) {
 			heartbeatIP = heartbeatIPI;
 			heartbeatPort = heartbeatPortI;
 			bTest = bTestI;
+			numChans = numChansI;
 		}
 
 		public void run() {
@@ -380,15 +413,26 @@ public class CTudp {
 			String msg = "hello from CTudp";
 			if (bTest) {
 				// The heartbeat message itself will be a CSV string that can be used for testing CTudp in loopback mode.
+				// This CSV string will contain a total of numChans entries, made up of:
+				//    - 1 header string, "PTERA"
+				//    - 1 date/time string in ISO format
+				//    - numChans-2 data channels
 				String datetimestr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
-				// Fill last channel with some random data
+				// All data channels contain random data; the last channel should go from 0-60 with occasional "bogus" field
 				double dataVal = (double)LocalDateTime.now().getSecond() + Math.random();
 				String dataValStr = String.format("%.3f",dataVal);
-				// Occasionally put in a bogus string to test how CTudp parses it
+				// Occasionally put in a bogus string for last channel to test how CTudp parses it
 				if ((LocalDateTime.now().getSecond() == 10) || (LocalDateTime.now().getSecond() == 40)) {
 					dataValStr = "bogus";
 				}
-				msg = "PTERA," + datetimestr + ",1,2,3,4,5,6,7,8,9,10,11,12," + dataValStr;
+				StringBuffer msgBuf = new StringBuffer("PTERA," + datetimestr);
+				for (int i=1; i<=numChans-3; ++i) {
+					msgBuf.append(",");
+					msgBuf.append((float)i + (float)Math.random()*0.5);
+				}
+				msgBuf.append(",");
+				msgBuf.append(dataValStr);
+				msg = msgBuf.toString();
 			}
 			byte[] sendData = msg.getBytes();
 			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, heartbeatIP, heartbeatPort);
