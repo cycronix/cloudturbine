@@ -4,10 +4,13 @@ package cycronix.ctudp;
 //CTudp:  capture UDP packets to CT files
 //Matt Miller, Cycronix
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
+import java.io.IOException;
+import java.net.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Timer;
+import java.util.TimerTask;
+
 import org.apache.commons.cli.*;
 
 import cycronix.ctlib.*;
@@ -63,12 +66,19 @@ public class CTudp {
 		double defaultDT = 0.0;
 		int numChan = 0;
 
+		// Parameters used to ping a remote UDP server at a "keep alive" heartbeat rate
+		InetAddress heartbeatIP = null;
+		int heartbeatPort = 0;
+		int heartbeatPeriod_msec = 0;
+		boolean bCSVTest = false; // If UDP heartbeat is enabled and user has also specified "-csvtest" option, then the heartbeat message itself is a CSV string that can be used for testing CTudp in loopback mode.
+
 		//
 		// Argument processing using Apache Commons CLI
 		//
 		// 1. Setup command line options
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message.");
+		options.addOption("csvtest", false, "Specifying this option along with enabling the UDP heartbeat will write out a heartbeat message which is itself a CSV string; useful for loopback testing CTudp functionality.");
 		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to; default = \"" + srcName + "\".").build());
 		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to; default = \"" + defaultChanName + "\".").build());
 		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .f64 (64-bit floating point).").build());
@@ -78,6 +88,7 @@ public class CTudp {
 		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("Fixed delta-time (msec) between frames; specify 0 to use arrival-times; default = " + Double.toString(defaultDT) + ".").build());
 		options.addOption(Option.builder("f").argName("autoFlush").hasArg().desc("Flush interval (sec); amount of data per zipfile; default = " + Double.toString(autoFlush) + ".").build());
 		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("Trim (ring-buffer loop) time (sec); specify 0 for indefinite; default = " + Double.toString(trimTime) + ".").build());
+		options.addOption(Option.builder("a").argName("server,port,period_msec").hasArg().desc("Send a periodic keep-alive heartbeat message to a UDP server; specify the server name (or IP address), the server port and the heartbeat period (msec); fields are separated by a comma.").build());
 		options.addOption("x", "debug", false, "Debug mode.");
 
 		// 2. Parse command line options
@@ -146,6 +157,29 @@ public class CTudp {
 
 		debug = line.hasOption("debug");
 
+		// Heartbeat parameters for sending to a UDP server
+		if (line.hasOption("a")) {
+			String heartbeatStr = line.getOptionValue("a");
+			// Parse the server,port,period_msec from this string
+			String[] heartbeatStrCSV = heartbeatStr.split(",");
+			if (heartbeatStrCSV.length != 3) {
+				System.err.println("Error: the heartbeat (\"-a\") argument must contain 3 parameters: server,port,period_msec");
+				System.exit(0);
+			}
+			try {
+				heartbeatIP = InetAddress.getByName(heartbeatStrCSV[0]);
+			} catch (UnknownHostException e) {
+				System.err.println("Error: the heartbeat (\"-a\") server name unknown:\n" + e);
+				System.exit(0);
+			}
+			heartbeatPort = Integer.parseInt(heartbeatStrCSV[1]);
+			heartbeatPeriod_msec = Integer.parseInt(heartbeatStrCSV[2]);
+		}
+
+		if (line.hasOption("csvtest")) {
+			bCSVTest = true;
+		}
+
 		if(numSock != numChan) {
 			System.err.println("Error:  must specify same number of channels and ports!");
 			System.exit(0);
@@ -167,6 +201,13 @@ public class CTudp {
 				System.err.print(csvChanNames[i] + ",");
 			}
 			System.err.println(csvChanNames[ csvChanNames.length-1 ]);
+		}
+
+		// If user requested it, start the UDP heartbeat
+		if (heartbeatIP != null) {
+			Timer time = new Timer();
+			UDPHeartbeatTask heartbeatTask = new UDPHeartbeatTask(heartbeatIP, heartbeatPort, bCSVTest);
+			time.schedule(heartbeatTask, 0, heartbeatPeriod_msec);
 		}
 		
 		// setup CTwriter
@@ -310,5 +351,55 @@ public class CTudp {
 				}
 			} catch (Exception e) { e.printStackTrace(); }
 		}
-	}
+	} // end private class UDPread
+
+	//
+	// Class to issue a UDP "heartbeat" message to a specified IP:port
+	// The run method can be called periodically in order to send a keep-alive message to a UDP server
+	//
+	private class UDPHeartbeatTask extends TimerTask {
+
+		private InetAddress heartbeatIP = null;
+		private int heartbeatPort = 0;
+		private boolean bTest = false;
+
+		public UDPHeartbeatTask(InetAddress heartbeatIPI, int heartbeatPortI, boolean bTestI) {
+			heartbeatIP = heartbeatIPI;
+			heartbeatPort = heartbeatPortI;
+			bTest = bTestI;
+		}
+
+		public void run() {
+			DatagramSocket clientSocket = null;
+			try {
+				clientSocket = new DatagramSocket();
+			} catch (SocketException e) {
+				System.err.println("UDPHeartbeatTask.run(): error creating DatagramSocket:\n" + e);
+				return;
+			}
+			String msg = "hello from CTudp";
+			if (bTest) {
+				// The heartbeat message itself will be a CSV string that can be used for testing CTudp in loopback mode.
+				String datetimestr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+				// Fill last channel with some random data
+				double dataVal = (double)LocalDateTime.now().getSecond() + Math.random();
+				String dataValStr = String.format("%.3f",dataVal);
+				// Occasionally put in a bogus string to test how CTudp parses it
+				if ((LocalDateTime.now().getSecond() == 10) || (LocalDateTime.now().getSecond() == 40)) {
+					dataValStr = "bogus";
+				}
+				msg = "PTERA," + datetimestr + ",1,2,3,4,5,6,7,8,9,10,11,12," + dataValStr;
+			}
+			byte[] sendData = msg.getBytes();
+			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, heartbeatIP, heartbeatPort);
+			try {
+				clientSocket.send(sendPacket);
+			} catch (IOException e) {
+				System.err.println("UDPHeartbeatTask.run(): error sending DatagramPacket:\n" + e);
+			}
+			clientSocket.close();
+			System.err.println("---Heartbeat @ " + System.currentTimeMillis());
+		}
+	} // end private class UDPHeartbeatTask
+
 } //end class CTudp
