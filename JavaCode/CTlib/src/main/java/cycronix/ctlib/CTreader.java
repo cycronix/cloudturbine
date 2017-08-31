@@ -514,7 +514,10 @@ public class CTreader {
 //		long startTime = System.nanoTime();
 		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
 		try {
-			if(rmode.equals("newest")) clearFileListCache(thisChanKey);							// clean up potentially "stale" data (can happen if insert data with time<end)
+			if(rmode.equals("newest")) {
+//				System.err.println("CTreader clearFileListCache on newest, chan: "+ctmap.getName(0));
+				clearFileListCache(thisChanKey);							// clean up potentially "stale" data (can happen if insert data with time<end)
+			}
 
 			// get updated list of folders
 			CTFile[] oldList = CTcache.fileListByChan.get(thisChanKey);
@@ -576,15 +579,11 @@ public class CTreader {
 			throw e;
 		}
 
-		// loop thru ctmap chans, prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
-//		if(!recurse) 
-			ctmap.trim(getftime,  duration, rmode);	
-		
-//		CTinfo.debugPrint(readProfile,"GOT getDataMap("+thisChanKey+"), rmode: "+rmode+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
-
+		// prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
+		ctmap.trim(getftime,  duration, rmode);	
 		return ctmap;				// last folder
 	}
-		
+
 	//--------------------------------------------------------------------------------------------------------
 	// get data from CTFile
 	private long getFile(CTFile file, CTmap cm) throws Exception {
@@ -647,11 +646,18 @@ public class CTreader {
 		CTcache.fileListByChan.put(chanKey, null);
 	}
 	
+	public void preCache(String source) throws Exception {
+		ArrayList<String> chans = listChans(source);
+		System.err.println("CTreader preCache source: "+source);
+		for(String chan:chans) flatFileList(source, new CTmap(chan), chan2key(source + File.separator + chan), true);
+		System.err.println("CTreader preCache DONE.");
+	}
+	
 	private CTFile[] flatFileList(String baseFolder, CTmap ictmap, String chanKey, boolean fileRefresh) throws Exception {
 //		long startTime = System.nanoTime();
 
 		CTFile[] cachedList = CTcache.fileListByChan.get(chanKey);
-//		CTinfo.debugPrint(readProfile,"flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
+//		System.err.println("flatFileList, refresh: "+fileRefresh+", chanKey: "+chanKey+", OldList.size: "+((cachedList==null)?(0):(cachedList.length)));
 
 		final ArrayList<TimeFolder>fflist = new ArrayList<TimeFolder>();
 		final CTmap ctmap = ictmap;

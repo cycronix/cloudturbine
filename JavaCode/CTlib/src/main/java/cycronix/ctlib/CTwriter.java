@@ -858,18 +858,20 @@ public class CTwriter {
 		final double oldTime = trimTime;
 
 		Path directory = rootFolder.toPath();
+		final boolean mydebug = false;
+		CTinfo.debugPrint(mydebug,"deleteOldTimes, trimTime: "+trimTime+", rootFolder: "+rootFolder);
 		try {
 			Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					double ftime = CTinfo.fileTime(file.toString());
 					if(ftime > 0 && ftime < oldTime) {
-						CTinfo.debugPrint("delete file: "+file);
+						CTinfo.debugPrint(mydebug,"delete file: "+file);
 						try {
 							Files.delete(file);
 						} catch(IOException e) {
-							throw new IOException("Failed to delete file: "+file);
 //							System.err.println("Failed to delete file: "+file);
+							throw new IOException("Failed to delete file: "+file);
 						}
 					}
 //					else System.err.println("leave file: "+file);
@@ -879,7 +881,7 @@ public class CTwriter {
 				@Override
 				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
 					if(dir.toFile().listFiles().length == 0) {		// only delete empty dirs
-						CTinfo.debugPrint("delete dir: "+dir);
+						CTinfo.debugPrint(mydebug,"delete dir: "+dir);
 						try {
 							Files.delete(dir);
 						} catch(IOException e) {

@@ -32,51 +32,71 @@ import cycronix.ctlib.*;
 
 public class CTperf {
 	static String rootFolder = "CTexample";
-	static boolean blockMode = true;
 	// read-performance:
-	static int nfile=100;						// Rate is proportional to: ~1/nfile
-	static int nchan = 10;						// ~1/sqrt(nchan)
-	static int blocksize = 10000;				// ~blocksize
-	static int ncount = blocksize * nfile;
+	static int ncount=4*36000;					// 36000 = 1hrs @ 10Hz
+	static int nchan = 30;						// ~1/sqrt(nchan)
+	static int blocksize = 10;					// ~blocksize
+	static int nfile = ncount / blocksize;
+	static int blocksPerSeg = 100;
+	static int dtmsec = 100;					// sample time-interval
 	static boolean debug = false;
-	
+	static boolean dotrim = true;
+	static boolean pacerate = false;
+	static boolean blockMode = true;			// pack data?
+
 	public static void main(String[] args) {
 		if(args.length > 0) rootFolder = args[0];
 
-		System.err.println("CTperf, nfile: "+nfile+", nchan: "+nchan+", blocksize: "+blocksize);
+		System.err.println("CTperf, nsamp: "+ncount+", nfile: "+nfile+", nchan: "+nchan+", blocksize: "+blocksize);
 
 		doSource();
+		doSink();
 		doSink();
 	}
 
 	static void doSource() {
+		System.err.println("Timing source write...");
 		try {
 			String dataFolder = rootFolder + File.separator + "CTperf";
-			deleteFiles(dataFolder);
+//			deleteFiles(dataFolder);
 			
 			// setup CTwriter
 			CTwriter ctw = new CTwriter(dataFolder);
-			ctw.setZipMode(true);			// bundle to zip files
+			ctw.setZipMode(true);						// bundle to zip files
 			//			ctw.autoFlush(200);				// automatically flush at this interval (msec)
 			//			ctw.setDebug(debug);
 //			ctw.setBlockMode(blockMode);			// block data per flush
 
-			long time = System.currentTimeMillis();
-			long dt = 1;
-			long startTime = time;
 			if(blockMode) ctw.setBlockMode(blockMode);			// block duration (msec)
-			//			time = 0;									// try absolute 0-based time						
-			// loop and write some output
-			if(blockMode) ctw.setTime(time);			// blockMode:  set time at start of block
-			for(int i=1; i<=ncount; i++,time+=dt) {
-				ctw.setTime(time);
-				for(int j=0; j<nchan; j++) ctw.putData("c"+j, i+j);
+			ctw.autoSegment(blocksPerSeg);
+			
+			if(dotrim) {
+				System.err.println("deleting old folders/files...");
+				try{ ctw.dotrim(864000.+(double) System.currentTimeMillis()/1000.);} catch(Exception e){};		// delete old data
+				System.err.println("Done deleting.");
+			}
 
-				if(!blockMode) ctw.flush();				// flush (zip) them
-				else if((i%blocksize)==0) {
+			// loop and write some output
+			long time = System.currentTimeMillis();
+			long startTime = time;
+//			if(blockMode) ctw.setTime(time);			// blockMode:  set time at start of block		
+
+			for(int i=1; i<=ncount; i++) {
+				if(pacerate)	time = System.currentTimeMillis();
+				else 			time += dtmsec;
+				
+				ctw.setTime(time);
+				for(int j=0; j<nchan; j++) ctw.putData("c"+j+".f32", (float)(i+j));
+//				for(int j=0; j<nchan; j++) ctw.putData("c"+j, (float)(i+j));
+
+
+//				if(!blockMode) ctw.flush();				// flush (zip) them
+//				else 
+				if((i%blocksize)==0) {
 					ctw.flush();
 					if(debug) System.out.println("put block: "+i);
 				}
+				if(pacerate) try{ Thread.sleep(dtmsec +time-System.currentTimeMillis() - 1); } catch(Exception e){};
 			}
 			long stopTime = System.currentTimeMillis();
 			long PPS = (long)(1000.*(nchan*ncount)/(stopTime-startTime));
@@ -84,10 +104,12 @@ public class CTperf {
 		} catch(Exception e) {
 			System.err.println("CTperf exception: "+e);
 			e.printStackTrace();
-		} 
+		}
+		System.err.println("Done write time test.");
 	}
 
 	static void doSink() {
+		System.err.println("Timing sink read...");
 		try {
 			CTreader ctr = new CTreader(rootFolder);	// set CTreader to rootFolder
 			//		ctr.setDebug(true);
@@ -107,9 +129,9 @@ public class CTperf {
 					CTdata data = ctr.getData(source, chan, 0., 1000000., "oldest");
 					//	CTdata data = ctr.getData(source, chan, 0., 1000000., "absolute");
 
-					int[] dd = data.getDataAsInt32();
+					String[] dd = data.getDataAsString(CTinfo.fileType(chan));				// convert to string per CTweb fetch
 					//				if(nchan <= 100 || idx%100==0) 
-					if(debug) System.err.println("nchan: "+cidx+", ncount: "+ncount+", dd.length: "+dd.length+", Chan: "+chan);
+					if(debug) System.err.println("nchan: "+cidx+", ncount: "+ncount+", dd.length: "+dd.length+", Chan: "+chan+", dd[0]: "+dd[0]);
 					ncount += dd.length;
 //					if(dd.length < 100) for(int d:dd) System.err.println("data: "+d);
 					cidx++;
@@ -124,16 +146,7 @@ public class CTperf {
 			System.err.println("CTsink exception: "+e);
 			e.printStackTrace();
 		} 
+		System.err.println("Done read time test.");
 	}
-	
-	static void deleteFiles(String folder) {
-		File directory = new File(folder);
-	    if(directory.exists()){
-	        File[] files = directory.listFiles();
-	        if(null!=files){
-	            for(int i=0; i<files.length; i++) files[i].delete();
-	        }
-	    }
-	    return;
-	}
+
 }

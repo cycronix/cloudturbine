@@ -122,6 +122,9 @@ public class CTpack {
 
 				for(String chan:chans) {				// {Loop by Chan}
 //					if(debug) System.err.println("CTpack thisChan: "+chan);
+					
+					// TO DO: filter channels, continue; to delete channel(s) from archive
+					
 					CTdata data = ctr.getData(sourceFolder, chan, thisTime, timePerBlock-0.000001, "absolute");	// get next chunk (less 1us no-overlap?)
 					/*		
      	NOTES: 

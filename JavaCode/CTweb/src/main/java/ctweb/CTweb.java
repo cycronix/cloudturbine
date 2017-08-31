@@ -424,6 +424,7 @@ public class CTweb {
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
     				else {
     					for(String sname : slist) {
+//    						ctreader.preCache(sname);
     						sname = sname.replace("\\", "/");				// backslash not legal URL link
     						if(debug) System.err.println("src: "+sname);
 //        					if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
@@ -448,7 +449,7 @@ public class CTweb {
     				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
     				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
-
+    				
     				if(clist == null) sbresp.append("<NULL>");
     				else {
     					if(ftype == 'H') {								// all chans in HTML table format

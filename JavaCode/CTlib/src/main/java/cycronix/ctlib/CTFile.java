@@ -232,7 +232,7 @@ class CTFile extends File {
 			
 			Object[] sfiles = zipMap.keySet().toArray();				// need to concat dupes?
 			clist = new CTFile[sfiles.length];
-			CTinfo.debugPrint(cacheProfile,"case ZIP: "+myPath+", sfiles.length: "+sfiles.length+", time: "+((System.nanoTime()-startTime)/1000000.));
+			CTinfo.debugPrint(cacheProfile,"case ZIP: "+myPath+", sfiles.length: "+sfiles.length+", msecTime: "+((System.nanoTime()-startTime)/1000000.));
 			for(int i=0; i<sfiles.length; i++) {
 				String[] files = zipMap.get(sfiles[i]);
 //				System.err.println("ZIP file: "+sfiles[i]+", files.len: "+files.length);
@@ -244,7 +244,7 @@ class CTFile extends File {
 //			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
 //			Arrays.sort(clist, fileNameComparator);			// zip files in order of write, not guaranteed time-sorted
 			// zipMap is pre-sorted as TreeMap with folderTimeComparator
-			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.)+", clist.size: "+clist.length);
+//			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.)+", clist.size: "+clist.length);
 //			for(CTFile c:clist) System.err.println(c);
 			return clist;
 
@@ -539,10 +539,10 @@ class CTFile extends File {
 	private void ZipMap(String zipfile) {
 		zipMap = CTcache.ZipMapCache.get(myPath);
 		if(zipMap != null) {
-			CTinfo.debugPrint(cacheProfile,"ZipCache hit: "+myPath);
+//			CTinfo.debugPrint(cacheProfile,"ZipCache hit: "+myPath);
 			return;					
 		}
-		else CTinfo.debugPrint(cacheProfile,"ZipCache miss: "+myPath);
+//		else CTinfo.debugPrint(cacheProfile,"ZipCache miss: "+myPath);
 		
 		zipMap = new TreeMap<String, String[]>(folderTimeComparator);		// make a new one, sorted by folder time
 		try{		//get the zip file content
@@ -587,8 +587,7 @@ class CTFile extends File {
 				zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
 
 //			zfile.close();
-			
-			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
+//			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
 			// pre-sort zipMap here
 			
 			CTcache.ZipMapCache.put(myPath, zipMap);			// cache

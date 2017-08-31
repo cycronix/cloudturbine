@@ -51,7 +51,7 @@ public class CTcache {
 	// ZipMapCache has small effect versus rebuilding map every time (versus caching zipmap file object itself)
 	static Map<String, Map<String, String[]>>ZipMapCache = new LinkedHashMap<String, Map<String, String[]>>() {
 		 protected synchronized boolean removeEldestEntry(Map.Entry  eldest) {
-			 	CTinfo.debugPrint(cacheProfile, "ZipMapCache size: "+size());
+			 	CTinfo.debugPrint(cacheProfile, "ZipMapCache size: "+size()+", remove: "+(size()>MAX_ZIPFILES));
 	            return size() >  MAX_ZIPFILES;
 	         }
 	};		
@@ -92,11 +92,14 @@ public class CTcache {
 	static synchronized ZipFile cachedZipFile(String myZipFile) throws Exception {
 		ZipFile thisZipFile = ZipFileCache.get(myZipFile);
 		if(thisZipFile == null) {
-			CTinfo.debugPrint(cacheProfile,"OPEN ZIPFILE");
+			CTinfo.debugPrint(cacheProfile,"ZipCache MISS: "+myZipFile);
 //			System.err.println("OPEN ZIPFILE: "+myZipFile);
 			thisZipFile = new ZipFile(myZipFile);
 			ZipFileCache.put(myZipFile, thisZipFile);
 		}
+		else
+			CTinfo.debugPrint(cacheProfile,"ZipCache HIT: "+myZipFile);
+
 		return thisZipFile;
 	}
 	
