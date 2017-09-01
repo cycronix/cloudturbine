@@ -525,9 +525,11 @@ class CTFile extends File {
 			}
 			break;
 		}
-		
-		CTinfo.debugPrint(cacheProfile, "DataCache put: "+cacheKey+", datasize: "+data.length+", cacheLen: "+CTcache.DataCache.size());
-		if(data!=null /* && data.length <= MAX_FILESIZE */) CTcache.DataCache.put(cacheKey, data);		// only cache small files
+				
+		if(data!=null /* && data.length <= MAX_FILESIZE */) {
+			CTcache.DataCache.put(cacheKey, data);		// only cache small files
+			CTinfo.debugPrint(cacheProfile, "DataCache put: "+cacheKey+", datasize: "+data.length+", cacheLen: "+CTcache.DataCache.size());
+		}
 		return data;
 	}
 	

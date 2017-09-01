@@ -516,7 +516,7 @@ public class CTreader {
 		try {
 			if(rmode.equals("newest")) {
 //				System.err.println("CTreader clearFileListCache on newest, chan: "+ctmap.getName(0));
-				clearFileListCache(thisChanKey);							// clean up potentially "stale" data (can happen if insert data with time<end)
+//				clearFileListCache(thisChanKey);							// clean up potentially "stale" data (can happen if insert data with time<end)
 			}
 
 			// get updated list of folders
