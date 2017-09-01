@@ -409,6 +409,12 @@ public class CTweb {
     			param = request.getParameter("f");	if(param != null) fetch = param.charAt(0);
     			param = request.getParameter("dt");	if(param != null) ftype = param.charAt(0);
 
+    			if(reference.equals("refresh")) {
+    				ctreader.clearFileListCache();
+    				formResponse(response,null);
+    				return;
+    			}
+    			
     			if(pathInfo.equals(servletRoot+"/") || pathInfo.equals(rbnbRoot+"/")) pathInfo = servletRoot;		//  strip trailing slash
 
     			if(pathInfo.equals(servletRoot) || pathInfo.equals(rbnbRoot)) {			// Root level request for Sources
@@ -424,7 +430,6 @@ public class CTweb {
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
     				else {
     					for(String sname : slist) {
-//    						ctreader.preCache(sname);
     						sname = sname.replace("\\", "/");				// backslash not legal URL link
     						if(debug) System.err.println("src: "+sname);
 //        					if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
@@ -450,6 +455,9 @@ public class CTweb {
     				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
     				
+    				// auto-refresh cache with every listChans?
+//    				ctreader.clearFileListCache();
+
     				if(clist == null) sbresp.append("<NULL>");
     				else {
     					if(ftype == 'H') {								// all chans in HTML table format
@@ -638,6 +646,7 @@ public class CTweb {
     							}
     							if(doProfile) System.err.println("doGet B time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
+    							if(debug) System.err.println("binary data response, bytes: "+bdata.length);
     							return;
 
     							// HTML table format (for import to spreadsheets)
@@ -654,6 +663,7 @@ public class CTweb {
     								}
     								sbresp.append("</table>");
     								formResponse(response, sbresp);
+        							if(debug) System.err.println("HTML data response, length: "+sbresp.length());
     								return;
     							}
     							else {
@@ -696,6 +706,7 @@ public class CTweb {
     							response.setContentType("text/html");		// all string data in this case!
     							formResponse(response, sbresp);
     							if(doProfile) System.err.println("doGet S time: "+((System.nanoTime()-startTime)/1000000.)+" ms, chan: "+chan);
+    							if(debug) System.err.println("CSV data response, length: "+sbresp.length());
 
     							return;
     						}

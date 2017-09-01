@@ -637,11 +637,12 @@ public class CTreader {
 //	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 	// beware: this will multi-thread
 	
-	private void clearFileListCache() {
+	public void clearFileListCache() {
+		System.err.println("Clear File List Cache!");
 		CTcache.fileListByChan.clear();
 	}
 	
-	private void clearFileListCache(String chanKey) {
+	public void clearFileListCache(String chanKey) {
 		CTinfo.debugPrint("CLEAR fileListCache!: "+chanKey);
 		CTcache.fileListByChan.put(chanKey, null);
 	}
