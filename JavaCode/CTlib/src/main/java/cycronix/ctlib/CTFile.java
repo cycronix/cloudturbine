@@ -472,43 +472,44 @@ class CTFile extends File {
 			return null;
 //			if(isZip || isEntry) return null;
 		case ZFILE:			// zipoutput
-//		if(isFile) {		
+			//		if(isFile) {		
 			try {
-//				thisTime = System.nanoTime(); System.err.println("ckp1: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
-				ZipFile thisZipFile = CTcache.cachedZipFile(myZipFile);
-//				ZipFile thisZipFile = new ZipFile(myZipFile);
-//				thisTime = System.nanoTime(); System.err.println("ckp2: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
+				synchronized(CTcache.cacheLock) {		// don't let cache close while in use
+					//				thisTime = System.nanoTime(); System.err.println("ckp1: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
+					ZipFile thisZipFile = CTcache.cachedZipFile(myZipFile);
+					//				ZipFile thisZipFile = new ZipFile(myZipFile);
+					//				thisTime = System.nanoTime(); System.err.println("ckp2: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
 
-				// note:  myPath for zip-entry is not full-path as it is with other CTFile...  <---FIXED and adjusted right below!
-				String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
-				
-				// strip leading file path to get just the zip-entry part!  always will be time/name format.
-				String[] subDirs = mypathfs.split(Pattern.quote("/"));	
-				if(subDirs.length >= 2) mypathfs = subDirs[subDirs.length-2] + "/" + subDirs[subDirs.length-1];
-				else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
+					// note:  myPath for zip-entry is not full-path as it is with other CTFile...  <---FIXED and adjusted right below!
+					String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
 
-				ZipEntry ze = thisZipFile.getEntry(mypathfs);			// need fullpath!
-//				thisTime = System.nanoTime(); System.err.println("ckp3: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
+					// strip leading file path to get just the zip-entry part!  always will be time/name format.
+					String[] subDirs = mypathfs.split(Pattern.quote("/"));	
+					if(subDirs.length >= 2) mypathfs = subDirs[subDirs.length-2] + "/" + subDirs[subDirs.length-1];
+					else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
 
-				if(ze == null) {
-//					thisZipFile.close();
-//					CTinfo.debugPrint(cacheProfile, "zip NULL ZE: "+((System.nanoTime()-startTime)/1000000.));
-					throw new IOException("Null ZipEntry, zipfile: "+myZipFile+", entry: "+mypathfs);
+					ZipEntry ze = thisZipFile.getEntry(mypathfs);			// need fullpath!
+					//				thisTime = System.nanoTime(); System.err.println("ckp3: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
+
+					if(ze == null) {
+						//					thisZipFile.close();
+						//					CTinfo.debugPrint(cacheProfile, "zip NULL ZE: "+((System.nanoTime()-startTime)/1000000.));
+						throw new IOException("Null ZipEntry, zipfile: "+myZipFile+", entry: "+mypathfs);
+					}
+					int zsize = (int)ze.getSize();
+					data = new byte[zsize];
+					InputStream zis = thisZipFile.getInputStream(ze);
+					int len, nread=0;
+					while ((len = zis.read(data,nread,zsize-nread)) > 0) nread+=len;
+					//		    		System.err.println("zip nread: "+nread+", ze.size: "+ze.getSize());
+					zis.close();
+					//				thisTime = System.nanoTime(); System.err.println("ckp4: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
+
+					//				thisZipFile.close();
 				}
-				int zsize = (int)ze.getSize();
-				data = new byte[zsize];
-				InputStream zis = thisZipFile.getInputStream(ze);
-				int len, nread=0;
-				while ((len = zis.read(data,nread,zsize-nread)) > 0) nread+=len;
-				//		    		System.err.println("zip nread: "+nread+", ze.size: "+ze.getSize());
-				zis.close();
-//				thisTime = System.nanoTime(); System.err.println("ckp4: "+((thisTime-startTime)/1000000.)); startTime = thisTime;
-
-//				thisZipFile.close();
-
 			} catch(Exception e) {
 				System.err.println("CTFile.read: "+e /* +", zipfile: "+myZipFile+", entry: "+myPath */);
-//				e.printStackTrace();
+				e.printStackTrace();
 			}
 			break;
 		default:		// conventional file
@@ -548,22 +549,27 @@ class CTFile extends File {
 		
 		zipMap = new TreeMap<String, String[]>(folderTimeComparator);		// make a new one, sorted by folder time
 		try{		//get the zip file content
+			int numEntries=0;
+			String[] entry;
+			synchronized(CTcache.cacheLock) {			// no cache-close while in use
+				ZipFile zfile = CTcache.cachedZipFile(zipfile);		// this can throw exception being created in RT
+				//	ZipFile zfile = new ZipFile(zipfile);		// just open zipfile, let ZipMap itself do the caching
 
-			ZipFile zfile = CTcache.cachedZipFile(zipfile);		// this can throw exception being created in RT
-			Enumeration<? extends ZipEntry> zenum = zfile.entries();
-			int numEntries = zfile.size();		// convert to array, easier loop control
-			String[] entry = new String[numEntries];
-//			System.err.println("Building ZipMap for: "+myPath+", numEntries: "+numEntries);
+				Enumeration<? extends ZipEntry> zenum = zfile.entries();
+				numEntries = zfile.size();		// convert to array, easier loop control
+				entry = new String[numEntries];
+				//			System.err.println("Building ZipMap for: "+myPath+", numEntries: "+numEntries);
 
-			for(int i=0; i<numEntries; i++) entry[i] = zenum.nextElement().getName();
+				for(int i=0; i<numEntries; i++) entry[i] = zenum.nextElement().getName();
+			}
 			Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
-			
+
 			String thisfolder=null;
 			ArrayList<String>flist=null;
 
 			// loop thru zipfile entries, add them to TreeMap
 			for(int i=0; i<numEntries; i++) {
-//				System.err.println("ZipMap entry["+i+"]: "+entry[i]);
+				//				System.err.println("ZipMap entry["+i+"]: "+entry[i]);
 				String[] spentry = entry[i].split("/");				// Java 1.6 compat 
 
 				String folder = spentry[0];
@@ -572,12 +578,12 @@ class CTFile extends File {
 						if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
 						thisfolder = folder;
 						flist=new ArrayList<String>();
-//						System.err.println("zipmap add new subfolder: "+entry[i]);
+						//						System.err.println("zipmap add new subfolder: "+entry[i]);
 						flist.add(entry[i]);			// Java 1.6 compat
 					}
 					else {
 						if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
-//						System.err.println("zipmap add to existing subfolder: "+entry[i]);
+						//						System.err.println("zipmap add to existing subfolder: "+entry[i]);
 						flist.add(entry[i]);			// Java 1.6 compat
 					} 
 				}
@@ -588,13 +594,12 @@ class CTFile extends File {
 			if(flist!=null && flist.size()>0 && thisfolder!=null) 					// wrap up
 				zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
 
-//			zfile.close();
-//			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
+			//			zfile.close();
+			//			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
 			// pre-sort zipMap here
-			
+
 			CTcache.ZipMapCache.put(myPath, zipMap);			// cache
-			
-//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
+			//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
 		} catch(Exception ex) { 
 			zipMap = null;
 			System.err.println("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 

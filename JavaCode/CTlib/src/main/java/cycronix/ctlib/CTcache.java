@@ -45,10 +45,11 @@ public class CTcache {
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
 	private static final double MAX_MEMUSE = 0.7;			// fraction available JVM memory to use before limiting cache
 	private static final int MAX_ZIPFILES = 100;			// max number open zip files
-	private static final int MAX_ZIPMAPS = 100000;			// max number open zip files
+	private static final int MAX_ZIPMAPS = 100000;			// max number constructed ZipMaps
 
 	private static boolean cacheProfile = false;
-
+	public static Object cacheLock = new Object();
+	
 	// ZipMapCache has small effect versus rebuilding map every time (versus caching zipmap file object itself)
 	static Map<String, Map<String, String[]>>ZipMapCache = new LinkedHashMap<String, Map<String, String[]>>() {
 		 protected synchronized boolean removeEldestEntry(Map.Entry  eldest) {
@@ -69,26 +70,29 @@ public class CTcache {
 	         }
 	};		
 
+
 	// ZipFileCache caches open zip files; these take significant overhead to open/close on each use
 	static LinkedHashMap<String, ZipFile> ZipFileCache = new LinkedHashMap<String, ZipFile>() {
 		 protected synchronized boolean removeEldestEntry(Map.Entry<String, ZipFile>  eldest) {
 //			 	System.err.println("ZipFileCache size: "+size());
 			 	
-			 	// explicitly loop through close and release entries (return true not reliable?)
-			 	if(size() > MAX_ZIPFILES) {
-			 		for (Map.Entry<String, ZipFile> entry : ZipFileCache.entrySet()) {
-			 			try{ entry.getValue().close(); } catch(Exception e){};  	// explicit close
-//			 			System.err.println("ZipFileCache remove key: "+entry.getKey());
-			 			ZipFileCache.remove(entry.getKey());						// explicit remove
-			 			if(size() <= MAX_ZIPFILES) break;
-			 		}
-//				 	System.err.println("ZipFileCache >remove size: "+ZipFileCache.size());
-			 	}
+			 // explicitly loop through close and release entries (return true not reliable?)
+			 if(size() > MAX_ZIPFILES) {
+				 synchronized(cacheLock) {		// don't close while in use
+					 for (Map.Entry<String, ZipFile> entry : ZipFileCache.entrySet()) {
+						 try{ entry.getValue().close(); } catch(Exception e){};  	// explicit close
+						 //			 			System.err.println("ZipFileCache remove key: "+entry.getKey());
+						 ZipFileCache.remove(entry.getKey());						// explicit remove
+						 if(size() <= MAX_ZIPFILES) break;
+					 }
+				 }
+				 //				 	System.err.println("ZipFileCache >remove size: "+ZipFileCache.size());
+			 }
 			 	return false;
 //	            return ((size() >  MAX_FILES));
 	         }
 	};		
-	
+
 	// ZipFileCache getter
 	static synchronized ZipFile cachedZipFile(String myZipFile) throws Exception {
 		ZipFile thisZipFile = ZipFileCache.get(myZipFile);
