@@ -235,27 +235,31 @@ public class CTdata {
 //		if(duration==0) nframe = 1;			// cluge to get rid of double-returns?
 		
 		// step through elements of timelist, datalist Arrays
-		
+
 		// optimize special case for single-point frames:
 		if(duration>0 && tmode.equals("absolute") && datalist!=null && nframe>0 && datalist.get(0)!=null && (datalist.get(0).length==wordSize)) {
-			int istart = 0;
-			int iend = nframe -1;
-			for(int i=0; i<nframe; i++) {
-				if(timelist.get(i) >= start) { istart = i; break; }
-			}
-			for(int i=nframe-1; i>=0; i--) {
-				if(timelist.get(i) <= end) { iend = i; break; }
-			}
-			if(istart==0 && iend==(nframe-1)) {
-//				System.err.println("quick list!");
-				return this;
-			}
-			else {
-//				System.err.println("sublist!, istart: "+istart+", iend: "+iend+", nframe: "+nframe);
-				timelist = new ArrayList<Double> (timelist.subList(istart, iend));		// faster to sublist than to create new copy?
-				datalist = new ArrayList<byte[]> (datalist.subList(istart, iend));
-				filelist = new ArrayList<CTFile> (filelist.subList(istart, iend));
-				return this;
+			boolean canopt = true;				// this is not robust when some but not all frames are single-point!!!
+			for(byte[] d:datalist) if(d.length != wordSize) { canopt = false; break; }
+			if(canopt) {
+				int istart = 0;
+				int iend = nframe -1;
+				for(int i=0; i<nframe; i++) {
+					if(timelist.get(i) >= start) { istart = i; break; }
+				}
+				for(int i=nframe-1; i>=0; i--) {
+					if(timelist.get(i) <= end) { iend = i; break; }
+				}
+				if(istart==0 && iend==(nframe-1)) {
+					//				System.err.println("quick list!");
+					return this;
+				}
+				else if(iend>istart) {
+					//				System.err.println("sublist!, istart: "+istart+", iend: "+iend+", nframe: "+nframe);
+					timelist = new ArrayList<Double> (timelist.subList(istart, iend));		// faster to sublist than to create new copy?
+					datalist = new ArrayList<byte[]> (datalist.subList(istart, iend));
+					filelist = new ArrayList<CTFile> (filelist.subList(istart, iend));
+					return this;
+				}
 			}
 		}
 		
