@@ -584,7 +584,8 @@ public class CTudp {
 								msgBuf.append(dataValStr);
 								bUsedDataValStr = true;
 							} else {
-								msgBuf.append((float) i + (float) Math.random() * 0.5);
+								// The channel value is equal to its integer order in the channel list plus some random noise
+								msgBuf.append((float)(i+1) + (float) Math.random() * 0.5);
 							}
 						}
 					}
