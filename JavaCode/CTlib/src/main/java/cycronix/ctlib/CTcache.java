@@ -32,7 +32,7 @@ import java.util.zip.ZipFile;
  * 
 */
 
-public class CTcache {
+class CTcache {
 
 	//---------------------------------------------------------------
 	// cache functions
