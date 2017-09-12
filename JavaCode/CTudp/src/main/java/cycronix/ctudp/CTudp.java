@@ -91,7 +91,7 @@ public class CTudp {
 		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to; default = \"" + srcName + "\".").build());
 		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to; default = \"" + defaultChanName + "\".").build());
 		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .f32 (32-bit floating point), .f64 (64-bit floating point).").build());
-		options.addOption(Option.builder("e").argName("exception val").hasArg().desc("If a CSV string is being parsed (using the -csplit option) and there is an error saving one of the string components as a 64-bit floating point value, use this exception value in its place; default = " + Double.toString(exceptionVal) + ".").build());
+		options.addOption(Option.builder("e").argName("exception val").hasArg().desc("If a CSV string is being parsed (using the -csplit option) and there is an error saving a string component as a floating point value, use this \"exception value\" in its place; default = " + Double.toString(exceptionVal) + ".").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
 		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on; default = " + Integer.toString(defaultPort) + ".").build());
 		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("Fixed delta-time (msec) between frames; specify 0 to use arrival-times; default = " + Double.toString(defaultDT) + ".").build());
@@ -571,7 +571,7 @@ public class CTudp {
 						if (i > 0) {
 							msgBuf.append(",");
 						}
-						if ( (csvChanNames[i].equals("time.txt")) || (csvChanNames[i].equals("time.csv")) ) {
+						if (csvChanNames[i].equals("time.txt")) {
 							// Add ISO date/time string
 							msgBuf.append(datetimestr);
 						} else if (csvChanNames[i].endsWith(".txt")) {
@@ -584,7 +584,8 @@ public class CTudp {
 								msgBuf.append(dataValStr);
 								bUsedDataValStr = true;
 							} else {
-								msgBuf.append((float) i + (float) Math.random() * 0.5);
+								// The channel value is equal to its integer order in the channel list plus some random noise
+								msgBuf.append((float)(i+1) + (float) Math.random() * 0.5);
 							}
 						}
 					}
