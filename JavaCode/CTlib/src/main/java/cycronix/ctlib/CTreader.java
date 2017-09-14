@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.nio.file.attribute.BasicFileAttributes;
 
@@ -511,8 +512,18 @@ public class CTreader {
 	// do the file checking and return CTmap channel map of Time-Data
 	
 	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) throws Exception {
-//		long startTime = System.nanoTime();
-		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
+		for(String chan : ctmap.keySet()) {
+//			  System.out.println("ctmap: "+chan);
+			  addChanToDataMap(ctmap, rootfolder, chan, getftime, duration, rmode);
+			}
+		return ctmap;
+	}
+	
+	private CTmap addChanToDataMap(CTmap ctmap, String rootfolder, String chan, double getftime, double duration, String rmode) throws Exception {
+//		long startTime = System.nanoTime();	
+//		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
+		String thisChanKey = chan2key(rootfolder + File.separator + chan);			// this is single channel function
+
 		try {
 			if(rmode.equals("newest")) {
 //				System.err.println("CTreader clearFileListCache on newest, chan: "+ctmap.getName(0));
@@ -524,7 +535,9 @@ public class CTreader {
 			boolean fileRefresh = false;
 			if(oldList == null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
 			CTinfo.debugPrint(readProfile,"GET getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh+", fileListByChan.length: "+((oldList!=null)?oldList.length:0));
-			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChanKey, fileRefresh);
+//			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChanKey, fileRefresh);
+			CTFile[] listOfFiles = flatFileList(rootfolder, new CTmap(chan), thisChanKey, fileRefresh);
+
 			if(listOfFiles == null || listOfFiles.length < 1) return ctmap;
 					
 			if(rmode.equals("registration")) {				// handle registration
@@ -591,6 +604,7 @@ public class CTreader {
 
 		if(file.isFile()) {
 			String fileName =  file.getName();
+//			System.err.println("getFile, checkName: "+fileName+", check: "+cm.checkName(fileName));
 			if(!cm.checkName(fileName)) return 0;		// not a match 
 			byte[] data = null;
 			boolean getdata = !timeOnly || !fileName.toLowerCase().endsWith(".jpg");		// timeOnly only works for images at this point
