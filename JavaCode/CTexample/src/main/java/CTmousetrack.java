@@ -61,7 +61,7 @@ public class CTmousetrack {
 			CTinfo.setDebug(false);
 			ctw.setBlockMode(blockPts>1,blockPts>1);		// pack, zip
 			ctw.autoFlush(0);								// no autoflush, no segments
-			ctw.autoSegment(0);
+			ctw.autoSegment(1000);
 			
 			// screen dims
 			Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
