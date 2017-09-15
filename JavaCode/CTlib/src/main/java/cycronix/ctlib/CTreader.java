@@ -116,13 +116,13 @@ public class CTreader {
 		
 	public CTdata getData(String source, String chan, double tget, double tdur, String tmode) throws Exception {
 		CTmap ctmap= new CTmap(chan);
-		String sourceFolder;
-
-		if(source == null) 	sourceFolder = rootFolder;
-		else				sourceFolder = rootFolder+File.separator+source;
+//		String sourceFolder;
+//		if(source == null) 	sourceFolder = rootFolder;
+//		else				sourceFolder = rootFolder+File.separator+source;
 
 		try {
-			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
+//			ctmap = getDataMap(ctmap, sourceFolder, tget, tdur, tmode);		// time units = seconds
+			ctmap = getDataMap(ctmap, source, tget, tdur, tmode);		// time units = seconds
 		} 
 		catch(Exception e) {
 			e.printStackTrace();
@@ -511,10 +511,15 @@ public class CTreader {
 	//---------------------------------------------------------------------------------	
 	// do the file checking and return CTmap channel map of Time-Data
 	
-	public CTmap getDataMap(CTmap ctmap, String rootfolder, double getftime, double duration, String rmode) throws Exception {
+	public CTmap getDataMap(CTmap ctmap, String source, double getftime, double duration, String rmode) throws Exception {
+		// arg source is relative path source, sourceFolder is abs path
+		String sourceFolder;
+		if(source == null) 	sourceFolder = rootFolder;
+		else				sourceFolder = rootFolder+File.separator+source;
+
 		for(String chan : ctmap.keySet()) {
 //			  System.out.println("ctmap: "+chan);
-			  addChanToDataMap(ctmap, rootfolder, chan, getftime, duration, rmode);
+			  addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
 			}
 		return ctmap;
 	}

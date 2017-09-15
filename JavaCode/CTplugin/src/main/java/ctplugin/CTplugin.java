@@ -191,7 +191,8 @@ public class CTplugin {
 						double tdur = picm.GetRequestDuration();
 						String tmode = picm.GetRequestReference();
 						CTmap ctmap = PI2CTmap(picm);
-						ctmap = ctreader.getDataMap(ctmap, sourceFolder, tget, tdur, tmode);
+//						ctmap = ctreader.getDataMap(ctmap, sourceFolder, tget, tdur, tmode);	// old abs path source
+						ctmap = ctreader.getDataMap(ctmap, sName, tget, tdur, tmode);			// new rel path source
 						picm = CT2PImap(picm, ctmap, tget, tdur, tmode);
 						if(debug) System.err.println("Flush picm: "+picm+", nframe: "+ctmap.size());
 						if(picm == null) System.err.println("no channels!");
