@@ -484,7 +484,13 @@ class CTFile extends File {
 					String mypathfs = myPath.replace('\\','/');		// myPath with fwd slash
 
 					// strip leading file path to get just the zip-entry part!  always will be time/name format.
-					String[] subDirs = mypathfs.split(Pattern.quote("/"));	
+					String[] subDirs = mypathfs.split(Pattern.quote("/"));
+					
+/*			// following code to enable multi-tier zip entries		
+					String leadingPath = myZipFile.substring(0,myZipFile.lastIndexOf(".zip")) + "/";
+					mypathfs = mypathfs.replace(leadingPath, "");
+					System.err.println("ZIP mypathfs: "+mypathfs+", myZipFile: "+myZipFile+", leadingPath: "+leadingPath+", myPath: "+myPath);
+*/
 					if(subDirs.length >= 2) mypathfs = subDirs[subDirs.length-2] + "/" + subDirs[subDirs.length-1];
 					else					System.err.println("WARNING!!!  Unexpected zip-entry format: "+mypathfs);
 

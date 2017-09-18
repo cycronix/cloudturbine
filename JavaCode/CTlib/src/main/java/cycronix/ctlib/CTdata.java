@@ -346,7 +346,7 @@ public class CTdata {
 					if(thisZipFile != null) {
 						if(thisZipFile.equals(oldZipFile)) 	refTime = prevtime;						// multi-block per Zip
 						else								refTime = file.baseTime();
-
+//						System.err.println("file: "+file.getPath()+", thisZipFile: "+thisZipFile+", fileBaseTime: "+refTime+", thisZipTime: "+CTinfo.fileTime(thisZipFile));
 						if(refTime > 0 && count>1) {
 							double interval = time - refTime;
 							if(count>1) dt = interval / (count-1);		// block start-time at 0, end-time at Tblock*(n-1)/n
@@ -371,6 +371,7 @@ public class CTdata {
 					CTinfo.debugPrint("CTdata, blockdata zero dt, using backup incTime: "+incTime+", count: "+count);
 				}
 				if(dt == 0. && count > 1) System.err.println("Warning, using constant time over data block!");	
+//				System.err.println("thisZip: "+thisZipFile+", time: "+time+", refTime: "+refTime+", prevTime: "+prevtime+", baseTime: "+filelist.get(i).baseTime());
 				time = refTime;		// MJM 7/28/16:  blocks start at 0-relative time for consistency with non-block times
 				
 				if(tmode.equals("oldest") && start==0) { start = time; end = start + duration; }
