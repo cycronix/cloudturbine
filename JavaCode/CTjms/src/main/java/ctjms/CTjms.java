@@ -66,6 +66,9 @@ public class CTjms {
         return brokerThread;
     }
  
+    //----------------------------------------------------------------------------------------
+    // Producer:  read CT data, send to JMS
+    
     public static class Producer implements Runnable {
         public void run() {
             try {
@@ -90,6 +93,7 @@ public class CTjms {
                 ArrayList<String> chans = ctr.listChans(CTsource);
                 double lastTime = 0.;
 
+                // loop for a while reading live CT data and send to JMS
                 for(int j=0; j<1000; j++) {
                 	if(shutdown) break;
                 	// tread water if nothing new...
@@ -101,7 +105,7 @@ public class CTjms {
                 	}
                 	if(lastTime == 0) lastTime = newestTime;
 
-                	// single request for all chans (time aligned response)
+                	// single request for all CT chans (time aligned response)
                 	CTmap ctmap = new CTmap();
                 	for(String chan:chans) ctmap.add(chan);
                 	ctmap = ctr.getDataMap(ctmap, CTsource, lastTime, 10000., "absolute");	// big request past lastTime to get past end of newest data
@@ -152,6 +156,9 @@ public class CTjms {
         }
     }
  
+    //----------------------------------------------------------------------------------------
+    // Consumer:  read JMS data, send to CT
+    
     public static class Consumer implements Runnable, ExceptionListener {
         public void run() {
             try {
@@ -205,7 +212,7 @@ public class CTjms {
                 				int nval = Math.min(values.length, times.length);		// ensure time,data same length
                 				for(int i=0; i<nval; i++) {
                 					ctw.setTime(Double.parseDouble(times[i]));
-                					ctw.putData(chan,values[i]);
+                					ctw.putData(chan,values[i]);						// write to CT
                 				}
                 				if(chan.equals("T1")) T1 = Double.parseDouble(values[0]);
                 			}
