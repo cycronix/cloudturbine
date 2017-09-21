@@ -78,7 +78,7 @@ public class CTjms {
                 // Create a Connection
                 Connection connection = connectionFactory.createConnection();
                 connection.start();
- 
+
                 // Create a Session
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
  
@@ -136,7 +136,7 @@ public class CTjms {
                 	// send multi-line response as message (this could be JSON format)
             		TextMessage message = session.createTextMessage(csvstring);
             		message.setJMSMessageID("CloudTurbine");
-            		System.err.println("send message: "+csvstring);
+//            		System.err.println("send message: "+csvstring);
             		producer.send(message);
 
             		Thread.sleep(100);
