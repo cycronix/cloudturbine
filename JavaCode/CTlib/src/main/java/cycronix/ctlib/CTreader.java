@@ -552,10 +552,11 @@ public class CTreader {
 		//		}
 		
 //		ctmap.trim(getftime,  duration, rmode);			// trim entire map of channels (once after fetch all chans)
-		ctmap.trim(refTime,  refDuration, rmode);			// trim entire map of channels (once after fetch all chans)
+		ctmap.trim(getftime, duration, rmode);			// trim entire map of channels (once after fetch all chans)
 		return ctmap;
 	}
 	
+	//---------------------------------------------------------------------------------	
 	private CTmap addChanToDataMap(CTmap ctmap, String rootfolder, String chan, double getftime, double duration, String rmode) throws Exception {
 //		long startTime = System.nanoTime();	
 //		String thisChanKey = chan2key(rootfolder + File.separator + ctmap.getName(0));			// this is single channel function
