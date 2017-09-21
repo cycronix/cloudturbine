@@ -551,8 +551,11 @@ public class CTreader {
 		//			}
 		//		}
 		
-//		ctmap.trim(refTime,  refDuration, rmode);			// trim entire map of channels (once after fetch all chans)
-		ctmap.trim(getftime, duration, rmode);			// trim entire map of channels (once after fetch all chans)
+//		System.err.println("getDataMap, getftime: "+refTime+", duration: "+duration+", rmode: "+rmode);
+		if(rmode.equals("absolute")) refTime = getftime;	// use given time unless EOF/BOF
+		
+		ctmap.trim(refTime,  duration, "absolute");			// trim entire map of channels (once after fetch all chans)
+//		ctmap.trim(getftime, duration, rmode);			// trim entire map of channels (once after fetch all chans)
 		return ctmap;
 	}
 	
@@ -631,6 +634,7 @@ public class CTreader {
 		}
 
 		// prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
+//		System.err.println("addCHan, getftime: "+getftime+", duration: "+duration+", rmode: "+rmode);
 //		ctmap.trim(getftime,  duration, rmode);	
 		return ctmap;				// last folder
 	}
