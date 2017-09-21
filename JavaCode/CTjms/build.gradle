@@ -1,0 +1,66 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+group = 'CTjms'
+version = '0.0.1-SNAPSHOT'
+
+description = """"""
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+tasks.withType(JavaCompile) {
+	options.encoding = 'UTF-8'
+}
+
+jar.doFirst {
+    // Create a "fat jar" file which includes all the dependencies; that way,
+    // the jar can be run stand-alone with none of the other dependency jars
+    // around.  The following was taken from a nice simple example found at:
+    // https://newfivefour.com/gradle-hello-world-java-fat-jar.html
+    // The "it" variable (kind of like "this" in Java) is a Groovy-ism which
+    // represents the implicit variable given to this closure, which I think is
+    // the project object.
+    from {
+        (configurations.runtime).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    
+    // Build up a string containing all the runtime dependencies; this will be
+    // used as the 'Class-Path' string in the manifest instead of hard-wiring
+    // library names
+    StringBuilder sb = new StringBuilder();
+    project.configurations.runtime.each {
+        sb.append(it.name + ' ')
+    }
+    String runtimeDependenciesStr = sb.toString().trim()
+    
+    // Since CTapps is a collection of separate sample programs, don't
+    // include Main-Class in the manifest (there are a number of main classes)
+    manifest {
+            attributes 	'Main-Class': 'ctjms.CTjms',
+        				'Class-Path': runtimeDependenciesStr
+    }
+}
+
+repositories {
+    flatDir {
+    	// Location of CTlib.jar
+    	dirs "$rootProject.projectDir/CTlib/build/libs"
+    }
+
+     maven { url "http://repo.maven.apache.org/maven2" }
+}
+
+dependencies {
+	// Build CTlib project first, because we use CTlib.jar
+	compile project(':CTlib')
+	// Specify that we use CTlib.jar
+    compile name: 'CTlib'
+    compile group: 'org.apache.activemq', name: 'activemq-all', version:'5.15.0'
+    compile group: 'org.springframework', name: 'spring-jms', version:'3.1.0.RELEASE'
+    compile group: 'log4j', name: 'log4j', version:'1.2.16'
+    compile group: 'org.slf4j', name: 'slf4j-log4j12', version:'1.6.4'
+    compile group: 'commons-pool', name: 'commons-pool', version:'1.5.7'
+    compile group: 'org.apache.geronimo.specs', name: 'geronimo-jta_1.1_spec', version:'1.1.1'
+}
