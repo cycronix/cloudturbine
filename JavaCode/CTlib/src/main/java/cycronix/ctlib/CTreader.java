@@ -551,7 +551,7 @@ public class CTreader {
 		//			}
 		//		}
 		
-//		ctmap.trim(getftime,  duration, rmode);			// trim entire map of channels (once after fetch all chans)
+//		ctmap.trim(refTime,  refDuration, rmode);			// trim entire map of channels (once after fetch all chans)
 		ctmap.trim(getftime, duration, rmode);			// trim entire map of channels (once after fetch all chans)
 		return ctmap;
 	}
