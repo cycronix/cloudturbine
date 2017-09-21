@@ -51,7 +51,7 @@ import cycronix.ctlib.*;
 
 public class CTjms {
 	private static String CTsource = "CTmousetrack";
-	private static String CTroot = "/Users/mattmiller/Documents/Test/CloudTurbine/CTmousetrack";
+	private static String CTroot = ".";
 	private static boolean shutdown = false;
 	
     public static void main(String[] args) throws Exception {
@@ -100,7 +100,7 @@ public class CTjms {
                 	double newestTime = ctr.newTime(CTsource);
                 	if(newestTime <= lastTime) {
                 		System.err.println("nothing new...");
-                		Thread.sleep(1000);
+                		Thread.sleep(100);
                 		continue;
                 	}
                 	if(lastTime == 0) lastTime = newestTime;
