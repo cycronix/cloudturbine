@@ -140,7 +140,7 @@ public class CTdata {
 		CTdata ctd = new CTdata();
 		int nframe = datalist.size();
 		
-//		System.err.println("requested tstart: "+start+", requested duration: "+duration+", tend: "+tend);
+//		System.err.println("timeRangeNumeric, requested tstart: "+start+", requested duration: "+duration+", tend: "+tend);
 		double Tprev=0;	String Dprev="";		// for duration=0 previous-Point
 		
 		for(int i=0; i<nframe; i++) {

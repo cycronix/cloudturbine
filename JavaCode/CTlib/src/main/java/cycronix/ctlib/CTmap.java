@@ -122,6 +122,7 @@ public class CTmap extends TreeMap<String,CTdata>{
 		for (Map.Entry<String, CTdata> entry : this.entrySet()) {
 		    String cname = entry.getKey();
 		    CTdata tdata = entry.getValue();
+//		    System.err.println("CTmap.trim, cname: "+cname+", lendat: "+tdata.size());
 			if(tdata != null) 
 				tdata = tdata.timeRange(CTinfo.fileType(cname), tstart, tdur, tmode);
 

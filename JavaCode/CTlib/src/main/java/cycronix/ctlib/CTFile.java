@@ -224,7 +224,7 @@ class CTFile extends File {
 		CTFile[] clist = null;
 		long startTime = System.nanoTime();
 
-		if(cacheProfile) CTinfo.debugPrint("listFiles for: "+myPath+", fileType: "+fileType);
+		if(cacheProfile) CTinfo.debugPrint(cacheProfile,"listFiles for: "+myPath+", fileType: "+fileType);
 		switch(fileType) {
 		case ZIP:				// top level file.zip
 			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?

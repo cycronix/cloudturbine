@@ -510,17 +510,49 @@ public class CTreader {
     
 	//---------------------------------------------------------------------------------	
 	// do the file checking and return CTmap channel map of Time-Data
-	
+	/**
+	 * get CTmap consisting of multiple channels; time-align all chans with first
+	 * 
+	 * @param ctmap CTmap with channel names, will hold CTdata results
+	 * @param source relative path to data source
+	 * @param getftime start time of fetch (s)
+	 * @param duration duraton of fetch (s)
+	 * @param rmode fetch-mode ("newest", "absolute", "oldest")
+	 */
 	public CTmap getDataMap(CTmap ctmap, String source, double getftime, double duration, String rmode) throws Exception {
 		// arg source is relative path source, sourceFolder is abs path
 		String sourceFolder;
 		if(source == null) 	sourceFolder = rootFolder;
 		else				sourceFolder = rootFolder+File.separator+source;
 
+		// if multi-chan request, get first chan, match other chans to its time-interval
+		//		if(rmode.equals("newest")) {
+		boolean firstChan = true;
+		double refTime=0, refDuration=0;
 		for(String chan : ctmap.keySet()) {
-//			  System.out.println("ctmap: "+chan);
-			  addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
+			if(firstChan) {
+				addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
+				double firstTime[] = ctmap.get(chan).getTime();
+//				System.err.println("getDataMap, firstChan: "+chan+", ngot: "+firstTime.length);
+				refTime = firstTime[0];
+				refDuration = firstTime[firstTime.length-1] - refTime;
+				firstChan = false;
 			}
+			else {
+//				System.err.println("getDataMap, nextChan: "+chan+", refTime: "+refTime+", refDuration: "+refDuration);
+				addChanToDataMap(ctmap, sourceFolder, chan, refTime, refDuration, "absolute");
+			}
+		}
+		//		}
+		//		else {
+		//			for(String chan : ctmap.keySet()) {
+		//				// System.out.println("ctmap: "+chan);
+		//				addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
+		//			}
+		//		}
+		
+//		ctmap.trim(getftime,  duration, rmode);			// trim entire map of channels (once after fetch all chans)
+		ctmap.trim(refTime,  refDuration, rmode);			// trim entire map of channels (once after fetch all chans)
 		return ctmap;
 	}
 	
@@ -598,7 +630,7 @@ public class CTreader {
 		}
 
 		// prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
-		ctmap.trim(getftime,  duration, rmode);	
+//		ctmap.trim(getftime,  duration, rmode);	
 		return ctmap;				// last folder
 	}
 
