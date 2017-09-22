@@ -532,8 +532,14 @@ public class CTreader {
 		for(String chan : ctmap.keySet()) {
 			if(firstChan) {
 				addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
-				double firstTime[] = ctmap.get(chan).getTime();
-//				System.err.println("getDataMap, firstChan: "+chan+", ngot: "+firstTime.length);
+				CTdata ctdata = ctmap.get(chan);
+				double firstTime[] = ctdata.getTime();
+				if(ctdata == null || firstTime==null || firstTime.length==0) {
+//					System.err.println("No such channel!: "+chan);
+					return ctmap;
+				}
+//				double firstTime[] = ctmap.get(chan).getTime();
+				CTinfo.debugPrint("getDataMap, firstChan: "+chan+", ngot: "+firstTime.length);
 				refTime = firstTime[0];
 				refDuration = firstTime[firstTime.length-1] - refTime;
 				firstChan = false;
@@ -554,7 +560,7 @@ public class CTreader {
 //		System.err.println("getDataMap, getftime: "+refTime+", duration: "+duration+", rmode: "+rmode);
 		if(rmode.equals("absolute")) refTime = getftime;	// use given time unless EOF/BOF
 		
-		ctmap.trim(refTime,  duration, "absolute");			// trim entire map of channels (once after fetch all chans)
+//		ctmap.trim(refTime,  duration, "absolute");			// trim entire map of channels (once after fetch all chans)
 //		ctmap.trim(getftime, duration, rmode);			// trim entire map of channels (once after fetch all chans)
 		return ctmap;
 	}
@@ -636,6 +642,8 @@ public class CTreader {
 		// prune ctdata to timerange (vs ctreader.getdata, ctplugin.CT2PImap)
 //		System.err.println("addCHan, getftime: "+getftime+", duration: "+duration+", rmode: "+rmode);
 //		ctmap.trim(getftime,  duration, rmode);	
+		ctmap.trim(chan, getftime,  duration, rmode);		// single channel trim by time range
+
 		return ctmap;				// last folder
 	}
 

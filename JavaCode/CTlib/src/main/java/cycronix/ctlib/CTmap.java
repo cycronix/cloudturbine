@@ -129,5 +129,10 @@ public class CTmap extends TreeMap<String,CTdata>{
 			this.put(cname, tdata);
 		}
 	}
+	
+	// trim single channel in map by time-range
+	void trim(String cname, double tstart, double tdur, String tmode) {
+		this.put(cname, this.get(cname, tstart, tdur, tmode));
+	}
 }
 
