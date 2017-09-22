@@ -532,36 +532,23 @@ public class CTreader {
 		for(String chan : ctmap.keySet()) {
 			if(firstChan) {
 				addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
+				if(ctmap.size()==1) return ctmap;
+				
+				// determine time-range for following channel(s):
 				CTdata ctdata = ctmap.get(chan);
+				if(ctdata==null) return ctmap;
 				double firstTime[] = ctdata.getTime();
-				if(ctdata == null || firstTime==null || firstTime.length==0) {
-//					System.err.println("No such channel!: "+chan);
-					return ctmap;
-				}
-//				double firstTime[] = ctmap.get(chan).getTime();
+				if(firstTime==null || firstTime.length==0) return ctmap;
 				CTinfo.debugPrint("getDataMap, firstChan: "+chan+", ngot: "+firstTime.length);
 				refTime = firstTime[0];
 				refDuration = firstTime[firstTime.length-1] - refTime;
 				firstChan = false;
 			}
 			else {
-//				System.err.println("getDataMap, nextChan: "+chan+", refTime: "+refTime+", refDuration: "+refDuration);
 				addChanToDataMap(ctmap, sourceFolder, chan, refTime, refDuration, "absolute");
 			}
 		}
-		//		}
-		//		else {
-		//			for(String chan : ctmap.keySet()) {
-		//				// System.out.println("ctmap: "+chan);
-		//				addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
-		//			}
-		//		}
 		
-//		System.err.println("getDataMap, getftime: "+refTime+", duration: "+duration+", rmode: "+rmode);
-		if(rmode.equals("absolute")) refTime = getftime;	// use given time unless EOF/BOF
-		
-//		ctmap.trim(refTime,  duration, "absolute");			// trim entire map of channels (once after fetch all chans)
-//		ctmap.trim(getftime, duration, rmode);			// trim entire map of channels (once after fetch all chans)
 		return ctmap;
 	}
 	
