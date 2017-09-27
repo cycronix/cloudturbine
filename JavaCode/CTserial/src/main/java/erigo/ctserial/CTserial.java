@@ -39,6 +39,7 @@ package erigo.ctserial;
  * 12/07/2016  JPW	Created.
  * 12/16/2016  JPW  Added "simulate" mode
  * 02/15/2017  JPW  Tweak command line documentation; add baudrate; change shutdown procedure to be more Thread-savvy
+ * 09/27/2017  JPW  Add blocksPerSegment command line argument
  * 
  */
 
@@ -57,6 +58,7 @@ public class CTserial {
 	private boolean debug = false;
 	private double autoFlush = 1.0;			  // flush interval (msec)
 	private double trimTime = 0.;			  // trimtime (sec)
+	private long blocksPerSegment = 0;		  // number of blocks per segment; 0 = no segment layer
 	private String srcName = new String("CTserial");
 	private CTwriter ctw;
 	private boolean bShutdown = false;
@@ -127,6 +129,7 @@ public class CTserial {
 		options.addOption(Option.builder("t").argName("trim-Time").hasArg().desc("trim (ring-buffer loop) time (sec); trimTime=0 (which is the default) for indefinite").build());
 		options.addOption(Option.builder("b").argName("baudrate").hasArg().desc(new String("baud rate; default = " + baudRateDefault)).build());
 		options.addOption(Option.builder("i").argName("input file").hasArg().desc("read input from a file rather than a serial port").build());
+		options.addOption(Option.builder("bps").argName("blocks_per_seg").hasArg().desc("Number of blocks per segment; specify 0 for no segments; default = " + Long.toString(blocksPerSegment) + ".").build());
 		options.addOption("time_in_str", false, "the first entry in the received CSV string is the data time; in this case, do not include the time channel as the first entry in the specified channels list");
 		options.addOption("x", "debug", false, "debug mode");
 		options.addOption("z", "sim_mode", false, "turn on simulate mode (don't read serial port)");
@@ -166,6 +169,8 @@ public class CTserial {
 		autoFlush = Double.parseDouble(line.getOptionValue("f",""+autoFlush));
 		
 		trimTime = Double.parseDouble(line.getOptionValue("t","0"));
+
+		blocksPerSegment = Long.parseLong(line.getOptionValue("bps",Long.toString(blocksPerSegment)));
 		
 		boolean bFirstValIsTime = line.hasOption("time_in_str");
 		// Can't have both bFirstValIsTime==true and dt!=0
@@ -195,6 +200,7 @@ public class CTserial {
 			ctw.setZipMode(zipMode);
 			ctw.autoFlush(autoFlush);
 			CTinfo.setDebug(debug);
+			ctw.autoSegment(blocksPerSegment);
 		} catch(Exception e) {
 			System.err.println("Caught exception trying to setup CTwriter:");
 			e.printStackTrace();
