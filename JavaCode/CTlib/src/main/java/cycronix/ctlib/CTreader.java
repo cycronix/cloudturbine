@@ -229,7 +229,7 @@ public class CTreader {
 
 		double ftime = 0.;		// default is now
 		CTFile[] files = baseFolder.listFiles();
-		if(files.length == 0) return baseFolder.fileTime();		// catch empty folder case
+		if(files==null || files.length == 0) return baseFolder.fileTime();		// catch empty folder case
 		CTFile file = files[0];
 
 		if(new File(file.getAbsolutePath()).isDirectory()) {

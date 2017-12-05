@@ -59,7 +59,10 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.Enumeration;
+import java.util.Properties;
 
 import javax.imageio.ImageIO;
 //import javax.servlet.ServletConfig;
@@ -68,6 +71,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+//import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -79,7 +83,6 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
-
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.security.Constraint;
@@ -115,12 +118,15 @@ public class CTweb {
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
     private static boolean fastSearch=false;			// fast channel search, reduces startup time 
+    private static String CTwebPropsFile=null;			// redirect to other CTweb
+    private static Properties CTwebProps=null;			// proxy server Name=Server properties
+
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTweb -r -x -X -F -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> rootFolder");
+    		System.err.println("CTweb -r -x -X -F -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <redirectURL> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -138,11 +144,15 @@ public class CTweb {
      		if(args[dirArg].equals("-a"))	realmProps = args[++dirArg];
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-e"))	password = args[++dirArg];
+     		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
 
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
+     	// load proxy properties
+     	if(CTwebPropsFile != null) loadProps();
+     	
      	// If sourceFolder has been specified, make sure it exists
      	if ( (sourceFolder != null) && ( (new File(sourceFolder).exists() == false) || (new File(sourceFolder).isDirectory() == false) ) ) {
      		System.err.println("The source folder doesn't exist or isn't a directory.");
@@ -266,7 +276,6 @@ public class CTweb {
         sholder.setAsyncSupported(true);					// need fewer threads if non-blocking?
         sholder.setInitParameter("maxThreads", "100");		// how many is good?
         shandler.addServletWithMapping(sholder, "/*");
-        
         setupAuthentication(server,shandler);				// set handler with optional authentication
 
         String msg;
@@ -325,10 +334,11 @@ public class CTweb {
     	@Override
     	protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 			if(debug) System.err.println("doOptions, request: "+request.getPathInfo()+", queryCount: "+queryCount+", request.method: "+request.getMethod());
-			response.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
-			response.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
-			response.addHeader("Access-Control-Allow-Headers", "If-None-Match");
-//			response.addHeader("Allow", "GET, POST, HEAD, OPTIONS");
+    		response.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
+    		response.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
+    		
+    		response.addHeader("Access-Control-Allow-Headers", "If-None-Match");
+    		//			response.addHeader("Allow", "GET, POST, HEAD, OPTIONS");
     	}
     	
     	@Override
@@ -344,6 +354,35 @@ public class CTweb {
     		            (request.getQueryString() != null ? "?" + request.getQueryString() : "");
     			System.err.println("doGet, URI: "+uri+", queryCount: "+queryCount+", request.method: "+request.getMethod());
     		}
+    		
+    		// redirect if Proxy server
+			boolean isRedirect = request.getParameter("redirect")!=null;
+//			System.err.println("isRedirect: "+isRedirect+", qs: "+request.getQueryString());
+    		if(CTwebProps != null && !isRedirect) {			// no recursive redirects...
+    			String requestURI = request.getRequestURI();
+    			Enumeration CTnames = CTwebProps.propertyNames();
+    			while(CTnames.hasMoreElements()) {
+    				String CTname = (String)CTnames.nextElement();
+    				requestURI = requestURI.replace("//", "/");			// replace any double with single slash
+    				if(requestURI.startsWith(servletRoot+"/"+CTname)  || requestURI.startsWith(rbnbRoot+"/"+CTname)) {
+    					String redirectRequest = requestURI.replace("/"+CTname, "");	// drop CTname in redirect request
+
+    					String uri = request.getScheme() + "://" + CTwebProps.getProperty(CTname) +
+//    							requestURI +
+    							redirectRequest +
+    						(request.getQueryString() != null ? "?" + request.getQueryString() + "&redirect=true": "?redirect=true");
+//							(request.getQueryString() != null ? "?" + request.getQueryString() : "");
+
+    					if(debug) System.err.println("redirect URI: "+requestURI+" to: "+uri);
+    					
+//    					response.setStatus(308);					// permanent (vs temporary) redirect
+//    					response.setHeader("Location", uri);
+    					response.sendRedirect(uri);
+    					return;
+    				}
+    			}
+    		}
+
 //    		String servletPath = request.getServletPath();
     		String pathInfo = request.getPathInfo();
     		
@@ -352,8 +391,31 @@ public class CTweb {
 
     		// server resource files
     		if(!pathInfo.startsWith(servletRoot)  && !pathInfo.startsWith(rbnbRoot)) {
-    			try {    	    		// system clock utility
-    				if(pathInfo.equals("/sysclock")) {
+    			try {   
+//    				System.err.println("pathInfo: <"+pathInfo+">, CTwebProps: "+CTwebProps);
+    				if(/*(CTwebProps != null)  && */ pathInfo.startsWith("/addroute")) {
+    					String[] routeinfo = request.getQueryString().split("=");
+    					System.err.println("routeinfo.length: "+routeinfo.length);
+    					String src=null, addr=null;
+    					if(routeinfo.length==1) {
+        					src = routeinfo[0];  
+    						addr = request.getRemoteAddr() + ":8000";
+    					}
+    					else if(routeinfo.length == 2) {
+        					src = routeinfo[0];  
+        					addr = routeinfo[1];
+    					}
+    					else return;
+    					
+    					System.err.println("addroute, src: "+src+", addr: "+addr);
+    					System.err.println("remoteHost: "+request.getRemoteHost()+", remotePort: "+request.getRemotePort());
+    					if(CTwebProps == null)  CTwebProps = new Properties();		// auto-route?
+    					CTwebProps.put(src, addr);
+    					response.getWriter().println("addroute, src: "+src+", addr: "+addr);
+    					return;
+    				}
+    				
+    				if(pathInfo.equals("/sysclock")) {			// system clock utility
     					response.setContentType("text/plain");
     					response.getWriter().println(""+System.currentTimeMillis());
     					return;
@@ -419,20 +481,32 @@ public class CTweb {
 
     			if(pathInfo.equals(servletRoot) || pathInfo.equals(rbnbRoot)) {			// Root level request for Sources
     				if(debug) System.err.println("source request: "+pathInfo);
-    				
+
     				printHeader(sbresp,pathInfo,"/");
     				ArrayList<String> slist = new ArrayList<String>();
 
-    				if(sourceFolder == null) slist = ctreader.listSources();
-    				// if(sourceFolder == null) slist = ctreader.listSourcesRecursive();	// recursive now default
-    				else					 slist.add(sourceFolder);
+    				if(CTwebProps == null || isRedirect) {						// no proxy: show child routes only
+    					if(sourceFolder == null) slist = ctreader.listSources();
+    					// if(sourceFolder == null) slist = ctreader.listSourcesRecursive();	// recursive now default
+    					else					 slist.add(sourceFolder);
+    				}
+    				else {														// proxy server sources:
+    					Enumeration CTnames = CTwebProps.propertyNames();
+    					while(CTnames.hasMoreElements()) {
+    						String CTname = (String)CTnames.nextElement();
+    						slist.add(CTname);
+    					}
+    				}
 
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
     				else {
+    					Collections.sort(slist, new Comparator<String>() {		// sort source list
+    					    @Override public int compare(String s1, String s2) { return s1.compareToIgnoreCase(s2); }
+    					});
     					for(String sname : slist) {
     						sname = sname.replace("\\", "/");				// backslash not legal URL link
     						if(debug) System.err.println("src: "+sname);
-//        					if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
+    						// if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
     						sbresp.append("<li><a href=\""+(pathInfo+"/"+sname)+"/\">"+sname+"/</a><br>");          
     					}
     				}
@@ -441,7 +515,6 @@ public class CTweb {
     				return;
     			}
     			else if(pathInfo.endsWith("/")) {										// Source level request for Channels
-
     				if(debug) System.err.println("channel request: "+pathInfo);
     				if(pathParts.length < 3) {
 						formResponse(response, null);		// add CORS header even for error response
@@ -452,6 +525,29 @@ public class CTweb {
     				String sname = pathParts[2];
     				for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
+/*
+    				// check to see if this is a lower-level source folder:
+    				ArrayList<String> slist = new ArrayList<String>();
+    				slist = ctreader.listSources();
+    				boolean gotpartial=false;
+    				for(String src : slist) {
+    					System.err.println("checking sources vs pathInfo, src: "+src+", pathInfo: "+pathInfo+", sname: "+sname);
+    					if(src.startsWith(sname)) {
+    						String extraSrc = src.replace(sname, "");
+    						extraSrc.replace("//",  "/");		// strip double slashes
+    						System.err.println("partial source: "+src+", extra: "+extraSrc);
+    						if(extraSrc != null && extraSrc.length()>0) {
+    							if(!gotpartial) printHeader(sbresp,pathInfo,"/");
+    							gotpartial = true;
+    							sbresp.append("<li><a href=\""+(pathInfo+"/"+extraSrc)+"/\">"+extraSrc+"/</a><br>");          
+    						}
+    					}
+    				}
+    				if(gotpartial) {
+    					formResponse(response, sbresp);
+    					return;
+    				}
+*/    				
     				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
     				
@@ -765,6 +861,7 @@ public class CTweb {
     private static void formResponse(HttpServletResponse resp, StringBuilder sbresp) {
 		resp.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
 		resp.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
+
 		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime");
 		if(sbresp == null) return;
 		try {
@@ -868,6 +965,20 @@ public class CTweb {
 		if(debug) System.err.println("Scale image "+scaleImage+"x, "+bdata.length+" to "+bdata2.length+" bytes");
 
         return bdata2;
+    }
+    
+    //---------------------------------------------------------------------------------	
+    private static void loadProps() {
+    	if(CTwebPropsFile == null) return;
+        try {
+            CTwebProps = new Properties();
+            InputStream is = new FileInputStream(CTwebPropsFile);
+            CTwebProps.load(is);
+            is.close();
+        }
+        catch(IOException ioe) {
+        	System.err.println("Warning: could not load properties file: "+CTwebPropsFile);
+        }
     }
 }
 
