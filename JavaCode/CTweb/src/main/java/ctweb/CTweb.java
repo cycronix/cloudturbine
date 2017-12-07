@@ -118,7 +118,7 @@ public class CTweb {
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
     private static boolean fastSearch=false;			// fast channel search, reduces startup time 
-    private static String CTwebPropsFile=null;			// redirect to other CTweb
+    private static String CTwebPropsFile="CTweb.props";			// redirect to other CTweb
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
 
 	//---------------------------------------------------------------------------------	
@@ -144,14 +144,14 @@ public class CTweb {
      		if(args[dirArg].equals("-a"))	realmProps = args[++dirArg];
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-e"))	password = args[++dirArg];
-     		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
-
+//     		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
+     		if(args[dirArg].equals("-R"))	CTwebProps = new Properties();
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
      	// load proxy properties
-     	if(CTwebPropsFile != null) loadProps();
+     	if(CTwebProps != null) loadProps();
      	
      	// If sourceFolder has been specified, make sure it exists
      	if ( (sourceFolder != null) && ( (new File(sourceFolder).exists() == false) || (new File(sourceFolder).isDirectory() == false) ) ) {
@@ -368,8 +368,8 @@ public class CTweb {
     					String redirectRequest = requestURI.replace("/"+CTname, "");	// drop CTname in redirect request
 
     					String uri = request.getScheme() + "://" + CTwebProps.getProperty(CTname) +
-//    							requestURI +
-    							redirectRequest +
+    							requestURI +
+//    							redirectRequest +
     						(request.getQueryString() != null ? "?" + request.getQueryString() + "&redirect=true": "?redirect=true");
 //							(request.getQueryString() != null ? "?" + request.getQueryString() : "");
 
@@ -392,30 +392,39 @@ public class CTweb {
     		// server resource files
     		if(!pathInfo.startsWith(servletRoot)  && !pathInfo.startsWith(rbnbRoot)) {
     			try {   
-//    				System.err.println("pathInfo: <"+pathInfo+">, CTwebProps: "+CTwebProps);
-    				if(/*(CTwebProps != null)  && */ pathInfo.startsWith("/addroute")) {
-    					String[] routeinfo = request.getQueryString().split("=");
-    					System.err.println("routeinfo.length: "+routeinfo.length);
-    					String src=null, addr=null;
-    					if(routeinfo.length==1) {
-        					src = routeinfo[0];  
-    						addr = request.getRemoteAddr() + ":8000";
+    				//    				System.err.println("pathInfo: <"+pathInfo+">, CTwebProps: "+CTwebProps);
+    				
+    				// proxy-mode register child route:
+    				if(pathInfo.startsWith("/addroute")) {
+    					if(CTwebProps == null) {
+    						response.getWriter().println("Warning: cannot addroute, not in Proxy mode");
+    						return;
     					}
-    					else if(routeinfo.length == 2) {
-        					src = routeinfo[0];  
-        					addr = routeinfo[1];
+    					else {
+    						String[] routeinfo = request.getQueryString().split("=");
+    						System.err.println("routeinfo.length: "+routeinfo.length);
+    						String src=null, addr=null;
+    						if(routeinfo.length==1) {
+    							src = routeinfo[0];  
+    							addr = request.getRemoteAddr() + ":8000";
+    						}
+    						else if(routeinfo.length == 2) {
+    							src = routeinfo[0];  
+    							addr = routeinfo[1];
+    						}
+    						else return;
+
+    						System.err.println("addroute, src: "+src+", addr: "+addr);
+    						System.err.println("remoteHost: "+request.getRemoteHost()+", remotePort: "+request.getRemotePort());
+    						//    					if(CTwebProps == null)  CTwebProps = new Properties();		// auto-route?
+    						CTwebProps.put(src, addr);
+    						response.getWriter().println("addroute, src: "+src+", addr: "+addr);
+    						return;
     					}
-    					else return;
-    					
-    					System.err.println("addroute, src: "+src+", addr: "+addr);
-    					System.err.println("remoteHost: "+request.getRemoteHost()+", remotePort: "+request.getRemotePort());
-    					if(CTwebProps == null)  CTwebProps = new Properties();		// auto-route?
-    					CTwebProps.put(src, addr);
-    					response.getWriter().println("addroute, src: "+src+", addr: "+addr);
-    					return;
     				}
     				
-    				if(pathInfo.equals("/sysclock")) {			// system clock utility
+    				// system clock utility
+    				if(pathInfo.equals("/sysclock")) {	
     					response.setContentType("text/plain");
     					response.getWriter().println(""+System.currentTimeMillis());
     					return;
@@ -971,7 +980,7 @@ public class CTweb {
     private static void loadProps() {
     	if(CTwebPropsFile == null) return;
         try {
-            CTwebProps = new Properties();
+            if(CTwebProps==null) CTwebProps = new Properties();
             InputStream is = new FileInputStream(CTwebPropsFile);
             CTwebProps.load(is);
             is.close();
