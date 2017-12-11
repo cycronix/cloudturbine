@@ -118,7 +118,7 @@ public class CTweb {
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
     private static boolean fastSearch=false;			// fast channel search, reduces startup time 
-    private static String CTwebPropsFile="CTweb.props";			// redirect to other CTweb
+    private static String CTwebPropsFile=null;			// redirect to other CTweb
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
 
 	//---------------------------------------------------------------------------------	
@@ -144,14 +144,14 @@ public class CTweb {
      		if(args[dirArg].equals("-a"))	realmProps = args[++dirArg];
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-e"))	password = args[++dirArg];
-//     		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
-     		if(args[dirArg].equals("-R"))	CTwebProps = new Properties();
+     		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
+//     		if(args[dirArg].equals("-R"))	CTwebProps = new Properties();
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
 
      	// load proxy properties
-     	if(CTwebProps != null) loadProps();
+     	if(CTwebPropsFile != null) loadProps();
      	
      	// If sourceFolder has been specified, make sure it exists
      	if ( (sourceFolder != null) && ( (new File(sourceFolder).exists() == false) || (new File(sourceFolder).isDirectory() == false) ) ) {
@@ -397,12 +397,13 @@ public class CTweb {
     				// proxy-mode register child route:
     				if(pathInfo.startsWith("/addroute")) {
     					if(CTwebProps == null) {
-    						response.getWriter().println("Warning: cannot addroute, not in Proxy mode");
-    						return;
+//    						response.getWriter().println("Warning: cannot addroute, not in Proxy mode");
+//    						return;
+    						CTwebProps = new Properties();
     					}
-    					else {
+//    					else {
     						String[] routeinfo = request.getQueryString().split("=");
-    						System.err.println("routeinfo.length: "+routeinfo.length);
+//    						System.err.println("routeinfo.length: "+routeinfo.length);
     						String src=null, addr=null;
     						if(routeinfo.length==1) {
     							src = routeinfo[0];  
@@ -415,12 +416,12 @@ public class CTweb {
     						else return;
 
     						System.err.println("addroute, src: "+src+", addr: "+addr);
-    						System.err.println("remoteHost: "+request.getRemoteHost()+", remotePort: "+request.getRemotePort());
+//    						System.err.println("remoteHost: "+request.getRemoteHost()+", remotePort: "+request.getRemotePort());
     						//    					if(CTwebProps == null)  CTwebProps = new Properties();		// auto-route?
     						CTwebProps.put(src, addr);
     						response.getWriter().println("addroute, src: "+src+", addr: "+addr);
     						return;
-    					}
+//    					}
     				}
     				
     				// system clock utility
@@ -494,6 +495,19 @@ public class CTweb {
     				printHeader(sbresp,pathInfo,"/");
     				ArrayList<String> slist = new ArrayList<String>();
 
+    				// show non-proxy sources first:
+					if(sourceFolder == null) slist = ctreader.listSources();
+					else					 slist.add(sourceFolder);
+					
+    				if(CTwebProps != null && !isRedirect) {						// proxy routes:
+    					Enumeration CTnames = CTwebProps.propertyNames();
+    					while(CTnames.hasMoreElements()) {
+    						String CTname = (String)CTnames.nextElement();
+    						if(!slist.contains(CTname))							// no dupes
+    							slist.add(CTname);
+    					}
+    				}
+/*    				
     				if(CTwebProps == null || isRedirect) {						// no proxy: show child routes only
     					if(sourceFolder == null) slist = ctreader.listSources();
     					// if(sourceFolder == null) slist = ctreader.listSourcesRecursive();	// recursive now default
@@ -506,7 +520,7 @@ public class CTweb {
     						slist.add(CTname);
     					}
     				}
-
+*/
     				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
     				else {
     					Collections.sort(slist, new Comparator<String>() {		// sort source list
