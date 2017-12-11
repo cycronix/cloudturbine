@@ -524,7 +524,11 @@ class CTFile extends File {
 			try {
 				java.io.FileInputStream fis = new java.io.FileInputStream(myPath);		
 				int len, nread=0;
-				while ((len = fis.read(data,nread,(int)(fileLength-nread))) > 0) nread+=len;
+				try {
+					while ((len = fis.read(data,nread,(int)(fileLength-nread))) > 0) nread+=len;
+				} catch(Exception e) {	// catch possible dangling file open?
+					fis.close();
+				}
 				//					System.err.println("file nread: "+nread);
 				fis.close();
 			} catch(Exception e) {

@@ -44,7 +44,7 @@ class CTcache {
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
 	private static final double MAX_MEMUSE = 0.7;			// fraction available JVM memory to use before limiting cache
-	private static final int MAX_ZIPFILES = 100;			// max number open zip files
+	private static final int MAX_ZIPFILES = 1;				// max number open zip files  (was 100, 1 helps a lot on CThdf)
 	private static final int MAX_ZIPMAPS = 100000;			// max number constructed ZipMaps
 
 	private static boolean cacheProfile = false;
@@ -99,7 +99,7 @@ class CTcache {
 		if(thisZipFile == null) {
 			CTinfo.debugPrint(cacheProfile,"ZipCache MISS: "+myZipFile);
 //			System.err.println("OPEN ZIPFILE: "+myZipFile);
-			thisZipFile = new ZipFile(myZipFile);
+			thisZipFile = new ZipFile(myZipFile);					// a new file is opened here!
 			ZipFileCache.put(myZipFile, thisZipFile);
 		}
 		else
