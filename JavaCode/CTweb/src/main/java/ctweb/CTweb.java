@@ -354,34 +354,47 @@ public class CTweb {
     		            (request.getQueryString() != null ? "?" + request.getQueryString() : "");
     			System.err.println("doGet, URI: "+uri+", queryCount: "+queryCount+", request.method: "+request.getMethod());
     		}
-    		
+
+    		//--------------------------------
     		// redirect if Proxy server
-			boolean isRedirect = request.getParameter("redirect")!=null;
+    		// local sources have priority; only redirect if proxy-source is unique
+			ArrayList<String> sourceList = new ArrayList<String>();
+
+//			boolean isRedirect = request.getParameter("redirect")!=null;
 //			System.err.println("isRedirect: "+isRedirect+", qs: "+request.getQueryString());
-    		if(CTwebProps != null && !isRedirect) {			// no recursive redirects...
+//    		if(CTwebProps != null && !isRedirect) {			// no recursive redirects...
+        	if(CTwebProps != null) {
+
+				if(sourceFolder == null) sourceList = ctreader.listSources();
+				else					 sourceList.add(sourceFolder);
+    			
     			String requestURI = request.getRequestURI();
     			Enumeration CTnames = CTwebProps.propertyNames();
     			while(CTnames.hasMoreElements()) {
     				String CTname = (String)CTnames.nextElement();
+    				
+    				if(sourceList.contains(CTname)) {			// local sources take priority over routes
+    					System.err.println("routed path ignored (duplicate source): "+CTname);
+    					CTwebProps.remove(CTname);
+    					continue;
+    				}
     				requestURI = requestURI.replace("//", "/");			// replace any double with single slash
     				if(requestURI.startsWith(servletRoot+"/"+CTname)  || requestURI.startsWith(rbnbRoot+"/"+CTname)) {
-    					String redirectRequest = requestURI.replace("/"+CTname, "");	// drop CTname in redirect request
+//    					String redirectRequest = requestURI.replace("/"+CTname, "");	// drop CTname in redirect request
 
     					String uri = request.getScheme() + "://" + CTwebProps.getProperty(CTname) +
     							requestURI +
 //    							redirectRequest +
-    						(request.getQueryString() != null ? "?" + request.getQueryString() + "&redirect=true": "?redirect=true");
-//							(request.getQueryString() != null ? "?" + request.getQueryString() : "");
+//    						(request.getQueryString() != null ? "?" + request.getQueryString() + "&redirect=true": "?redirect=true");
+							(request.getQueryString() != null ? "?" + request.getQueryString() : "");
 
     					if(debug) System.err.println("redirect URI: "+requestURI+" to: "+uri);
-    					
-//    					response.setStatus(308);					// permanent (vs temporary) redirect
-//    					response.setHeader("Location", uri);
     					response.sendRedirect(uri);
     					return;
     				}
     			}
     		}
+    		//--------------------------------
 
 //    		String servletPath = request.getServletPath();
     		String pathInfo = request.getPathInfo();
@@ -396,34 +409,39 @@ public class CTweb {
     				
     				// proxy-mode register child route:
     				if(pathInfo.startsWith("/addroute")) {
-    					if(CTwebProps == null) {
-//    						response.getWriter().println("Warning: cannot addroute, not in Proxy mode");
-//    						return;
-    						CTwebProps = new Properties();
-    					}
-//    					else {
-    						String[] routeinfo = request.getQueryString().split("=");
-//    						System.err.println("routeinfo.length: "+routeinfo.length);
-    						String src=null, addr=null;
-    						if(routeinfo.length==1) {
-    							src = routeinfo[0];  
-    							addr = request.getRemoteAddr() + ":8000";
-    						}
-    						else if(routeinfo.length == 2) {
-    							src = routeinfo[0];  
-    							addr = routeinfo[1];
-    						}
-    						else return;
+    					if(CTwebProps == null) CTwebProps = new Properties();
 
-    						System.err.println("addroute, src: "+src+", addr: "+addr);
-//    						System.err.println("remoteHost: "+request.getRemoteHost()+", remotePort: "+request.getRemotePort());
-    						//    					if(CTwebProps == null)  CTwebProps = new Properties();		// auto-route?
-    						CTwebProps.put(src, addr);
-    						response.getWriter().println("addroute, src: "+src+", addr: "+addr);
-    						return;
-//    					}
+    					String[] routeinfo = request.getQueryString().split("=");
+    					String src=null, addr=null;
+    					if(routeinfo.length==1) {
+    						src = routeinfo[0];  
+    						addr = request.getRemoteAddr() + ":8000";
+    					}
+    					else if(routeinfo.length == 2) {
+    						src = routeinfo[0];  
+    						addr = routeinfo[1];
+    					}
+    					else return;
+
+    					System.err.println("addroute, src: "+src+", addr: "+addr);
+    					CTwebProps.put(src, addr);
+    					response.getWriter().println("addroute, src: "+src+", addr: "+addr);
+    					return;
     				}
-    				
+    				if(pathInfo.startsWith("/listroutes")) {
+    					if(CTwebProps == null) {
+    						response.getWriter().println("listroutes: <None>");
+    						return;
+    					}
+    	    			Enumeration CTnames = CTwebProps.propertyNames();
+    	    			response.getWriter().println("routes:");
+    	    			while(CTnames.hasMoreElements()) {
+    	    				String key = (String)CTnames.nextElement();
+    	    				response.getWriter().println(key+" = "+CTwebProps.getProperty(key, "<none>"));
+    					}
+    	    			return;
+    				}
+
     				// system clock utility
     				if(pathInfo.equals("/sysclock")) {	
     					response.setContentType("text/plain");
@@ -493,40 +511,28 @@ public class CTweb {
     				if(debug) System.err.println("source request: "+pathInfo);
 
     				printHeader(sbresp,pathInfo,"/");
-    				ArrayList<String> slist = new ArrayList<String>();
-
-    				// show non-proxy sources first:
-					if(sourceFolder == null) slist = ctreader.listSources();
-					else					 slist.add(sourceFolder);
+//    				ArrayList<String> sourceList = new ArrayList<String>();
 					
-    				if(CTwebProps != null && !isRedirect) {						// proxy routes:
-    					Enumeration CTnames = CTwebProps.propertyNames();
-    					while(CTnames.hasMoreElements()) {
-    						String CTname = (String)CTnames.nextElement();
-    						if(!slist.contains(CTname))							// no dupes
-    							slist.add(CTname);
-    					}
+//    				if(CTwebProps == null || isRedirect) {						// no proxy: show child routes only
+        			if(sourceList.size() == 0) {	// may have been filled in proxy-check above
+    					if(sourceFolder == null) sourceList = ctreader.listSources();
+    					else					 sourceList.add(sourceFolder);
     				}
-/*    				
-    				if(CTwebProps == null || isRedirect) {						// no proxy: show child routes only
-    					if(sourceFolder == null) slist = ctreader.listSources();
-    					// if(sourceFolder == null) slist = ctreader.listSourcesRecursive();	// recursive now default
-    					else					 slist.add(sourceFolder);
-    				}
-    				else {														// proxy server sources:
-    					Enumeration CTnames = CTwebProps.propertyNames();
-    					while(CTnames.hasMoreElements()) {
-    						String CTname = (String)CTnames.nextElement();
-    						slist.add(CTname);
-    					}
-    				}
-*/
-    				if(slist==null || slist.size()==0) sbresp.append("No Sources!");
+    				// proxy server sources:
+        			if(CTwebProps != null) {
+        				Enumeration CTnames = CTwebProps.propertyNames();
+        				while(CTnames.hasMoreElements()) {
+        					String CTname = (String)CTnames.nextElement();
+        					if(!sourceList.contains(CTname))	sourceList.add(CTname);			// no dupes
+        				}
+        			}
+
+    				if(sourceList==null || sourceList.size()==0) sbresp.append("No Sources!");
     				else {
-    					Collections.sort(slist, new Comparator<String>() {		// sort source list
+    					Collections.sort(sourceList, new Comparator<String>() {		// sort source list
     					    @Override public int compare(String s1, String s2) { return s1.compareToIgnoreCase(s2); }
     					});
-    					for(String sname : slist) {
+    					for(String sname : sourceList) {
     						sname = sname.replace("\\", "/");				// backslash not legal URL link
     						if(debug) System.err.println("src: "+sname);
     						// if(debug) System.err.println("src: "+sname+", sourceDiskSize: "+ (CTinfo.diskUsage(rootFolder+File.separator+sname,4096)/1024)+"K");
