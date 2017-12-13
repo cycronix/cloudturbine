@@ -612,7 +612,7 @@ class CTFile extends File {
 			//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
 		} catch(Exception ex) { 
 			zipMap = null;				// benign: partial zip-file as it is being written, ignore
-//			System.err.println("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
+			CTinfo.debugPrint(cacheProfile,"ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
 //			ex.printStackTrace(); 
 		}
 
