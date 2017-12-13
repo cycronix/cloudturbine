@@ -611,8 +611,8 @@ class CTFile extends File {
 			CTcache.ZipMapCache.put(myPath, zipMap);			// cache
 			//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
 		} catch(Exception ex) { 
-			zipMap = null;
-			System.err.println("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
+			zipMap = null;				// benign: partial zip-file as it is being written, ignore
+//			System.err.println("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
 //			ex.printStackTrace(); 
 		}
 
