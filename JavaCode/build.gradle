@@ -1,18 +1,4 @@
 
-// Enable Gradle build scan by adding "-Dscan" to gradle command line
-// See the following URL to get this snippet:
-//     https://scans.gradle.com/get-started?type=project
-// Can also click on the "all projects on my machine" radio button at this
-// URL to see a snippet to add to ~/.gradle/init.d/buildScan.gradle to enable
-// build scans for all projects.
-plugins {
-    id 'com.gradle.build-scan' version '1.2'
-}
-buildScan {
-    licenseAgreementUrl = 'https://gradle.com/terms-of-service'
-    licenseAgree = 'yes'
-}
-
 subprojects {
 	
 	apply plugin: 'java'
