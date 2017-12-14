@@ -515,7 +515,7 @@ class CTFile extends File {
 				}
 			} catch(Exception e) {
 				System.err.println("CTFile.read: "+e /* +", zipfile: "+myZipFile+", entry: "+myPath */);
-				e.printStackTrace();
+//				e.printStackTrace();
 			}
 			break;
 		default:		// conventional file
