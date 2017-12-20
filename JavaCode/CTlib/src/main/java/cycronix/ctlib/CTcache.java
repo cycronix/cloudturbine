@@ -40,10 +40,10 @@ class CTcache {
 //	private byte[] myData=null;				// cache?
 //	static private TreeMap<String, byte[]> DataCache = new TreeMap<String, byte[]>();		// cache (need logic to cap size)
 	// cache limits, max entries, max filesize any entry, jvm size at which to dump old cache...
-	private static final int MAX_ENTRIES = 100000;			// limit total entries in data cache	(10K led to "too many open files"?)
+	private static final int MAX_ENTRIES = 10000;			// limit total entries in data cache (was 100000)
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
-	private static final double MAX_MEMUSE = 0.7;			// fraction available JVM memory to use before limiting cache
+	private static final double MAX_MEMUSE = 0.5;			// fraction available JVM memory to use before limiting cache (was 
 	private static final int MAX_ZIPFILES = 1;				// max number open zip files  (was 100, 1 helps a lot on CThdf)
 	private static final int MAX_ZIPMAPS = 100000;			// max number constructed ZipMaps
 
@@ -60,13 +60,18 @@ class CTcache {
 	
 	// DataCache supplants OS/disk caching for full-file reads
 	static LinkedHashMap<String, byte[]> DataCache = new LinkedHashMap<String, byte[]>() {
-		 protected synchronized boolean removeEldestEntry(Map.Entry  eldest) {
+//		 protected synchronized boolean removeEldestEntry(Map.Entry  eldest) {
+		protected boolean removeEldestEntry(Map.Entry  eldest) {
+
 			 	Runtime runtime = Runtime.getRuntime();
 			 	long usedmem = runtime.totalMemory() - runtime.freeMemory();
 			 	long availableMem = runtime.maxMemory(); 
 			 	double usedMemFraction = (double)usedmem / (double)availableMem;
-			 	CTinfo.debugPrint(cacheProfile, "DataCache stats, usedmem: "+usedmem+", size: "+size()+", availableMem: "+availableMem+", usedMemPerc: "+usedMemFraction);
-	            return ((size() >  MAX_ENTRIES) || (usedMemFraction > MAX_MEMUSE));
+			 	
+//			 	System.err.println("DataCache stats, usedmem: "+usedmem+", size: "+size()+", availableMem: "+availableMem+", usedMemPerc: "+usedMemFraction);
+			 	boolean trimCache = (size() >  MAX_ENTRIES) || (usedMemFraction > MAX_MEMUSE);
+//			 	System.err.println("trimCache: "+trimCache);
+			 	return trimCache;
 	         }
 	};		
 
@@ -86,7 +91,7 @@ class CTcache {
 						 if(size() <= MAX_ZIPFILES) break;
 					 }
 				 }
-				 //				 	System.err.println("ZipFileCache >remove size: "+ZipFileCache.size());
+//				 System.err.println("ZipFileCache >remove size: "+ZipFileCache.size()+", max_files: "+MAX_ZIPFILES);
 			 }
 			 	return false;
 //	            return ((size() >  MAX_FILES));
@@ -109,6 +114,8 @@ class CTcache {
 	}
 	
 	static HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				// provide way to reset?
-	
+
 	// TO DO:  getter/setters/config/reset methods for each cache type
+
+	
 }

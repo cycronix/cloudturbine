@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 //import java.nio.file.Path;
 //import java.nio.file.Paths;
@@ -55,8 +56,8 @@ import java.util.zip.ZipFile;
 //---------------------------------------------------------------------------------	
 //CTFile:  extended File class, list file and/or zip entries
 
-class CTFile extends File {
-	static final long serialVersionUID = 0;		// to make extends File happy
+class CTFile extends File implements Serializable {
+//	static final long serialVersionUID = 0;		// to make extends File happy
 
 //	private boolean isZip=false;		// parent zip file.zip
 //	private boolean isEntry=false;		// internal zip folder
@@ -76,7 +77,7 @@ class CTFile extends File {
 		TFILE						// time-folder-data 
 	}
 	public FileType fileType = FileType.FILE;		// default is regular file
-	private static boolean cacheProfile = false;
+//	private static boolean cacheProfile = false;
 	
 	//---------------------------------------------------------------------------------	
 	// constructors
@@ -90,7 +91,7 @@ class CTFile extends File {
 		super(path = convertGzip(path));
 //		System.err.println("new CTFile path: "+path);
 		myPath = new String(path);
-
+		
 		if(path.endsWith(".zip") || path.endsWith(".gz")) fileType = FileType.ZIP;
 		if(isTFILE()) fileType = FileType.TFOLDER;		// need better filter
 
@@ -152,6 +153,10 @@ class CTFile extends File {
 	 */
 	String getMyZipFile() {
 		return myZipFile;
+	}
+	
+	void clearZipMap() {
+		zipMap = null;
 	}
 	
 	public String getParent() {
@@ -222,9 +227,8 @@ class CTFile extends File {
 	 */
 	public CTFile[] listFiles() {
 		CTFile[] clist = null;
-		long startTime = System.nanoTime();
+//		long startTime = System.nanoTime();
 
-		if(cacheProfile) CTinfo.debugPrint(cacheProfile,"listFiles for: "+myPath+", fileType: "+fileType);
 		switch(fileType) {
 		case ZIP:				// top level file.zip
 			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
@@ -232,20 +236,13 @@ class CTFile extends File {
 			
 			Object[] sfiles = zipMap.keySet().toArray();				// need to concat dupes?
 			clist = new CTFile[sfiles.length];
-			CTinfo.debugPrint(cacheProfile,"case ZIP: "+myPath+", sfiles.length: "+sfiles.length+", msecTime: "+((System.nanoTime()-startTime)/1000000.));
+//			CTinfo.debugPrint("case ZIP: "+myPath+", sfiles.length: "+sfiles.length+", msecTime: "+((System.nanoTime()-startTime)/1000000.));
 			for(int i=0; i<sfiles.length; i++) {
 				String[] files = zipMap.get(sfiles[i]);
 //				System.err.println("ZIP file: "+sfiles[i]+", files.len: "+files.length);
 				clist[i] = new CTFile((String) sfiles[i], files, myZipFile);	
 			}
 			
-//			CTinfo.debugPrint(cacheProfile,"unsorted zips, length: "+clist.length+", time: "+((System.nanoTime()-startTime)/1000000.));
-			// Arrays.sort is expensive as it is called lots at lowest level loop
-//			Arrays.sort(clist, fileTimeComparator);			// zip files in order of write, not guaranteed time-sorted
-//			Arrays.sort(clist, fileNameComparator);			// zip files in order of write, not guaranteed time-sorted
-			// zipMap is pre-sorted as TreeMap with folderTimeComparator
-//			CTinfo.debugPrint(cacheProfile,"sorted zips:"+", time: "+((System.nanoTime()-startTime)/1000000.)+", clist.size: "+clist.length);
-//			for(CTFile c:clist) System.err.println(c);
 			return clist;
 
 		case ZENTRY:				// embedded zip folder
@@ -459,11 +456,12 @@ class CTFile extends File {
 //		String cacheKey = myPath;	// myPath includes zipfile name?  Nope, inconsistent but myPath for zip-entry is not full time-path
 //		System.err.println("cacheKey: "+cacheKey+", myPath: "+myPath);
 		byte[] data = CTcache.DataCache.get(cacheKey);					// need to add Source (folder) to myPath. now: Tstamp/Chan
+		
 		if(data != null) {
 //			CTinfo.debugPrint(cacheProfile, "DataCache hit: "+cacheKey+", cacheSize: "+CTcache.DataCache.size()+", dt: "+((System.nanoTime()-startTime)/1000000.));
 			return data;					// use cached data
 		}
-		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+CTcache.DataCache.size());
+//		else CTinfo.debugPrint(cacheProfile, "DataCache miss: "+cacheKey+", cacheSize: "+CTcache.DataCache.size());
 		
 //		if(myData!=null) return myData;		// cache
 		switch(fileType) {
@@ -539,7 +537,7 @@ class CTFile extends File {
 				
 		if(data!=null /* && data.length <= MAX_FILESIZE */) {
 			CTcache.DataCache.put(cacheKey, data);		// only cache small files
-			CTinfo.debugPrint(cacheProfile, "DataCache put: "+cacheKey+", datasize: "+data.length+", cacheLen: "+CTcache.DataCache.size());
+//			CTinfo.debugPrint("DataCache put: "+cacheKey+", datasize: "+data.length+", cacheLen: "+CTcache.DataCache.size());
 		}
 		return data;
 	}
@@ -612,7 +610,7 @@ class CTFile extends File {
 			//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
 		} catch(Exception ex) { 
 			zipMap = null;				// benign: partial zip-file as it is being written, ignore
-			CTinfo.debugPrint(cacheProfile,"ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
+			CTinfo.debugPrint("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
 //			ex.printStackTrace(); 
 		}
 
@@ -674,7 +672,6 @@ class CTFile extends File {
   //---------------------------------------------------------------------------------	
   //fileTime:  parse time from file name, units: full-seconds
     private SimpleDateFormat sdflast=null;
-    boolean useFileTime=false;						// required if TFILE == isFile()
     
     /**
      * Parse time from the CTFile name, units: full-seconds
@@ -693,9 +690,7 @@ class CTFile extends File {
   	 */
   	
   	private double fileTime(String fname) {
-//  		System.err.println("CTFile fileTime: "+fname);
   		// special logic for TFOLDER (e.g. camera time.jpg files)
-//  		System.err.println("CTFile/fileTime, fname: "+fname+", ftype: "+fileType);
   		if(fileType==FileType.TFOLDER || fileType==FileType.TFILE) return tfolderTime(fname);
 	
   		return CTinfo.fileTime(fname);		// generalize
@@ -738,7 +733,8 @@ class CTFile extends File {
     	if(idot > 0) fname = fname.substring(0,idot);
 
   		double ftime = 0.;
-  		
+  	    boolean useFileTime=false;						// required if TFILE == isFile()
+
 		if(useFileTime) {
 			ftime = this.lastModified();		// simply use actual file modification time?
 		} 

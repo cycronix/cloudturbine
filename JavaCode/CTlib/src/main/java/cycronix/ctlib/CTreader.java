@@ -568,7 +568,8 @@ public class CTreader {
 			CTFile[] oldList = CTcache.fileListByChan.get(thisChanKey);
 			boolean fileRefresh = false;
 			if(oldList == null || oldList.length==0 || !rmode.equals("absolute") || (getftime+duration) > oldList[oldList.length-1].fileTime()) fileRefresh = true;
-			CTinfo.debugPrint(readProfile,"GET getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh+", fileListByChan.length: "+((oldList!=null)?oldList.length:0));
+
+			//			CTinfo.debugPrint(readProfile,"GET getDataMap!, thisChan: "+thisChanKey+", getftime: "+getftime+", duration: "+duration+", rmode: "+rmode+", fileRefresh: "+fileRefresh+", fileListByChan.length: "+((oldList!=null)?oldList.length:0));
 //			CTFile[] listOfFiles = flatFileList(rootfolder, ctmap, thisChanKey, fileRefresh);
 			CTFile[] listOfFiles = flatFileList(rootfolder, new CTmap(chan), thisChanKey, fileRefresh);
 
@@ -689,12 +690,12 @@ public class CTreader {
 	// beware: this will multi-thread
 	
 	public void clearFileListCache() {
-		System.err.println("Clear File List Cache!");
+		System.err.println("Clear File List Cache! size: "+CTcache.fileListByChan.size());
 		CTcache.fileListByChan.clear();
 	}
 	
 	public void clearFileListCache(String chanKey) {
-		CTinfo.debugPrint("CLEAR fileListCache!: "+chanKey);
+//		CTinfo.debugPrint("CLEAR fileListCache! chan: "+chanKey+", size: "+CTcache.fileListByChan.get(chanKey).length);
 		CTcache.fileListByChan.put(chanKey, null);
 	}
 	
@@ -768,7 +769,7 @@ public class CTreader {
 			}
 		}
 		
-//		CTinfo.debugPrint(readProfile,"flatFileList update, chankey: "+chanKey+", listLen: "+ffarray.length+", time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+//		System.err.println("flatFileList update, chankey: "+chanKey+", listLen: "+ffarray.length+", Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 		CTcache.fileListByChan.put(chanKey, ffarray);
 		
 		return ffarray;
