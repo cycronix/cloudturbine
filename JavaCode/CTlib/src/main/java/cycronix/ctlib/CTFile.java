@@ -65,7 +65,7 @@ class CTFile extends File implements Serializable {
 	private String  myPath=null;
 	private String 	myZipFile=null;
 	private String[] myFiles=null;
-	private Map<String, String[]> zipMap;
+//	private Map<String, String[]> zipMap;
 	private double myTime= -1.;
 	
 	enum FileType {
@@ -155,10 +155,6 @@ class CTFile extends File implements Serializable {
 		return myZipFile;
 	}
 	
-	void clearZipMap() {
-		zipMap = null;
-	}
-	
 	public String getParent() {
 		if(myZipFile!=null) return myZipFile;
 		else				return super.getParent();
@@ -231,7 +227,8 @@ class CTFile extends File implements Serializable {
 
 		switch(fileType) {
 		case ZIP:				// top level file.zip
-			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
+//			if(zipMap==null || zipMap.size()==0) ZipMap(myZipFile);		// delayed zipmap build?
+			Map<String,String[]> zipMap = ZipMap(myZipFile);		// delayed zipmap build?
 			if(zipMap==null) return null;		// couldn't create (IO error?)
 			
 			Object[] sfiles = zipMap.keySet().toArray();				// need to concat dupes?
@@ -418,8 +415,9 @@ class CTFile extends File implements Serializable {
 		long len=0;
 		switch(fileType) {
 		case ZIP:	
-			if(zipMap==null) return 0;
+//			if(zipMap==null) return 0;
 			//		if(isZip) {
+			Map<String,String[]> zipMap = ZipMap(myZipFile);		// build or fetch from cache
 			len = zipMap.size();
 			break;
 			//		}
@@ -547,11 +545,11 @@ class CTFile extends File implements Serializable {
 	// Map keys are timestamp-folders, map values are string-arrays of channels per folder
 	// this probably should be a class with constructor...
 
-	private void ZipMap(String zipfile) {
-		zipMap = CTcache.ZipMapCache.get(myPath);
+	private Map<String, String[]> ZipMap(String zipfile) {
+		Map<String,String[]>zipMap = CTcache.ZipMapCache.get(myPath);
 		if(zipMap != null) {
 //			CTinfo.debugPrint(cacheProfile,"ZipCache hit: "+myPath);
-			return;					
+			return zipMap;					
 		}
 //		else CTinfo.debugPrint(cacheProfile,"ZipCache miss: "+myPath);
 		
@@ -614,6 +612,7 @@ class CTFile extends File implements Serializable {
 //			ex.printStackTrace(); 
 		}
 
+		return zipMap;
 	}
 
 	//---------------------------------------------------------------------------------	
