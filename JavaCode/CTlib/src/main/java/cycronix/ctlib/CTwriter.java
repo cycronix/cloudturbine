@@ -850,8 +850,10 @@ public class CTwriter {
 			throw new IOException("CTtrim time error, must specify full-seconds time since epoch.  oldTime: "+oldTime);
 		}
 		
-		File rootFolder = new File(destPath);
-		return deleteOldTimes(rootFolder, oldTime);
+		return oldTimeTrim(new CTFile(destPath), oldTime);
+		
+//		File rootFolder = new File(destPath);
+//		return deleteOldTimes(rootFolder, oldTime);
 	}
 	
 	private boolean deleteOldTimes(File rootFolder, double trimTime) throws IOException {
@@ -859,7 +861,7 @@ public class CTwriter {
 
 		Path directory = rootFolder.toPath();
 		final boolean mydebug = false;
-		CTinfo.debugPrint(mydebug,"deleteOldTimes, trimTime: "+trimTime+", rootFolder: "+rootFolder);
+//		System.err.println("****** deleteOldTimes, trimTime: "+trimTime+", rootFolder: "+rootFolder);
 		try {
 			Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
 				@Override
@@ -870,7 +872,6 @@ public class CTwriter {
 						try {
 							Files.delete(file);
 						} catch(IOException e) {
-//							System.err.println("Failed to delete file: "+file);
 							throw new IOException("Failed to delete file: "+file);
 						}
 					}
@@ -898,6 +899,34 @@ public class CTwriter {
 		}
 
 		return true;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// fast oldTime:  crawl down first (oldest) folder branch to bottom file time
+	private boolean oldTimeTrim(CTFile baseFolder, double thisTrimTime) throws IOException {
+//		System.err.println("oldTime baseFolder: "+baseFolder.getPath()+", isDir: "+baseFolder.isDirectory());
+		if(!baseFolder.isDirectory()) return false;  
+
+		CTFile[] baseFolders = baseFolder.listFiles();
+		if(baseFolders==null || baseFolders.length == 0) return false;		// catch empty folder case
+		
+		for(CTFile bFolder:baseFolders) {		// trim based on two-deep scan (basefolder list of segment times)
+			CTFile[] segmentFolders = bFolder.listFiles();
+			int nseg = segmentFolders.length;
+			for(int i=0; i<nseg; i++) {
+				double sTime;
+				int j = (i<(nseg-1))?i+1:i;		// one-past if more than one
+				CTFile sFolder = segmentFolders[j];
+				sTime = sFolder.fileTime();		
+//				System.err.println("segmentFolder: "+sFolder.getAbsolutePath()+", fileTime: "+sTime+", delta: "+(sTime - thisTrimTime));
+				if(sTime > 0.) {
+					if(sTime<thisTrimTime) 	return deleteOldTimes(segmentFolders[i], thisTrimTime);
+					else 					return false;
+				}
+			}
+		}
+//		System.err.println("oldTimeTrim, notta!");
+		return false;
 	}
 
 	//------------------------------------------------------------------------------------------------

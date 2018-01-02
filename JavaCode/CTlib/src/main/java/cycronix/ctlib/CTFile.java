@@ -56,7 +56,7 @@ import java.util.zip.ZipFile;
 //---------------------------------------------------------------------------------	
 //CTFile:  extended File class, list file and/or zip entries
 
-class CTFile extends File implements Serializable {
+class CTFile extends File {
 //	static final long serialVersionUID = 0;		// to make extends File happy
 
 //	private boolean isZip=false;		// parent zip file.zip
@@ -106,6 +106,7 @@ class CTFile extends File implements Serializable {
 	// zip File 
 	private CTFile(String path, String myzipfile, String mypath) {
 		super(path);
+//		System.err.println("CTFile, path: "+path+", myzipfile: "+myzipfile+", mypath: "+mypath);
 		myPath = new String(mypath);		// note:  here myPath is short zip-entry name (inconsistent)
 		
 		// following to give usable path so that fileTime works.  but other places breaks ??!!
@@ -116,6 +117,17 @@ class CTFile extends File implements Serializable {
 		fileType = FileType.ZFILE;
 	}
 
+	// alternate zip File 
+	public CTFile(String mypath, String myzipfile) {
+		super(mypath);
+		myPath = new String(mypath);		// note:  here myPath is short zip-entry name (inconsistent)
+		myPath = myzipfile.substring(0,myzipfile.lastIndexOf('.')) + File.separator + myPath;	// full effective zip entry path for relative timestamps to work
+//		System.err.println("CTFile, myzipfile: "+myzipfile+", mypath: "+mypath);
+
+		myZipFile = myzipfile;
+		fileType = FileType.ZFILE;
+	}
+	
 	// zip Folder (entry)
 	private CTFile(String path, String[] files, String myzipfile) {
 		super(path);
@@ -446,7 +458,7 @@ class CTFile extends File implements Serializable {
 	 * @return byte[] data read
 	 */
 
-	byte[] read() {
+	byte[] read() throws Exception {
 //		String cacheKey = myZipFile+":"+myPath;
 		String cacheKey = myPath;			// 6/2017:  myPath now unique full path into zip?
 //		long startTime = System.nanoTime();	long thisTime = startTime;
@@ -510,7 +522,8 @@ class CTFile extends File implements Serializable {
 					//				thisZipFile.close();
 				}
 			} catch(Exception e) {
-				System.err.println("CTFile.read: "+e /* +", zipfile: "+myZipFile+", entry: "+myPath */);
+//				System.err.println("CTFile.read: "+e);		// file can be missing on trim
+				throw e;
 //				e.printStackTrace();
 			}
 			break;
@@ -546,73 +559,80 @@ class CTFile extends File implements Serializable {
 	// this probably should be a class with constructor...
 
 	private Map<String, String[]> ZipMap(String zipfile) {
-		Map<String,String[]>zipMap = CTcache.ZipMapCache.get(myPath);
-		if(zipMap != null) {
-//			CTinfo.debugPrint(cacheProfile,"ZipCache hit: "+myPath);
-			return zipMap;					
-		}
-//		else CTinfo.debugPrint(cacheProfile,"ZipCache miss: "+myPath);
-		
-		zipMap = new TreeMap<String, String[]>(folderTimeComparator);		// make a new one, sorted by folder time
-		try{		//get the zip file content
-			int numEntries=0;
-			String[] entry;
-			synchronized(CTcache.cacheLock) {			// no cache-close while in use
-				ZipFile zfile = CTcache.cachedZipFile(zipfile);		// this can throw exception being created in RT
-				//	ZipFile zfile = new ZipFile(zipfile);		// just open zipfile, let ZipMap itself do the caching
 
-				Enumeration<? extends ZipEntry> zenum = zfile.entries();
-				numEntries = zfile.size();		// convert to array, easier loop control
-				entry = new String[numEntries];
-				//			System.err.println("Building ZipMap for: "+myPath+", numEntries: "+numEntries);
-
-				for(int i=0; i<numEntries; i++) entry[i] = zenum.nextElement().getName();
+		synchronized(CTcache.cacheLock) {							// convert miss to hit before next thread query
+			Map<String,String[]>zipMap = CTcache.ZipMapCache.get(myPath);
+			if(zipMap != null) {
+//				CTinfo.debugPrint("ZipMapCache hit: "+myPath);
+				return zipMap;					
 			}
-			Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
+//			else CTinfo.debugPrint("ZipMapCache miss: "+myPath);
 
-			String thisfolder=null;
-			ArrayList<String>flist=null;
+			zipMap = new TreeMap<String, String[]>(folderTimeComparator);		// make a new one, sorted by folder time
+			try{		//get the zip file content
+				int numEntries=0;
+				String[] entry;
+				synchronized(CTcache.cacheLock) {			// no cache-close while in use
+					ZipFile zfile = CTcache.cachedZipFile(zipfile);		// this can throw exception being created in RT
+					//	ZipFile zfile = new ZipFile(zipfile);		// just open zipfile, let ZipMap itself do the caching
 
-			// loop thru zipfile entries, add them to TreeMap
-			for(int i=0; i<numEntries; i++) {
-				//				System.err.println("ZipMap entry["+i+"]: "+entry[i]);
-				String[] spentry = entry[i].split("/");				// Java 1.6 compat 
+					Enumeration<? extends ZipEntry> zenum = zfile.entries();
+					numEntries = zfile.size();		// convert to array, easier loop control
+					entry = new String[numEntries];
+					//			System.err.println("Building ZipMap for: "+myPath+", numEntries: "+numEntries);
 
-				String folder = spentry[0];
-				if(spentry.length > 1) {							// Java 1.6 compat
-					if(!folder.equals(thisfolder)) {			// new subfolder (presumes sorted!!)
-						if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
-						thisfolder = folder;
-						flist=new ArrayList<String>();
-						//						System.err.println("zipmap add new subfolder: "+entry[i]);
-						flist.add(entry[i]);			// Java 1.6 compat
+					for(int i=0; i<numEntries; i++) entry[i] = zenum.nextElement().getName();
+				}
+				Arrays.sort(entry);				// sort so that following add-logic gets all channels in same timestamp folder
+
+				String thisfolder=null;
+				ArrayList<String>flist=null;
+
+				// loop thru zipfile entries, add them to TreeMap
+				for(int i=0; i<numEntries; i++) {
+					//				System.err.println("ZipMap entry["+i+"]: "+entry[i]);
+					String[] spentry = entry[i].split("/");				// Java 1.6 compat 
+
+					String folder = spentry[0];
+					if(spentry.length > 1) {							// Java 1.6 compat
+						if(!folder.equals(thisfolder)) {			// new subfolder (presumes sorted!!)
+							if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
+							thisfolder = folder;
+							flist=new ArrayList<String>();
+							//						System.err.println("zipmap add new subfolder: "+entry[i]);
+							flist.add(entry[i]);			// Java 1.6 compat
+						}
+						else {
+							if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
+							//						System.err.println("zipmap add to existing subfolder: "+entry[i]);
+							flist.add(entry[i]);			// Java 1.6 compat
+						} 
 					}
 					else {
-						if(thisfolder!=null) zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
-						//						System.err.println("zipmap add to existing subfolder: "+entry[i]);
-						flist.add(entry[i]);			// Java 1.6 compat
-					} 
+						zipMap.put(folder, null);
+					}	
 				}
-				else {
-					zipMap.put(folder, null);
-				}	
+				if(flist!=null && flist.size()>0 && thisfolder!=null) 					// wrap up
+					zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
+
+				//			zfile.close();
+				//			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
+				// pre-sort zipMap here
+
+				CTcache.ZipMapCache.put(myPath, zipMap);			// cache
+				//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
+			} catch(Exception ex) { 
+				zipMap = null;				// benign: partial zip-file as it is being written, ignore
+				CTinfo.debugPrint("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
+				//			ex.printStackTrace(); 
 			}
-			if(flist!=null && flist.size()>0 && thisfolder!=null) 					// wrap up
-				zipMap.put(thisfolder, flist.toArray(new String[flist.size()]));
 
-			//			zfile.close();
-			//			CTinfo.debugPrint(cacheProfile,"ZipCache put: "+myPath);
-			// pre-sort zipMap here
+//			CTinfo.debugPrint("***ZipMapCache built: "+myPath);
+//			Thread.currentThread().dumpStack();
+			
+			return zipMap;
 
-			CTcache.ZipMapCache.put(myPath, zipMap);			// cache
-			//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
-		} catch(Exception ex) { 
-			zipMap = null;				// benign: partial zip-file as it is being written, ignore
-			CTinfo.debugPrint("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
-//			ex.printStackTrace(); 
 		}
-
-		return zipMap;
 	}
 
 	//---------------------------------------------------------------------------------	

@@ -117,10 +117,11 @@ public class CTweb {
 	private static int sslport = 8443;					// HTTPS port (0 means none)
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
-    private static boolean fastSearch=false;			// fast channel search, reduces startup time 
+    private static boolean fastSearch=true;			// fast channel search, reduces startup time 
     private static String CTwebPropsFile=null;			// redirect to other CTweb
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
-
+    private static boolean preCache = false;			// pre-build index cache
+    
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
@@ -134,6 +135,7 @@ public class CTweb {
      		if(args[dirArg].equals("-r")) 	swapFlag = true;
      		if(args[dirArg].equals("-x")) 	debug = true;
      		if(args[dirArg].equals("-X")) 	Debug=true; 
+     		if(args[dirArg].equals("-C")) 	preCache=true; 
      		if(args[dirArg].equals("-F")) 	fastSearch = !fastSearch;
      		if(args[dirArg].equals("-p")) 	port = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-P")) 	sslport = Integer.parseInt(args[++dirArg]);
@@ -190,7 +192,8 @@ public class CTweb {
      	ctreader = new CTreader(rootFolder);
      	if(password!=null) ctreader.setPassword(password, true);		// optional decrypt
      	CTinfo.setDebug(Debug);
-       
+        if(preCache) ctreader.preCache();
+        
      	// setup and start Jetty HTTP server
      	Server server = setupHTTP();
         server.start();
@@ -638,8 +641,9 @@ public class CTweb {
     				if(fetch == 't') 	ctreader.setTimeOnly(true);		// don't waste time/memory getting data...
     				else    			ctreader.setTimeOnly(false);
 
+    				if(doProfile) System.err.println("doGet <R time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
     				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
-    				if(doProfile) System.err.println("doGet R time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
+    				if(doProfile) System.err.println("doGet >R time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 
     				if(tdata == null) {		// empty response for WebTurbine compatibility
     					if(debug) System.err.println("No such channel: "+pathInfo+", chan: "+chan+", start: "+start+", duration: "+duration+", refernce: "+reference);					
@@ -684,6 +688,7 @@ public class CTweb {
     									double[] tlimits = ctreader.timeLimits(source, chan);
     									double oldTime = tlimits[0];
     									double newTime = tlimits[1];
+//    									System.err.println("newTime: "+newTime);
     									if(doProfile) System.err.println("doGet 2b time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
     									double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
@@ -882,7 +887,8 @@ public class CTweb {
 
 		response.addHeader("cache-control", "private, max-age=3600");			// enable browse cache
 		
-		if(debug) System.err.println("+++CTweb: time: "+startTime+", endTime: "+endTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
+		if(debug)
+			System.err.println("+++CTweb: time: "+startTime+", endTime: "+endTime+", duration: "+duration+", oldest: "+oldTime+", newest: "+newTime+", hlag: "+lagTime);
     }
     
     //---------------------------------------------------------------------------------	
