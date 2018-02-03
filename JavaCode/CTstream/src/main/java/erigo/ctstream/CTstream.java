@@ -1281,18 +1281,21 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		} else {
 			// The following has been tested under Windows 10 and Ubuntu 12.04 LTS
 			try {
-				InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				// JPW 2018/02/02: changed how to load images
+				// Here's the original way we did this (which worked under Java 8 but not under Java 9):
+				// InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				InputStream imageInputStreamLarge = getClass().getClassLoader().getResourceAsStream("Icon_128x128.png");
 				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
-				InputStream imageInputStreamMed = guiFrame.getClass().getResourceAsStream("/Icon_64x64.png");
+				InputStream imageInputStreamMed = getClass().getClassLoader().getResourceAsStream("Icon_64x64.png");
 				BufferedImage bufferedImageMed = ImageIO.read(imageInputStreamMed);
-				InputStream imageInputStreamSmall = guiFrame.getClass().getResourceAsStream("/Icon_32x32.png");
+				InputStream imageInputStreamSmall = getClass().getClassLoader().getResourceAsStream("Icon_32x32.png");
 				BufferedImage bufferedImageSmall = ImageIO.read(imageInputStreamSmall);
 				List<BufferedImage> iconList = new ArrayList<BufferedImage>();
 				iconList.add(bufferedImageLarge);
 				iconList.add(bufferedImageMed);
 				iconList.add(bufferedImageSmall);
 				guiFrame.setIconImages(iconList);
-			} catch (IOException excepI) {
+			} catch (Exception excepI) {
 				System.err.println("Exception thrown trying to set icon: " + excepI);
 			}
 		}
