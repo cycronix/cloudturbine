@@ -1261,7 +1261,10 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			// http://stackoverflow.com/questions/11253772/setting-the-default-application-icon-image-in-java-swing-on-os-x
 			// https://gist.github.com/bchapuis/1562406
 			try {
-				InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				// JPW 2018/02/02: changed how to load images
+				// Here's the original way we did this (which worked under Java 8 but not under Java 9):
+				// InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				InputStream imageInputStreamLarge = getClass().getClassLoader().getResourceAsStream("Icon_128x128.png");
 				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
 				// Here's the call we really want to make, but we will do this via reflection
 		        // com.apple.eawt.Application.getApplication().setDockIconImage( bufferedImageLarge );
