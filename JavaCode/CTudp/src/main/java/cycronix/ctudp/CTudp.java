@@ -373,7 +373,7 @@ public class CTudp {
 				double oldtime = 0;
 				double time = 0;
 				if(flushTime == 0) flushTime = System.currentTimeMillis();
-				
+
 				while (true) {	
 					if(ms!=null) ms.receive(dp);			// multicast	
 					else 		 ds.receive(dp);			// unicast
@@ -514,6 +514,7 @@ public class CTudp {
 		private DatagramSocket serverSocket = null;
 		private int port = -1;
 		private int period_msec = 0;
+		private int desired_period_msec = 0;
 		private byte[] receiveData = new byte[1024];
 		private byte[] sendData = new byte[1024];
 		private String[] csvChanNames = null;
@@ -522,6 +523,7 @@ public class CTudp {
 		public UDPserver(int portI, int period_msecI, String[] csvChanNamesI) throws SocketException {
 			port = portI;
 			period_msec = period_msecI;
+			desired_period_msec = period_msecI;
 			csvChanNames = csvChanNamesI;
 			if (csvChanNames != null) {
 				numChans = csvChanNames.length;
@@ -550,6 +552,7 @@ public class CTudp {
 			//
 			// Now that we have a client connection, send them UDP packets at a periodic rate
 			//
+			long prev_loop_end_time = -1;  // used for adjusting the sleep period to maintain the user's desired data period
 			while (true) {
 				// Generate the new message
 				String msg = "message from UDP server";
@@ -607,9 +610,33 @@ public class CTudp {
 				// Sleep for the needed period
 				//
 				try {
+					// System.err.println("period_msec = " + period_msec);
 					Thread.sleep(period_msec);
 				} catch (InterruptedException e) {
 					// Nothing to do
+				}
+
+				// Adjust the sleep time to keep the loop period close to the user's desired data period
+				if (prev_loop_end_time == -1) {
+					prev_loop_end_time = System.currentTimeMillis();
+					// prev_loop_end_time = -1;  // uncomment this to never adjust the sleep time
+				} else {
+					long current_time = System.currentTimeMillis();
+					long loop_DT = current_time - prev_loop_end_time;
+					if (loop_DT > (desired_period_msec+2)) {
+						// period_msec is too high, reduce it but don't go lower than 50% of the original desired value
+						period_msec = period_msec - 1;
+						if (period_msec < (int)(desired_period_msec/2.0)) {
+							period_msec = (int)(desired_period_msec/2.0);
+						}
+					} else if (loop_DT < (desired_period_msec-2)) {
+						// period_msec is too low, increase it, but don't go higher than 2 x the original desired value
+						period_msec = period_msec + 1;
+						if (period_msec > (int)(desired_period_msec*2.0)) {
+							period_msec = (int)(desired_period_msec*2.0);
+						}
+					}
+					prev_loop_end_time = current_time;
 				}
 			}
 		}
