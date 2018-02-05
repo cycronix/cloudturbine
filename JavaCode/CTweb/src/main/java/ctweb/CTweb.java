@@ -127,7 +127,7 @@ public class CTweb {
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTweb -r -x -X -F -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <redirectURL> rootFolder");
+    		System.err.println("CTweb -r -x -X -F -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <routingFile> rootFolder");
     	}
     	
      	int dirArg = 0;
