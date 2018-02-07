@@ -1266,6 +1266,29 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				// InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
 				InputStream imageInputStreamLarge = getClass().getClassLoader().getResourceAsStream("Icon_128x128.png");
 				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
+				/**
+				 *
+				 * Java 9 note: running the following code under Java 9 on a Mac will produce the following warning:
+				 *
+				 * WARNING: An illegal reflective access operation has occurred
+				 * WARNING: Illegal reflective access by erigo.ctstream.CTstream (file:/Users/johnwilson/CT_versions/compiled_under_V8/CTstream.jar) to method com.apple.eawt.Application.getApplication()
+				 * WARNING: Please consider reporting this to the maintainers of erigo.ctstream.CTstream
+				 * WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+				 * WARNING: All illegal access operations will be denied in a future release
+				 *
+				 * This is because Java 9 has taken a step away from using reflection; see see the section titled
+				 * “Illegal Access To Internal APIs” at https://blog.codefx.org/java/java-9-migration-guide/.
+				 *
+				 * A good fix (but only available in Java 9+) is to use the following:
+				 *
+				 *     java.awt.Taskbar taskbar = java.awt.Taskbar.getTaskbar();
+				 *     taskbar.setIconImage(bufferedImageLarge);
+				 *
+				 * If we had preprocessor directives in Java, we could do something like use the code below
+				 * if we are at JDK < Java9 or use the code above (using Taskbar) if we are at JDK > Java9;
+				 * might be able to do this with Java annotations but not worth it to implement.
+				 *
+				 **/
 				// Here's the call we really want to make, but we will do this via reflection
 		        // com.apple.eawt.Application.getApplication().setDockIconImage( bufferedImageLarge );
 				Class<?> util = Class.forName("com.apple.eawt.Application");
