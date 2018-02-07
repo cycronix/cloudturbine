@@ -1277,7 +1277,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				 * WARNING: All illegal access operations will be denied in a future release
 				 *
 				 * This is because Java 9 has taken a step away from using reflection; see see the section titled
-				 * “Illegal Access To Internal APIs” at https://blog.codefx.org/java/java-9-migration-guide/.
+				 * "Illegal Access To Internal APIs" at https://blog.codefx.org/java/java-9-migration-guide/.
 				 *
 				 * A good fix (but only available in Java 9+) is to use the following:
 				 *
