@@ -892,12 +892,16 @@ public class CTweb {
 					return;
 				}
 				ctw = new CTwriter(source);	
+				ctw.autoFlush(0.2);						// hard-wire some settings for now
+				ctw.setBlockMode(true,true);			// let client pre-package packed/zip data????
+				ctw.autoSegment(1000);
 				CTwriters.put(source,  ctw);			// add to hashmap
 				System.err.println("new PUT source: "+source);
 			}
+			
 			try {
 				ctw.putData(chan, out.toByteArray());
-				ctw.flush();
+//				ctw.flush();
 			} catch (Exception e) {
 				System.err.println("Exception on CT putData: "+e);
 				e.printStackTrace();
