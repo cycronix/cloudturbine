@@ -227,6 +227,9 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private int mouseCommandMode = NO_COMMAND;
 	private Point mouseStartingPoint = null;
 	private Rectangle frameStartingBounds = null;
+
+	// Port for viewing CT data from WebScan
+	public int webScanPort = 8000;
 	
 	/**
 	 *
@@ -1344,7 +1347,13 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		JMenuItem menuItem = new JMenuItem("Settings...");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
+		menuItem = new JMenuItem("Launch CTweb server...");
+		menu.add(menuItem);
+		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("CloudTurbine website");
+		menu.add(menuItem);
+		menuItem.addActionListener(this);
+		menuItem = new JMenuItem("View data");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("Exit");
@@ -1572,15 +1581,22 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			// Let user edit settings; the following function will not
 			// return until the user clicks the OK or Cancel button.
 			ctSettings.popupSettingsDialog();
-		} else if (eventI.getActionCommand().equals("CloudTurbine website")) {
+		} else if (eventI.getActionCommand().equals("Launch CTweb server...")) {
+			// Pop up dialog to launch the CTweb server
+			new LaunchCTweb(this,guiFrame);
+		} else if ( eventI.getActionCommand().equals("CloudTurbine website") || eventI.getActionCommand().equals("View data") ) {
 			if (!Desktop.isDesktopSupported()) {
 				System.err.println("\nNot able to launch URL in a browser window, feature not supported.");
 				return;
 			}
 			Desktop desktop = Desktop.getDesktop();
+			String urlStr = "http://cloudturbine.com";
+			if (eventI.getActionCommand().equals("View data")) {
+				urlStr = "http://localhost:" + Integer.toString(webScanPort);
+			}
 			URI uri = null;
 			try {
-				uri = new URI("http://cloudturbine.com");
+				uri = new URI(urlStr);
 			} catch (URISyntaxException e) {
 				System.err.println("\nURISyntaxException:\n" + e);
 				return;
@@ -1588,7 +1604,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			try {
 				desktop.browse(uri);
 			} catch (IOException e) {
-				System.err.println("\nCaught IOException trying to go to cloudturbine.com:\n" + e);
+				System.err.println("\nCaught IOException trying to go to " + urlStr + ":\n" + e);
 			}
 		} else if (eventI.getActionCommand().equals("Exit")) {
 			exit(false);
