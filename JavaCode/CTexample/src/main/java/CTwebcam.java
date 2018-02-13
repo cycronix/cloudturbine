@@ -30,27 +30,19 @@
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import cycronix.ctlib.CThttp;
 
 public class CTwebcam {
 
 	private static final class Capture extends Thread {
 		@Override
 		public void run() {
-			String url = "http://localhost:8000/MyCam/webcam.jpg";
 
 			Webcam webcam = Webcam.getDefault();
 			webcam.setViewSize(WebcamResolution.VGA.getSize());
@@ -63,9 +55,19 @@ public class CTwebcam {
 			frame.setVisible(true);
 			
 			// HTTP put setup
-
+			CThttp cth = null;
+			try {
+				cth = new CThttp("MyCam");
+				cth.autoSegment(1000);
+				cth.setZipMode(true);
+				cth.autoFlush( 1.0);
+			} catch (IOException e1) {
+				e1.printStackTrace();
+				return;
+			}
+			
 			while (true) {
-				if (!webcam.isOpen()) break;
+				if (!webcam.isOpen()) break; 
 
 				BufferedImage image = webcam.getImage();
 				if (image == null) break;
@@ -76,7 +78,7 @@ public class CTwebcam {
 				ByteArrayOutputStream stream = new ByteArrayOutputStream();
 				try {
 					ImageIO.write(image, "jpeg", stream);
-					httpput(url, stream.toByteArray());
+					cth.putData("webcam.jpg", stream.toByteArray());
 				} catch(Exception e) {
 					System.err.println("CTwebcam Exception: "+e);
 				}
@@ -90,13 +92,4 @@ public class CTwebcam {
 		System.exit(1);
 	}
 	
-	static CloseableHttpClient httpclient = HttpClients.createDefault();
-	public static final HttpResponse httpput(String url, byte[] body) throws IOException {
-		final HttpPut put=new HttpPut(url);
-		if (body != null) {
-			put.setEntity(new ByteArrayEntity(body));
-//			System.err.println("put image: "+url);
-		}
-		return httpclient.execute(put);
-	}
 }

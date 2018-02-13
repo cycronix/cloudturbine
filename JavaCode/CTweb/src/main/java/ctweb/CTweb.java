@@ -126,7 +126,7 @@ public class CTweb {
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
     private static boolean preCache = false;			// pre-build index cache
 
-	private static HashMap<String,CTwriter> CTwriters = new HashMap<String,CTwriter>();	// hashmap of CTwriters (one per source)			
+	private static ArrayList<String> CTwriters = new ArrayList<String>();	// list of CTwriters (one per source)			
 	private static int maxCTwriters = 0;				// crude way to limit out of control PUTs
 	
 	//---------------------------------------------------------------------------------	
@@ -870,11 +870,36 @@ public class CTweb {
     			System.err.println("doPut source/chan parse error: "+request.getPathInfo());
     			return;
     		}
-    		String source = rootFolder;
-    		for(int i=1; i<parse.length-1; i++) source += File.separator + parse[i];
-    		String chan = parse[parse.length-1];
+    		String folder = rootFolder;
+    		for(int i=1; i<parse.length-1; i++) folder += File.separator + parse[i];	// add multi-part source dirs
+    		String file = parse[parse.length-1];
 
-    		ByteArrayOutputStream out = new ByteArrayOutputStream();	// limit to rootFolder/CTdata
+    		// security limit check on number of sources
+    		String source = parse[1];
+    		if(!CTwriters.contains(source)) {
+    			if(CTwriters.size() >= maxCTwriters) {
+					System.err.println("CTweb, no more CTwriters! (max="+maxCTwriters+"), this: "+source);
+    				return;
+    			}
+    			CTwriters.add(source);
+    			System.err.println("CTwriters.size: "+CTwriters.size()+", add: "+source);
+    		}
+				
+    		// simply write file, presume pre-processed on client to correct CT folder/file structure
+    	    File targetFile = new File(folder + File.separator + file);
+    		System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
+
+    		OutputStream out = null;
+    		try {
+    			targetFile.getParentFile().mkdirs(); // Will create parent directories if not exists
+    			targetFile.createNewFile();
+    			out = new FileOutputStream(targetFile,false);
+//    			out = new FileOutputStream(targetFile);
+    		} catch(Exception e) {
+    			System.err.println("CTweb doPut, cannot create target file: "+targetFile+", exception: "+e);
+    			return;
+    		}
+    		//    		ByteArrayOutputStream out = new ByteArrayOutputStream();	// limit to rootFolder/CTdata
     		// read/write response
     		byte[] buffer = new byte[16384];
     		int length;
@@ -883,8 +908,9 @@ public class CTweb {
 //    			System.err.println("CTweb write bytes: "+length);
     		}
     		in.close();
-    		out.flush();
+    		out.close();
 
+    		/*				// this code to zip/pack data on server
     		CTwriter ctw = CTwriters.get(source);		// hashmap of all sources
 			if(ctw == null) {
 				if(CTwriters.size() >= maxCTwriters) {
@@ -907,8 +933,7 @@ public class CTweb {
 				e.printStackTrace();
 				return;
 			}
-			
-    		System.err.println("doPut, source: "+source+", chan: "+chan+", data.size: "+out.size());
+			*/
     	}
     }
     
