@@ -53,6 +53,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -62,11 +63,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Properties;
 
 import javax.imageio.ImageIO;
 //import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -92,6 +95,7 @@ import org.eclipse.jetty.server.Connector;
 import cycronix.ctlib.CTdata;
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTreader;
+import cycronix.ctlib.CTwriter;
 
 //---------------------------------------------------------------------------------	
 
@@ -117,17 +121,20 @@ public class CTweb {
 	private static int sslport = 8443;					// HTTPS port (0 means none)
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
-    private static boolean fastSearch=true;			// fast channel search, reduces startup time 
+    private static boolean fastSearch=true;				// fast channel search, reduces startup time 
     private static String CTwebPropsFile=null;			// redirect to other CTweb
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
     private static boolean preCache = false;			// pre-build index cache
-    
+
+	private static HashMap<String,CTwriter> CTwriters = new HashMap<String,CTwriter>();	// hashmap of CTwriters (one per source)			
+	private static int maxCTwriters = 0;				// crude way to limit out of control PUTs
+	
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
 
     	if(args.length == 0) {
-    		System.err.println("CTweb -r -x -X -F -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <routingFile> rootFolder");
+    		System.err.println("CTweb -r -x -X -F -W -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <routingFile> rootFolder");
     	}
     	
      	int dirArg = 0;
@@ -147,7 +154,7 @@ public class CTweb {
      		if(args[dirArg].equals("-S")) 	scaleImage = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-e"))	password = args[++dirArg];
      		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
-//     		if(args[dirArg].equals("-R"))	CTwebProps = new Properties();
+     		if(args[dirArg].equals("-W"))	maxCTwriters = Integer.parseInt(args[++dirArg]);
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -556,30 +563,7 @@ public class CTweb {
     				}
     				String sname = pathParts[2];
     				for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
-    				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);
-/*
-    				// check to see if this is a lower-level source folder:
-    				ArrayList<String> slist = new ArrayList<String>();
-    				slist = ctreader.listSources();
-    				boolean gotpartial=false;
-    				for(String src : slist) {
-    					System.err.println("checking sources vs pathInfo, src: "+src+", pathInfo: "+pathInfo+", sname: "+sname);
-    					if(src.startsWith(sname)) {
-    						String extraSrc = src.replace(sname, "");
-    						extraSrc.replace("//",  "/");		// strip double slashes
-    						System.err.println("partial source: "+src+", extra: "+extraSrc);
-    						if(extraSrc != null && extraSrc.length()>0) {
-    							if(!gotpartial) printHeader(sbresp,pathInfo,"/");
-    							gotpartial = true;
-    							sbresp.append("<li><a href=\""+(pathInfo+"/"+extraSrc)+"/\">"+extraSrc+"/</a><br>");          
-    						}
-    					}
-    				}
-    				if(gotpartial) {
-    					formResponse(response, sbresp);
-    					return;
-    				}
-*/    				
+    				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);    				
     				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
     				
@@ -868,6 +852,60 @@ public class CTweb {
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
     	}
+    	
+        //---------------------------------------------------------------------------------	
+    	// doPut:  store CT data on server
+    	
+    	@Override
+    	protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    		if(maxCTwriters == 0) {
+    			System.err.println("CTweb PUT not allowed!");
+    			return;
+    		}
+    		
+    		ServletInputStream in = request.getInputStream();
+
+    		String[] parse = request.getPathInfo().split(File.separator);
+    		if(parse.length < 3) {				// presume leading slash
+    			System.err.println("doPut source/chan parse error: "+request.getPathInfo());
+    			return;
+    		}
+    		String source = rootFolder;
+    		for(int i=1; i<parse.length-1; i++) source += File.separator + parse[i];
+    		String chan = parse[parse.length-1];
+
+    		ByteArrayOutputStream out = new ByteArrayOutputStream();	// limit to rootFolder/CTdata
+    		// read/write response
+    		byte[] buffer = new byte[16384];
+    		int length;
+    		while ((length = in.read(buffer)) > 0) {
+    			out.write(buffer, 0, length);
+//    			System.err.println("CTweb write bytes: "+length);
+    		}
+    		in.close();
+    		out.flush();
+
+    		CTwriter ctw = CTwriters.get(source);		// hashmap of all sources
+			if(ctw == null) {
+				if(CTwriters.size() >= maxCTwriters) {
+					System.err.println("CTweb, no more CTwriters! (max="+maxCTwriters+")");
+					return;
+				}
+				ctw = new CTwriter(source);	
+				CTwriters.put(source,  ctw);			// add to hashmap
+				System.err.println("new PUT source: "+source);
+			}
+			try {
+				ctw.putData(chan, out.toByteArray());
+				ctw.flush();
+			} catch (Exception e) {
+				System.err.println("Exception on CT putData: "+e);
+				e.printStackTrace();
+				return;
+			}
+			
+    		System.err.println("doPut, source: "+source+", chan: "+chan+", data.size: "+out.size());
+    	}
     }
     
     //---------------------------------------------------------------------------------	
@@ -1014,7 +1052,7 @@ public class CTweb {
         catch(IOException ioe) {
         	System.err.println("Warning: could not load properties file: "+CTwebPropsFile);
         }
-    }
+    }    
 }
 
 
