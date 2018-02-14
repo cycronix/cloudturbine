@@ -19,9 +19,10 @@ package erigo.ctstream;
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,7 +35,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.stage.DirectoryChooser;
-import javafx.stage.Stage;
 
 import javax.swing.SwingUtilities;
 
@@ -43,6 +43,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 /**
@@ -59,6 +60,7 @@ public class LaunchCTweb extends javax.swing.JDialog {
     private static final long serialVersionUID = 1L;
 
     private JFXPanel fxPanel = null;
+    private GridPane grid = null;
     private CTstream ctStream = null;
 
     // UI controls
@@ -77,9 +79,37 @@ public class LaunchCTweb extends javax.swing.JDialog {
 
         ctStream = ctStreamI;
 
-        setLayout(new BorderLayout());
+        GridBagLayout gbl = new GridBagLayout();
+        setLayout(gbl);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weightx = 100;
+        gbc.weighty = 100;
+        gbc.insets = new java.awt.Insets(0,0,0,0);
         fxPanel = new JFXPanel();
-        add(fxPanel,BorderLayout.CENTER);
+        Utility.add(this,fxPanel,gbl,gbc,0,0,1,1);
+
+        // For some unknown reason, the GridPane inside the JFXPanel doesn't automatically resize as the dialog is
+        // being resized.  Here's an attempt to force the resize, but it doesn't work.
+        /*
+        addComponentListener(new ComponentAdapter()
+        {
+            public void componentResized(ComponentEvent e)
+            {
+                // Dialog has been resized; request new layout for the JFXPanel (needs to be done on the JavaFX thread)
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (grid != null) {
+                            fxPanel.validate();
+                            grid.requestLayout();
+                        }
+                    }
+                });
+            }
+        });
+        */
 
         // Handle the close operation in the windowClosing() method of the
         // registered WindowListener object.  This will get around
@@ -131,7 +161,7 @@ public class LaunchCTweb extends javax.swing.JDialog {
     private Scene createJavaFXInterface() {
         Group root = new  Group();
         Scene scene = new Scene(root, Color.ALICEBLUE);
-        GridPane grid = new GridPane();
+        grid = new GridPane();
         // For debug: display grid lines
         // grid.setGridLinesVisible(true);
         // Center this GridPane within its parent
@@ -139,13 +169,14 @@ public class LaunchCTweb extends javax.swing.JDialog {
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(25, 25, 25, 25));
+        grid.setMaxWidth(Double.MAX_VALUE);
         root.getChildren().add(grid);
 
         int row = 0;
 
         // Row 1: data folder
         Label tempL = new Label("Data folder");
-        dataFolderTF = new TextField("CTdata");
+        dataFolderTF = new TextField(ctStream.outputFolder);
         dataFolderTF.setPrefWidth(150);
         Button browseB = new Button("Browse...");
         browseB.setOnAction(this::selectDirAction);
@@ -161,7 +192,10 @@ public class LaunchCTweb extends javax.swing.JDialog {
         portTF.setPrefWidth(75);
         portTF.setMaxWidth(Control.USE_PREF_SIZE);
         grid.add(tempL, 0, row, 1, 1);
-        grid.add(portTF, 1, row, 1, 1);
+        // grid.add(portTF, 1, row, 1, 1);
+        // Here's a way to specify all the constraints for the portTF node: position, row/col span, hor/ver alignment, growth policy, insets
+        grid.add(portTF,1,row);
+        grid.setConstraints(portTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.NEVER,Priority.NEVER,new Insets(0,0,0,0));
 
         // Row 3: command button
         row = row + 1;
@@ -180,12 +214,11 @@ public class LaunchCTweb extends javax.swing.JDialog {
         grid.add(tileP, 0, row, 3, 1);
 
         // Set constraints on the columns; have second column grow
-        /*
         ColumnConstraints column1 = new ColumnConstraints();
         ColumnConstraints column2 = new ColumnConstraints(50,150,Double.MAX_VALUE);
         column2.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(column1, column2);
-        */
+        ColumnConstraints column3 = new ColumnConstraints();
+        grid.getColumnConstraints().addAll(column1, column2, column3);
 
         return scene;
     }
@@ -255,31 +288,53 @@ public class LaunchCTweb extends javax.swing.JDialog {
         ctStream.webScanPort = portNum;
 
         // Fill in arguments from the user's settings
-        ArrayList argList=new ArrayList();
+        ArrayList<String> argList=new ArrayList();
         argList.add("-p");
         argList.add(Integer.toString(portNum));
         // For a discussion of File.getPath(), File.getAbsolutePath() and File.getCanonicalPath() see
         // https://stackoverflow.com/questions/1099300/whats-the-difference-between-getpath-getabsolutepath-and-getcanonicalpath
         // Using getPath() here, which gets the path string that the File object was constructed with.
         argList.add(folderF.getPath());
-        try {
-            new Thread(new MainRunnable(Class.forName("ctweb.CTweb"),(String[]) argList.toArray(new String[argList.size()]))).start();
-            System.err.println("Launched CTweb");
-            // Time to shut down this JDialog
-            // For thread safety: Schedule a job for Swing's event-dispatching thread (EDT)
-            SwingUtilities.invokeLater(new Runnable() {
-                public void run() {
-                    setVisible(false);
+
+        // Launch CTweb process
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // Convert ArrayList to an array of Strings
+                // See example at https://www.tutorialspoint.com/java/util/arraylist_toarray.htm
+                String strList[] = new String[argList.size()];
+                strList = argList.toArray(strList);
+                /*
+                // Launch CTweb directly
+                try {
+                    // I don't think this ever returns (unless the server dies)
+                    ctweb.CTweb.main(strList);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            });
-        } catch (ClassNotFoundException excep) {
-            System.err.println("Unable to launch CTweb:\n" + excep);
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error launching CTweb");
-            alert.setHeaderText(null);
-            alert.setContentText("Unable to launch CTweb:\n" + excep);
-            alert.showAndWait();
-        }
+                */
+                // Launch CTweb using reflection
+                // From https://stackoverflow.com/questions/15582476/how-to-call-main-method-of-a-class-using-reflection-in-java
+                try {
+                    final Class<?> ctwebClass = Class.forName("ctweb.CTweb");
+                    final Method method = ctwebClass.getMethod("main", String[].class);
+                    final Object[] args = new Object[1];
+                    args[0] = (String[]) strList;
+                    // I don't think this ever returns (unless the server dies)
+                    method.invoke(null, args);
+                } catch (final Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+        // Shut down the JDialog
+        // For thread safety: Schedule a job for Swing's event-dispatching thread (EDT)
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                setVisible(false);
+            }
+        });
     }
 
     /**

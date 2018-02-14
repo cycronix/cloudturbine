@@ -32,6 +32,8 @@ import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
@@ -1592,7 +1594,35 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			Desktop desktop = Desktop.getDesktop();
 			String urlStr = "http://cloudturbine.com";
 			if (eventI.getActionCommand().equals("View data")) {
-				urlStr = "http://localhost:" + Integer.toString(webScanPort);
+				// v=10 specifies to view 10sec of data
+				// y=4 specifies 4 grids in y-direction
+				// n=X specifies the number of channels
+				// Setup that part of the URL specifying the channel list
+				String chanListStr = "";
+				int chanIdx = 0;
+				NumberFormat formatter = new DecimalFormat("00");
+				if (bWebcam) {
+					chanListStr = chanListStr + "&p" + formatter.format(chanIdx*10) + "=" + sourceName + "/" + webcamStreamName;
+					++chanIdx;
+				}
+				if (bAudio) {
+					chanListStr = chanListStr + "&p" + formatter.format(chanIdx*10) + "=" + sourceName + "/" + audioStreamName;
+					++chanIdx;
+				}
+				if (bScreencap) {
+					chanListStr = chanListStr + "&p" + formatter.format(chanIdx*10) + "=" + sourceName + "/" + screencapStreamName;
+					++chanIdx;
+				}
+				if (bText) {
+					chanListStr = chanListStr + "&p" + formatter.format(chanIdx*10) + "=" + sourceName + "/" + textStreamName;
+					++chanIdx;
+				}
+				if (chanIdx == 0) {
+					urlStr = "http://localhost:" + Integer.toString(webScanPort);
+				} else {
+					urlStr = "http://localhost:" + Integer.toString(webScanPort) +
+							"/?dt=1000&c=0&f=false&sm=false&y=4&n=" + Integer.toString(chanIdx) + "&v=10" + chanListStr;
+				}
 			}
 			URI uri = null;
 			try {
