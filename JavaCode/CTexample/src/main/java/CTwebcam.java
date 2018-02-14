@@ -60,7 +60,7 @@ public class CTwebcam {
 				cth = new CThttp("MyCam");
 				cth.autoSegment(1000);
 				cth.setZipMode(true);
-				cth.autoFlush( 1.0);
+				cth.autoFlush( 0.2);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 				return;
