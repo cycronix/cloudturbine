@@ -1594,10 +1594,10 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			Desktop desktop = Desktop.getDesktop();
 			String urlStr = "http://cloudturbine.com";
 			if (eventI.getActionCommand().equals("View data")) {
-				// v=10 specifies to view 10sec of data
+				// v=1 specifies to view 1 sec of data
 				// y=4 specifies 4 grids in y-direction
 				// n=X specifies the number of channels
-				// Setup that part of the URL specifying the channel list
+				// Setup the channel list
 				String chanListStr = "";
 				int chanIdx = 0;
 				NumberFormat formatter = new DecimalFormat("00");
@@ -1621,7 +1621,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 					urlStr = "http://localhost:" + Integer.toString(webScanPort);
 				} else {
 					urlStr = "http://localhost:" + Integer.toString(webScanPort) +
-							"/?dt=1000&c=0&f=false&sm=false&y=4&n=" + Integer.toString(chanIdx) + "&v=10" + chanListStr;
+							"/?dt=1000&c=0&f=false&sm=false&y=4&n=" + Integer.toString(chanIdx) + "&v=1" + chanListStr;
 				}
 			}
 			URI uri = null;
