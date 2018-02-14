@@ -40,6 +40,9 @@ import cycronix.ctlib.CThttp;
 
 public class CTwebcam {
 
+	static private String CTwebhost = "http://localhost:8000";
+//	static private String CTwebhost = "http://cloudturbine.net:8000";
+
 	private static final class Capture extends Thread {
 		@Override
 		public void run() {
@@ -57,10 +60,11 @@ public class CTwebcam {
 			// HTTP put setup
 			CThttp cth = null;
 			try {
-				cth = new CThttp("MyCam");
+				cth = new CThttp("MyCam", CTwebhost);
 				cth.autoSegment(1000);
 				cth.setZipMode(true);
 				cth.autoFlush( 0.2);
+				System.err.println("Writing to host: "+CTwebhost);
 			} catch (IOException e1) {
 				e1.printStackTrace();
 				return;
@@ -87,6 +91,7 @@ public class CTwebcam {
 	}
 
 	public static void main(String[] args) throws Throwable {
+		if(args.length > 0) CTwebhost = args[0];
 		new Capture().start();
 		Thread.sleep(5 * 60 * 1000); 	// 5 minutes until auto-exit
 		System.exit(1);

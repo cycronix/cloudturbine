@@ -128,7 +128,8 @@ public class CTweb {
 
 	private static ArrayList<String> CTwriters = new ArrayList<String>();	// list of CTwriters (one per source)			
 	private static int maxCTwriters = 0;				// crude way to limit out of control PUTs
-	
+	private static double keepTime=0., lastTime=0.;		// CTwriter.dotrim() keep-duration for PUTs
+	private static CTwriter ctwriter = null;			// CTwriter for dotrim
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
@@ -155,6 +156,7 @@ public class CTweb {
      		if(args[dirArg].equals("-e"))	password = args[++dirArg];
      		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
      		if(args[dirArg].equals("-W"))	maxCTwriters = Integer.parseInt(args[++dirArg]);
+     		if(args[dirArg].equals("-w"))	keepTime = Double.parseDouble(args[++dirArg]);
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -175,8 +177,8 @@ public class CTweb {
      	}
      	else if(rootFolder == null) {				// check for a couple defaults
      		if		(new File("CTdata").exists()) 		rootFolder = "CTdata";
-     		else if (new File(".."+File.separator+"CTdata").exists()) rootFolder = ".."+File.separator+"CTdata";
-     		else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
+//     		else if (new File(".."+File.separator+"CTdata").exists()) rootFolder = ".."+File.separator+"CTdata";
+//     		else if (new File("CloudTurbine").exists()) rootFolder = "CloudTurbine";
      		else {
      			System.err.println("Cannot find default data folder.  Please specify.");
      			System.exit(0);	
@@ -882,19 +884,18 @@ public class CTweb {
     				return;
     			}
     			CTwriters.add(source);
-    			System.err.println("CTwriters.size: "+CTwriters.size()+", add: "+source);
+    			if(debug) System.err.println("CTwriters.size: "+CTwriters.size()+", add: "+source);
     		}
 				
     		// simply write file, presume pre-processed on client to correct CT folder/file structure
     	    File targetFile = new File(folder + File.separator + file);
-    		System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
+    		if(debug) System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
 
     		OutputStream out = null;
     		try {
     			targetFile.getParentFile().mkdirs(); // Will create parent directories if not exists
     			targetFile.createNewFile();
     			out = new FileOutputStream(targetFile,false);
-//    			out = new FileOutputStream(targetFile);
     		} catch(Exception e) {
     			System.err.println("CTweb doPut, cannot create target file: "+targetFile+", exception: "+e);
     			return;
@@ -909,31 +910,18 @@ public class CTweb {
     		}
     		in.close();
     		out.close();
-
-    		/*				// this code to zip/pack data on server
-    		CTwriter ctw = CTwriters.get(source);		// hashmap of all sources
-			if(ctw == null) {
-				if(CTwriters.size() >= maxCTwriters) {
-					System.err.println("CTweb, no more CTwriters! (max="+maxCTwriters+")");
-					return;
-				}
-				ctw = new CTwriter(source);	
-				ctw.autoFlush(0.2);						// hard-wire some settings for now
-				ctw.setBlockMode(true,true);			// let client pre-package packed/zip data????
-				ctw.autoSegment(1000);
-				CTwriters.put(source,  ctw);			// add to hashmap
-				System.err.println("new PUT source: "+source);
-			}
-			
-			try {
-				ctw.putData(chan, out.toByteArray());
-//				ctw.flush();
-			} catch (Exception e) {
-				System.err.println("Exception on CT putData: "+e);
-				e.printStackTrace();
-				return;
-			}
-			*/
+    		
+    		// trim (loop) if spec
+    		if(keepTime > 0.) {
+    			if(ctwriter == null) ctwriter = new CTwriter(rootFolder);
+    			double now = (double)(System.currentTimeMillis())/1000.;
+    			if(now > (lastTime + keepTime/2.)) {			// no thrash
+    				double oldTime = now - keepTime;
+    				System.err.println("dotrim, rootFolder: "+rootFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime);
+    				ctwriter.dotrim(oldTime);
+    				lastTime = now;
+    			}
+    		}
     	}
     }
     
