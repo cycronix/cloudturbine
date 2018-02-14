@@ -867,7 +867,9 @@ public class CTweb {
     		
     		ServletInputStream in = request.getInputStream();
 
-    		String[] parse = request.getPathInfo().split(File.separator);
+//    		String[] parse = request.getPathInfo().split(File.separator);
+    		String[] parse = request.getPathInfo().split("/");		// URLs use forward slash
+
     		if(parse.length < 3) {				// presume leading slash
     			System.err.println("doPut source/chan parse error: "+request.getPathInfo());
     			return;
