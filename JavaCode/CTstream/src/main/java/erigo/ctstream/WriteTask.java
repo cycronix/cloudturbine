@@ -17,13 +17,13 @@ limitations under the License.
 package erigo.ctstream;
 
 import cycronix.ctlib.CTftp;
+import cycronix.ctlib.CThttp;
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTwriter;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -53,7 +53,7 @@ import java.util.List;
  * flushing in this class.
  *
  * @author John P. Wilson
- * @version 05/10/2017
+ * @version 02/16/2018
  */
 
 public class WriteTask implements Runnable {
@@ -74,19 +74,26 @@ public class WriteTask implements Runnable {
 		CTinfo.setDebug(cts.bDebugMode);
 		// Make sure outputFolder ends in a file separator
 		String outFolderToUse = cts.outputFolder;
-		if (!cts.outputFolder.endsWith(File.separator)) {
-			outFolderToUse = cts.outputFolder + File.separator;
+		// The output folder name can (optionally) be blank if we are using FTP or HTTP output;
+		// however, regardless of our output mode, if it isn't blank, make sure it ends in a file separator.
+		if (!outFolderToUse.isEmpty()) {
+			if (!cts.outputFolder.endsWith(File.separator)) {
+				outFolderToUse = cts.outputFolder + File.separator;
+			}
 		}
-		if (!cts.bFTP) {
+		if (!cts.bFTP && !cts.bHTTP) {
 			ctw = new CTwriter(outFolderToUse + cts.sourceName);
-		} else {
+		} else if (cts.bFTP) {
 			CTftp ctftp = new CTftp(outFolderToUse + cts.sourceName);
 			try {
-				ctftp.login(cts.ftpHost, cts.ftpUser, cts.ftpPassword);
+				ctftp.login(cts.serverHost, cts.serverUser, cts.serverPassword);
 				ctw = ctftp; // upcast to CTWriter
 			} catch (Exception e) {
-				throw new IOException( new String("Error logging into FTP server \"" + cts.ftpHost + "\":\n" + e.getMessage()) );
+				throw new IOException( new String("Error logging into FTP server \"" + cts.serverHost + "\":\n" + e.getMessage()) );
 			}
+		} else if (cts.bHTTP) {
+			CThttp cthttp = new CThttp(outFolderToUse + cts.sourceName,cts.serverHost);
+			ctw = cthttp; // upcast to CTWriter
 		}
 		ctw.setZipMode(cts.bZipMode);
 		ctw.autoSegment(cts.numBlocksPerSegment);

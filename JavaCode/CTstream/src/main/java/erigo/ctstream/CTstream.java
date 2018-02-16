@@ -121,7 +121,7 @@ import cycronix.ctlib.CTreader;
  * video/audio playback.
  * 
  * @author John P. Wilson, Matt J. Miller
- * @version 05/09/2017
+ * @version 02/16/2018
  *
  */
 public class CTstream implements ActionListener,ChangeListener,MouseMotionListener {
@@ -157,10 +157,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public String textStreamName ="text.txt";		      // text channel name; must end in ".txt"
 	public boolean bEncrypt = false;			// Use CT encryption?
 	public String encryptionPassword = "";		// Password when encryption is on
+	// NOTE: At most one of bFTP or bHTTP can be true
 	public boolean bFTP = false;				// Are we in FTP mode?
-	public String ftpHost = "";					// FTP hostname
-	public String ftpUser = "";					// FTP username
-	public String ftpPassword = "";				// FTP password
+	public boolean bHTTP = false;				// Are we in HTTP mode?
+	public String serverHost = "";				// Server (FTP or HTTP) hostname
+	public String serverUser = "";				// Server (FTP or HTTP) username
+	public String serverPassword = "";			// Server (FTP or HTTP) password
 	public long flushMillis;					// flush interval (msec)
 	public long numBlocksPerSegment = 0;		// number of blocks per segment; defaults to 0 (no segments)
 	public boolean bDebugMode = false;			// run CT in debug mode?
@@ -617,7 +619,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		if (bContinueMode) {
 			if (firstCTtime == 0) {
 				// Starting a new video segment ("continue" mode)
-				if (bFTP) {
+				if (bFTP || bHTTP) {
 					// Since we can't interrogate the remote source to determine
 					// the last timestamp, pickup at 1msec after the last timestamp
 					// we sent to CTwriter.
@@ -632,16 +634,16 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 			nextTime = firstCTtime + (System.currentTimeMillis() - continueWallclockInitTime);
 			// Should we reject a backward going time?
-			// o When writing to local files (ie, *not* FTP mode) note that the user
+			// o When writing to local files (ie, *not* FTP or HTTP mode) note that the user
 			//   may have manually deleted/adjusted folders and so it may appear that
 			//   the source time is going backward from the standpoint of the last
 			//   timestamp we actually wrote out (lastCTtime); it is OK to write out
 			//   a "backward going timestamp" in this case.
-			// o When we are in FTP mode, there's no way to know the latest time
+			// o When we are in FTP or HTTP mode, there's no way to know the latest time
 			//   in the output source folders, thus it seems best to simply reject
 			//   what looks to be a backward going time.
 			// NO, let audioStream logic cover sane timestamps - MJM 4/4/17
-			// if ( (bFTP) && (nextTime < lastCTtime) ) {
+			// if ( (bFTP || bHTTP) && (nextTime < lastCTtime) ) {
 			// 	   System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
 			//     nextTime = lastCTtime;
 			// }
@@ -836,8 +838,11 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public String canCTrun() {
 
 		// Check outputFolder
-		if ( (outputFolder == null) || (outputFolder.length() == 0) ) {
-			return "You must specify an output directory.";
+		// OK if this is empty for FTP or HTTP (in those cases, the remote server will establish the output folder)
+		if (!bFTP && !bHTTP) {
+			if ( (outputFolder == null) || (outputFolder.length() == 0) ) {
+				return "You must specify an output directory.";
+			}
 		}
 
 		// Check sourceName
@@ -861,22 +866,24 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 		}
 
-		// Check FTP parameters, when using FTP
-		if (bFTP) {
-			if ( (ftpHost == null) || (ftpHost.length() == 0) ) {
-				return "You must specify the FTP host";
+		// Check server parameters, when using FTP or HTTP
+		if (bFTP || bHTTP) {
+			if ( (serverHost == null) || (serverHost.length() == 0) ) {
+				return "You must specify the server host";
 			}
-			if (ftpHost.contains(" ")) {
-				return "The FTP host name must not contain embedded spaces";
+			if (serverHost.contains(" ")) {
+				return "The server host name must not contain embedded spaces";
 			}
-			if ( (ftpUser == null) || (ftpUser.length() == 0) ) {
-				return "You must specify the FTP username";
+			// serverUser is only required for FTP
+			if ( (bFTP) && ((serverUser == null) || (serverUser.length() == 0)) ) {
+				return "You must specify the server username";
 			}
-			if (ftpUser.contains(" ")) {
-				return "The FTP username must not contain embedded spaces";
+			if (serverUser.contains(" ")) {
+				return "The server username must not contain embedded spaces";
 			}
-			if ( (ftpPassword == null) || (ftpPassword.length() == 0) ) {
-				return "You must specify the FTP password";
+			// serverPassword is only required for FTP
+			if ( (bFTP) && ((serverPassword == null) || (serverPassword.length() == 0)) ) {
+				return "You must specify the server password";
 			}
 		}
 

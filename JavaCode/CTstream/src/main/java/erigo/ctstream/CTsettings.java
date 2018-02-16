@@ -16,11 +16,7 @@ limitations under the License.
 
 package erigo.ctstream;
 
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -51,7 +47,7 @@ import javax.swing.SwingConstants;
  * These settings are mainly for CTwriter or overall program settings.
  *
  * @author John P. Wilson
- * @version 05/12/2017
+ * @version 02/16/2018
  *
  */
 
@@ -78,9 +74,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private boolean orig_bEncrypt;
 	private String orig_encryptionPassword;
 	private boolean orig_bFTP;
-	private String orig_ftpHost;
-	private String orig_ftpUser;
-	private String orig_ftpPassword;
+	private boolean orig_bHTTP;
+	private String orig_serverHost;
+	private String orig_serverUser;
+	private String orig_serverPassword;
 	private long orig_autoFlushMillis;
 	private long orig_numBlocksPerSegment;
 	private boolean orig_bDebugMode;
@@ -99,12 +96,14 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JLabel encryptionPasswordLabel = null;
 	private JPasswordField encryptionPasswordTF = null;
 	private JCheckBox bFTPCheckB = null;
-	private JLabel ftpHostLabel = null;
-	private JTextField ftpHostTF = null;
-	private JLabel ftpUserLabel = null;
-	private JTextField ftpUserTF = null;
-	private JLabel ftpPasswordLabel = null;
-	private JPasswordField ftpPasswordTF = null;
+	private JCheckBox bHTTPCheckB = null;
+	private JLabel serverHostLabel = null;
+	private JTextField serverHostTF = null;
+	private JLabel serverHostHintLabel = null;
+	private JLabel serverUserLabel = null;
+	private JTextField serverUserTF = null;
+	private JLabel serverPasswordLabel = null;
+	private JPasswordField serverPasswordTF = null;
 	private JComboBox<String> flushIntervalComboB = null;
 	private JComboBox<String> numBlocksPerSegmentComboB = null;
 	private JCheckBox bDebugModeCheckB = null;
@@ -150,13 +149,18 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		encryptionPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
 		encryptionPasswordTF = new JPasswordField(15);
 		bFTPCheckB = new JCheckBox("Use FTP");
-		bFTPCheckB.addItemListener(this);
-		ftpHostLabel = new JLabel("Host",SwingConstants.LEFT);
-		ftpHostTF = new JTextField(20);
-		ftpUserLabel = new JLabel("Username",SwingConstants.LEFT);
-		ftpUserTF = new JTextField(15);
-		ftpPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
-		ftpPasswordTF = new JPasswordField(15);
+		bFTPCheckB.addActionListener(this);
+		bHTTPCheckB = new JCheckBox("Use HTTP");
+		bHTTPCheckB.addActionListener(this);
+		serverHostLabel = new JLabel("Host",SwingConstants.LEFT);
+		serverHostTF = new JTextField(20);
+		serverHostHintLabel = new JLabel("e.g., http://localhost:8000",SwingConstants.LEFT);
+		serverHostHintLabel.setFont(new Font(serverHostHintLabel.getFont().getName(),Font.ITALIC,serverHostHintLabel.getFont().getSize()));
+		serverHostHintLabel.setForeground(Color.red);
+		serverUserLabel = new JLabel("Username",SwingConstants.LEFT);
+		serverUserTF = new JTextField(15);
+		serverPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
+		serverPasswordTF = new JPasswordField(15);
 		flushIntervalComboB = new JComboBox<String>(flushIntervalStrings);
 		flushIntervalComboB.setPrototypeDisplayValue("XXXXXXXXXXXXXXXXXXX");
 		numBlocksPerSegmentComboB = new JComboBox<String>(numBlocksPerSegmentStrings);
@@ -279,17 +283,21 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,encryptionPanel,gbl,gbc,0,row,3,1);
 		row++;
 
-		// FTP checkbox
+		// FTP and HTTP checkboxes
+		JPanel serverCBPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,15,0));
+		serverCBPanel.add(bFTPCheckB);
+		serverCBPanel.add(bHTTPCheckB);
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		gbc.insets = new Insets(10,15,0,15);
-		Utility.add(guiPanel,bFTPCheckB,gbl,gbc,0,row,3,1);
+		// Since we have set the FlowLayout hgap to 15, don't have any padding on left or right
+		gbc.insets = new Insets(10,0,0,0);
+		Utility.add(guiPanel,serverCBPanel,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// panel containing the FTP parameters (host, username, password)
+		// panel containing the server parameters (host, username, password)
 		panel_gbl = new GridBagLayout();
-		JPanel ftpPanel = new JPanel(panel_gbl);
+		JPanel serverPanel = new JPanel(panel_gbl);
 		panel_gbc = new GridBagConstraints();
 		panel_gbc.anchor = GridBagConstraints.WEST;
 		panel_gbc.fill = GridBagConstraints.NONE;
@@ -298,27 +306,29 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		int panel_row = 0;
 		// Panel row 1: host
 		panel_gbc.insets = new Insets(0,0,0,10);
-		Utility.add(ftpPanel,ftpHostLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		Utility.add(serverPanel,serverHostLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		panel_gbc.insets = new Insets(0,0,0,10);
+		Utility.add(serverPanel,serverHostTF,panel_gbl,panel_gbc,1,panel_row,1,1);
 		panel_gbc.insets = new Insets(0,0,0,0);
-		Utility.add(ftpPanel,ftpHostTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		Utility.add(serverPanel,serverHostHintLabel,panel_gbl,panel_gbc,2,panel_row,1,1);
 		panel_row++;
 		// Panel row 2: username
 		panel_gbc.insets = new Insets(2,0,0,10);
-		Utility.add(ftpPanel,ftpUserLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		Utility.add(serverPanel,serverUserLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
 		panel_gbc.insets = new Insets(2,0,0,0);
-		Utility.add(ftpPanel,ftpUserTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		Utility.add(serverPanel,serverUserTF,panel_gbl,panel_gbc,1,panel_row,1,1);
 		panel_row++;
 		// Panel row 3: password
 		panel_gbc.insets = new Insets(2,0,0,10);
-		Utility.add(ftpPanel,ftpPasswordLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		Utility.add(serverPanel,serverPasswordLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
 		panel_gbc.insets = new Insets(2,0,0,0);
-		Utility.add(ftpPanel,ftpPasswordTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		Utility.add(serverPanel,serverPasswordTF,panel_gbl,panel_gbc,1,panel_row,1,1);
 		// Add the panel to guiPanel
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		gbc.insets = new Insets(2,50,0,15);
-		Utility.add(guiPanel,ftpPanel,gbl,gbc,0,row,3,1);
+		Utility.add(guiPanel,serverPanel,gbl,gbc,0,row,3,1);
 		row++;
 		
 		// flush interval
@@ -427,9 +437,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_bEncrypt = ctStream.bEncrypt;
 		orig_encryptionPassword = ctStream.encryptionPassword;
 		orig_bFTP = ctStream.bFTP;
-		orig_ftpHost = ctStream.ftpHost;
-		orig_ftpUser = ctStream.ftpUser;
-		orig_ftpPassword = ctStream.ftpPassword;
+		orig_bHTTP = ctStream.bHTTP;
+		orig_serverHost = ctStream.serverHost;
+		orig_serverUser = ctStream.serverUser;
+		orig_serverPassword = ctStream.serverPassword;
 		orig_autoFlushMillis = ctStream.flushMillis;
 		orig_numBlocksPerSegment = ctStream.numBlocksPerSegment;
 		orig_bDebugMode = ctStream.bDebugMode;
@@ -438,7 +449,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		// Initialize data in the dialog
 		outputFolderTF.setText(ctStream.outputFolder);
-		browseButton.setEnabled(!ctStream.bFTP);
+		browseButton.setEnabled(!ctStream.bFTP && !ctStream.bHTTP);
 		sourceNameTF.setText(ctStream.sourceName);
 		screencapChannelNameTF.setText(ctStream.screencapStreamName);
 		webcamChannelNameTF.setText(ctStream.webcamStreamName);
@@ -449,15 +460,18 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		encryptionPasswordLabel.setEnabled(ctStream.bEncrypt);
 		encryptionPasswordTF.setEnabled(ctStream.bEncrypt);
 		bFTPCheckB.setSelected(ctStream.bFTP);
-		ftpHostTF.setText(ctStream.ftpHost);
-		ftpUserTF.setText(ctStream.ftpUser);
-		ftpPasswordTF.setText(ctStream.ftpPassword);
-		ftpHostLabel.setEnabled(ctStream.bFTP);
-		ftpHostTF.setEnabled(ctStream.bFTP);
-		ftpUserLabel.setEnabled(ctStream.bFTP);
-		ftpUserTF.setEnabled(ctStream.bFTP);
-		ftpPasswordLabel.setEnabled(ctStream.bFTP);
-		ftpPasswordTF.setEnabled(ctStream.bFTP);
+		bHTTPCheckB.setSelected(ctStream.bHTTP);
+		serverHostTF.setText(ctStream.serverHost);
+		serverUserTF.setText(ctStream.serverUser);
+		serverPasswordTF.setText(ctStream.serverPassword);
+		serverHostLabel.setEnabled(ctStream.bFTP || ctStream.bHTTP);
+		serverHostTF.setEnabled(ctStream.bFTP || ctStream.bHTTP);
+		// Only display the hint label for the HTTP case
+		serverHostHintLabel.setVisible(ctStream.bHTTP);
+		serverUserLabel.setEnabled(ctStream.bFTP || ctStream.bHTTP);
+		serverUserTF.setEnabled(ctStream.bFTP || ctStream.bHTTP);
+		serverPasswordLabel.setEnabled(ctStream.bFTP || ctStream.bHTTP);
+		serverPasswordTF.setEnabled(ctStream.bFTP || ctStream.bHTTP);
 		int selectedIdx = Arrays.asList(flushIntervalLongs).indexOf(ctStream.flushMillis);
 		if (selectedIdx == -1) {
 			selectedIdx = 1;
@@ -480,8 +494,8 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	}
 	
 	/*
-	 * Respond to the state of bEncryptCheckB and bUseFTPCheckB changing:
-	 * Enable or disable the corresponding fields based on the state of the checkbox
+	 * Respond to the state of bEncryptCheckB changing:
+	 * Enable or disable the corresponding fields based on the state of the checkbox.
 	 */
 	@Override
 	public void itemStateChanged(ItemEvent eventI) {
@@ -494,21 +508,12 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 			boolean bChecked = bEncryptCheckB.isSelected();
 			encryptionPasswordLabel.setEnabled(bChecked);
 			encryptionPasswordTF.setEnabled(bChecked);
-		} else if (source == bFTPCheckB) {
-			boolean bChecked = bFTPCheckB.isSelected();
-			browseButton.setEnabled(!bChecked);
-			ftpHostLabel.setEnabled(bChecked);
-			ftpHostTF.setEnabled(bChecked);
-			ftpUserLabel.setEnabled(bChecked);
-			ftpUserTF.setEnabled(bChecked);
-			ftpPasswordLabel.setEnabled(bChecked);
-			ftpPasswordTF.setEnabled(bChecked);
 		}
 		
 	}
 	
 	/*
-	 * Handle button callbacks
+	 * Handle callbacks from buttons and the FTP/HTTP checkboxes.
 	 * 
 	 * @see java.awt.event.ActionListener#actionPerformed(java.awt.event.ActionEvent)
 	 * 
@@ -561,6 +566,30 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 				}
 				outputFolderTF.setText(fullPathStr);
 			}
+		}  else if ( (source == bFTPCheckB) || (source == bHTTPCheckB) ) {
+			// We use checkboxes to allow the user to specify FTP or HTTP mode, but
+			// we can only have at most one of them checked at a time; thus, they are
+			// a bit like radio buttons, however it is fine to have neither of them
+			// checked (to specify using the default type of CT connection).
+			boolean bChecked = false;
+			if ( (source == bFTPCheckB) && (bFTPCheckB.isSelected()) ) {
+				bChecked = true;
+				// Make sure bHTTPCheckB is not selected
+				bHTTPCheckB.setSelected(false);
+			} else if ( (source == bHTTPCheckB) && (bHTTPCheckB.isSelected()) ) {
+				bChecked = true;
+				// Make sure bFTPCheckB is not selected
+				bFTPCheckB.setSelected(false);
+			}
+			browseButton.setEnabled(!bChecked);
+			serverHostLabel.setEnabled(bChecked);
+			serverHostTF.setEnabled(bChecked);
+			// Only display the hint label for the HTTP case
+			serverHostHintLabel.setVisible(bChecked && (source == bHTTPCheckB));
+			serverUserLabel.setEnabled(bChecked);
+			serverUserTF.setEnabled(bChecked);
+			serverPasswordLabel.setEnabled(bChecked);
+			serverPasswordTF.setEnabled(bChecked);
 		} else if (eventI.getActionCommand().equals("OK")) {
 			okAction();
 		} else if (eventI.getActionCommand().equals("Cancel")) {
@@ -585,10 +614,20 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		char[] encryptPasswordCharArray = encryptionPasswordTF.getPassword();
 		ctStream.encryptionPassword = new String(encryptPasswordCharArray).trim();
 		ctStream.bFTP = bFTPCheckB.isSelected();
-		ctStream.ftpHost = ftpHostTF.getText().trim();
-		ctStream.ftpUser = ftpUserTF.getText().trim();
-		char[] ftpPasswordCharArray = ftpPasswordTF.getPassword();
-		ctStream.ftpPassword = new String(ftpPasswordCharArray).trim();
+		ctStream.bHTTP = bHTTPCheckB.isSelected();
+		ctStream.serverHost = serverHostTF.getText().trim();
+		if (ctStream.bHTTP) {
+			// The HTTP server name should start with "http://" or "https://" and NOT end in a "/"
+			if ( !ctStream.serverHost.startsWith("http://") && !ctStream.serverHost.startsWith("https://") ) {
+				ctStream.serverHost = "http://" + ctStream.serverHost;
+			}
+			if (ctStream.serverHost.endsWith("/")) {
+				ctStream.serverHost = ctStream.serverHost.substring(0,ctStream.serverHost.length()-1);
+			}
+		}
+		ctStream.serverUser = serverUserTF.getText().trim();
+		char[] serverPasswordCharArray = serverPasswordTF.getPassword();
+		ctStream.serverPassword = new String(serverPasswordCharArray).trim();
 		ctStream.flushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
 		ctStream.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctStream.bDebugMode = bDebugModeCheckB.isSelected();
@@ -628,9 +667,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.bEncrypt = orig_bEncrypt;
 		ctStream.encryptionPassword = orig_encryptionPassword;
 		ctStream.bFTP = orig_bFTP;
-		ctStream.ftpHost = orig_ftpHost;
-		ctStream.ftpUser = orig_ftpUser;
-		ctStream.ftpPassword = orig_ftpPassword;
+		ctStream.bHTTP = orig_bHTTP;
+		ctStream.serverHost = orig_serverHost;
+		ctStream.serverUser = orig_serverUser;
+		ctStream.serverPassword = orig_serverPassword;
 		ctStream.flushMillis = orig_autoFlushMillis;
 		ctStream.numBlocksPerSegment = orig_numBlocksPerSegment;
 		ctStream.bDebugMode = orig_bDebugMode;
