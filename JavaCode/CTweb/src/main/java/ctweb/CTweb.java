@@ -877,6 +877,11 @@ public class CTweb {
     		String folder = rootFolder;
     		for(int i=1; i<parse.length-1; i++) folder += File.separator + parse[i];	// add multi-part source dirs
     		String file = parse[parse.length-1];
+    		
+    		if(!Character.isDigit(file.charAt(0))) {
+    			System.err.println("doPut source/chan illegal time-format: "+request.getPathInfo());
+    			return;
+    		}
 
     		// security limit check on number of sources
     		String source = parse[1];
@@ -904,7 +909,7 @@ public class CTweb {
     		}
     		//    		ByteArrayOutputStream out = new ByteArrayOutputStream();	// limit to rootFolder/CTdata
     		// read/write response
-    		byte[] buffer = new byte[16384];
+    		byte[] buffer = new byte[65536];
     		int length;
     		while ((length = in.read(buffer)) > 0) {
     			out.write(buffer, 0, length);
@@ -919,7 +924,7 @@ public class CTweb {
     			double now = (double)(System.currentTimeMillis())/1000.;
     			if(now > (lastTime + keepTime/2.)) {			// no thrash
     				double oldTime = now - keepTime;
-    				System.err.println("dotrim, rootFolder: "+rootFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime);
+    				if(debug) System.err.println("dotrim, rootFolder: "+rootFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime);
     				ctwriter.dotrim(oldTime);
     				lastTime = now;
     			}
