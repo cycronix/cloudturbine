@@ -27,10 +27,9 @@ import java.io.File;
 
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
-import javax.xml.bind.DatatypeConverter;
+//import javax.xml.bind.DatatypeConverter;
+import org.apache.commons.net.util.Base64;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -40,7 +39,6 @@ import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.commons.codec.binary.Base64;
 
 /**
  * CloudTurbine utility class that extends CTwriter class to write via HTTP PUT versus local filesystem
@@ -86,7 +84,8 @@ public class CThttp extends CTwriter {
 	
 	//------------------------------------------------------------------------------------------------
 	public void login(String user, String pw) throws Exception {
-		userpass = DatatypeConverter.printBase64Binary((user + ":" + pw).getBytes("UTF-8"));
+		userpass = new String(Base64.encodeBase64((user + ":" + pw).getBytes()));
+//		userpass = DatatypeConverter.printBase64Binary((user + ":" + pw).getBytes("UTF-8"));
 	}
 	
 	//------------------------------------------------------------------------------------------------
