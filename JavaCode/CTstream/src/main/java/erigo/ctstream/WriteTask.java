@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import erigo.ctstream.CTstream.CTWriteMode;
+
 /**
  * WriteTask is a Runnable object which takes byte arrays from the DataStream queues and
  * writes them to CT.  This class handles any number of DataStreams (specifically, all
@@ -72,27 +74,26 @@ public class WriteTask implements Runnable {
 	public WriteTask(CTstream ctsI) throws IOException {
 		cts = ctsI;
 		CTinfo.setDebug(cts.bDebugMode);
-		// Make sure outputFolder ends in a file separator
-		String outFolderToUse = cts.outputFolder;
-		// The output folder name can (optionally) be blank if we are using FTP or HTTP output;
-		// however, regardless of our output mode, if it isn't blank, make sure it ends in a file separator.
-		if (!outFolderToUse.isEmpty()) {
-			if (!cts.outputFolder.endsWith(File.separator)) {
-				outFolderToUse = cts.outputFolder + File.separator;
+		// NOTE: the output folder (cts.outputFolder) is only for use with the local write option
+		if (cts.writeMode == CTWriteMode.LOCAL) {
+			// If it isn't blank, make sure outputFolder ends in a file separator
+			String outFolderToUse = cts.outputFolder;
+			if (!outFolderToUse.isEmpty()) {
+				if (!cts.outputFolder.endsWith(File.separator)) {
+					outFolderToUse = cts.outputFolder + File.separator;
+				}
 			}
-		}
-		if (!cts.bFTP && !cts.bHTTP) {
 			ctw = new CTwriter(outFolderToUse + cts.sourceName);
-		} else if (cts.bFTP) {
-			CTftp ctftp = new CTftp(outFolderToUse + cts.sourceName);
+		} else if (cts.writeMode == CTWriteMode.FTP) {
+			CTftp ctftp = new CTftp(cts.sourceName);
 			try {
 				ctftp.login(cts.serverHost, cts.serverUser, cts.serverPassword);
 				ctw = ctftp; // upcast to CTWriter
 			} catch (Exception e) {
 				throw new IOException( new String("Error logging into FTP server \"" + cts.serverHost + "\":\n" + e.getMessage()) );
 			}
-		} else if (cts.bHTTP) {
-			CThttp cthttp = new CThttp(outFolderToUse + cts.sourceName,cts.serverHost);
+		} else if (cts.writeMode == CTWriteMode.HTTP) {
+			CThttp cthttp = new CThttp(cts.sourceName,cts.serverHost);
 			ctw = cthttp; // upcast to CTWriter
 		}
 		ctw.setZipMode(cts.bZipMode);

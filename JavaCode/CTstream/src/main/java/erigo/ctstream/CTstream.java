@@ -121,7 +121,7 @@ import cycronix.ctlib.CTreader;
  * video/audio playback.
  * 
  * @author John P. Wilson, Matt J. Miller
- * @version 02/16/2018
+ * @version 02/19/2018
  *
  */
 public class CTstream implements ActionListener,ChangeListener,MouseMotionListener {
@@ -143,6 +143,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private boolean bText = false;				// stream text data?
 	public double framesPerSec;					// how many frames to capture per second
 	public float imageQuality = 0.70f;			// Image quality; 0.00 - 1.00; higher numbers correlate to better quality/less compression
+
 	public boolean bChangeDetect = false;		// detect and record only images that change (more CPU, less storage)
 	public boolean bForceImageCapture = false;	// flag to force image capture on event, even if image has not changed
 	public boolean bFullScreen = false;			// capture the full screen?
@@ -157,9 +158,10 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public String textStreamName ="text.txt";		      // text channel name; must end in ".txt"
 	public boolean bEncrypt = false;			// Use CT encryption?
 	public String encryptionPassword = "";		// Password when encryption is on
-	// NOTE: At most one of bFTP or bHTTP can be true
-	public boolean bFTP = false;				// Are we in FTP mode?
-	public boolean bHTTP = false;				// Are we in HTTP mode?
+	public enum CTWriteMode {                   // Possible modes for writing out CT data which CTstream supports
+		LOCAL, FTP, HTTP
+	}
+	CTWriteMode writeMode = CTWriteMode.LOCAL;  // The selected mode for writing out CT data
 	public String serverHost = "";				// Server (FTP or HTTP) hostname
 	public String serverUser = "";				// Server (FTP or HTTP) username
 	public String serverPassword = "";			// Server (FTP or HTTP) password
@@ -205,6 +207,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	private JCheckBox webcamCheck = null;		// checkbox to turn on/off image capture from camera
 	private JCheckBox audioCheck = null;		// checkbox to turn on/off audio capture
 	private JCheckBox textCheck = null;			// checkbox to turn on/off text capture
+	private JCheckBox includeMouseCursorCheck = null;   // Include the mouse cursor in the screen capture image?
 	private JCheckBox changeDetectCheck = null;	// checkbox to turn on/off "change detect"
 	private JCheckBox fullScreenCheck = null;	// checkbox to turn on/off doing full screen capture
 	private JCheckBox previewCheck = null;		// checkbox to turn on/off the preview window
@@ -234,6 +237,8 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 
 	// Port for viewing CT data from WebScan
 	public int webScanPort = 8000;
+	// Other options when launching CTweb
+	public String otherCTwebOptions = "";
 	
 	/**
 	 *
@@ -619,12 +624,13 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		if (bContinueMode) {
 			if (firstCTtime == 0) {
 				// Starting a new video segment ("continue" mode)
-				if (bFTP || bHTTP) {
+				if (writeMode != CTWriteMode.LOCAL) {
 					// Since we can't interrogate the remote source to determine
 					// the last timestamp, pickup at 1msec after the last timestamp
 					// we sent to CTwriter.
 					firstCTtime = lastCTtime + 1;
 				} else {
+					// We are writing CT to local files.
 					// Pickup at 1msec after the last timestamp observed in the output source folders;
 					// this avoids a problem if user has manually deleted/changed CT disk folders
 					firstCTtime = 1 + (long)((new CTreader(outputFolder).newTime(sourceName)) * 1000.);
@@ -643,7 +649,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			//   in the output source folders, thus it seems best to simply reject
 			//   what looks to be a backward going time.
 			// NO, let audioStream logic cover sane timestamps - MJM 4/4/17
-			// if ( (bFTP || bHTTP) && (nextTime < lastCTtime) ) {
+			// if ( (writeMode != CTWriteMode.LOCAL) && (nextTime < lastCTtime) ) {
 			// 	   System.err.println("\ngetNextTime: detected backward moving time; just return lastCTtime");
 			//     nextTime = lastCTtime;
 			// }
@@ -837,22 +843,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	 */
 	public String canCTrun() {
 
-		// Check outputFolder
-		// OK if this is empty for FTP or HTTP (in those cases, the remote server will establish the output folder)
-		if (!bFTP && !bHTTP) {
-			if ( (outputFolder == null) || (outputFolder.length() == 0) ) {
-				return "You must specify an output directory.";
-			}
-		}
-
 		// Check sourceName
 		if ( (sourceName == null) || (sourceName.length() == 0) ) {
 			return "You must specify a source name.";
 		}
 
-		//
 		// Check filenames
-		//
 		try {
 			checkFilenames();
 		} catch (Exception e) {
@@ -866,8 +862,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			}
 		}
 
-		// Check server parameters, when using FTP or HTTP
-		if (bFTP || bHTTP) {
+		// Check write mode settings
+		if (writeMode == CTWriteMode.LOCAL) {
+			if ( (outputFolder == null) || (outputFolder.length() == 0) ) {
+				return "You must specify an output directory.";
+			}
+		} else {
 			if ( (serverHost == null) || (serverHost.length() == 0) ) {
 				return "You must specify the server host";
 			}
@@ -875,14 +875,14 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 				return "The server host name must not contain embedded spaces";
 			}
 			// serverUser is only required for FTP
-			if ( (bFTP) && ((serverUser == null) || (serverUser.length() == 0)) ) {
+			if ( (writeMode == CTWriteMode.FTP) && ((serverUser == null) || (serverUser.length() == 0)) ) {
 				return "You must specify the server username";
 			}
 			if (serverUser.contains(" ")) {
 				return "The server username must not contain embedded spaces";
 			}
 			// serverPassword is only required for FTP
-			if ( (bFTP) && ((serverPassword == null) || (serverPassword.length() == 0)) ) {
+			if ( (writeMode == CTWriteMode.FTP) && ((serverPassword == null) || (serverPassword.length() == 0)) ) {
 				return "You must specify the server password";
 			}
 		}
@@ -994,6 +994,9 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		// labelTable.put( new Integer(900), new JLabel("High") );
 		// imgQualSlider.setLabelTable( labelTable );
 		// imgQualSlider.setPaintLabels(true);
+		includeMouseCursorCheck = new JCheckBox("Include mouse cursor in screen capture",bIncludeMouseCursor);
+		includeMouseCursorCheck.setBackground(controlsPanel.getBackground());
+		includeMouseCursorCheck.addActionListener(this);
 		changeDetectCheck = new JCheckBox("Change detect",bChangeDetect);
 		changeDetectCheck.setBackground(controlsPanel.getBackground());
 		changeDetectCheck.addActionListener(this);
@@ -1140,7 +1143,18 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		gbc.anchor = GridBagConstraints.CENTER;
 		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
-		// (v) Change detect / Full screen / Preview checkboxes
+		// (v) Include mouse cursor in screen capture image?
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		gbc.insets = new Insets(0, 15, 5, 15);
+		Utility.add(controlsPanel, includeMouseCursorCheck, controlsgbl, gbc, 0, panelrow, 1, 1);
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.weightx = 0;
+		gbc.weighty = 0;
+		++panelrow;
+		// (vi) Change detect / Full screen / Preview checkboxes
 		panelgbl = new GridBagLayout();
 		subPanel = new JPanel(panelgbl);
 		panelgbc = new GridBagConstraints();
@@ -1158,7 +1172,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		gbc.insets = new Insets(-5, 0, 3, 0);
 		Utility.add(controlsPanel, subPanel, controlsgbl, gbc, 0, panelrow, 1, 1);
 		++panelrow;
-		// (vi) text field for the TextStream
+		// (vii) text field for the TextStream
 		/*
 		panelgbl = new GridBagLayout();
 		subPanel = new JPanel(panelgbl);
@@ -1359,10 +1373,10 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 		menuItem = new JMenuItem("Launch CTweb server...");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
-		menuItem = new JMenuItem("CloudTurbine website");
+		menuItem = new JMenuItem("View data");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
-		menuItem = new JMenuItem("View data");
+		menuItem = new JMenuItem("CloudTurbine website");
 		menu.add(menuItem);
 		menuItem.addActionListener(this);
 		menuItem = new JMenuItem("Exit");
@@ -1501,6 +1515,12 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 					}
 					textStream = null;
 				}
+			}
+		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == includeMouseCursorCheck)) {
+			if (includeMouseCursorCheck.isSelected()) {
+				bIncludeMouseCursor = true;
+			} else {
+				bIncludeMouseCursor = false;
 			}
 		} else if ((source instanceof JCheckBox) && (((JCheckBox)source) == changeDetectCheck)) {
 			if (changeDetectCheck.isSelected()) {
