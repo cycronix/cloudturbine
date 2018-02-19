@@ -27,15 +27,20 @@ import java.io.File;
 
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPSClient;
+import javax.xml.bind.DatatypeConverter;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLContexts;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-
+import org.apache.commons.codec.binary.Base64;
 
 /**
  * CloudTurbine utility class that extends CTwriter class to write via HTTP PUT versus local filesystem
@@ -48,30 +53,54 @@ import org.apache.http.impl.client.HttpClients;
 public class CThttp extends CTwriter {
 	
 	public String CTwebhost = "http://localhost:8000";
+	private String userpass = null;
+	static CloseableHttpClient httpclient = HttpClients.createDefault();
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
 
-	public CThttp(String dstFolder) throws IOException {
-		super(dstFolder);
+	public CThttp(String source) throws IOException {
+		super(source);
+		enableSelfSigned();
 	}
 	
-	public CThttp(String dstFolder, String ihost) throws IOException {
-		super(dstFolder);
-		CTwebhost = ihost;
+	public CThttp(String source, String ihost) throws IOException {
+		super(source);
+		if(ihost!=null) CTwebhost = ihost;
+		enableSelfSigned();
+	}
+	
+	// following to enable self-signed SSL certificates (disable or better integrate with user/pass?)
+	private void enableSelfSigned() {
+		try {
+		httpclient = HttpClients.custom()
+	            .setSSLSocketFactory(new SSLConnectionSocketFactory(SSLContexts.custom()
+	                    .loadTrustMaterial(null, new TrustSelfSignedStrategy())
+	                    .build()
+	                )
+	            ).build();
+		} catch(Exception e) {
+			System.err.println("Exception on TrustSelfSigned");
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	public void login(String user, String pw) throws Exception {
+		userpass = DatatypeConverter.printBase64Binary((user + ":" + pw).getBytes("UTF-8"));
 	}
 	
 	//------------------------------------------------------------------------------------------------
 
-	static CloseableHttpClient httpclient = HttpClients.createDefault();
 	private HttpResponse httpput(String SourceChan, byte[] body) 
 			throws IOException {
 
 		String url = CTwebhost + "/" + SourceChan;
 		final HttpPut put=new HttpPut(url);
+		if(userpass != null) put.setHeader("Authorization", "Basic " + userpass);
+		
 		if (body != null) {
+			CTinfo.debugPrint("PUT: "+url+", userpass: "+userpass);
 			put.setEntity(new ByteArrayEntity(body));
-			//			System.err.println("CThttp PUT: "+url);
 		}
 		return httpclient.execute(put);
 	}
@@ -84,7 +113,6 @@ public class CThttp extends CTwriter {
 				pathname = pathname.replace(File.separator.charAt(0), '/');
 			}
 			
-//			System.err.println("CThttp, pathname: "+pathname);
 			httpput(pathname, bdata);
 			
 		} catch (Exception e) {

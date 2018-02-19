@@ -136,6 +136,7 @@ public class CTweb {
 
     	if(args.length == 0) {
     		System.err.println("CTweb -r -x -X -F -W -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <routingFile> rootFolder");
+    		if(args[0].equals("-h")) System.exit(0);		// print help and exit
     	}
     	
      	int dirArg = 0;

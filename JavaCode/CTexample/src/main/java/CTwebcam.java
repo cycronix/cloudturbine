@@ -61,11 +61,13 @@ public class CTwebcam {
 			CThttp cth = null;
 			try {
 				cth = new CThttp("MyCam", CTwebhost);
+				cth.login("matt", "pass");
 				cth.autoSegment(1000);
 				cth.setZipMode(true);
 				cth.autoFlush( 0.2);
+				cth.setDebug(true);
 				System.err.println("Writing to host: "+CTwebhost);
-			} catch (IOException e1) {
+			} catch (Exception e1) {
 				e1.printStackTrace();
 				return;
 			}
