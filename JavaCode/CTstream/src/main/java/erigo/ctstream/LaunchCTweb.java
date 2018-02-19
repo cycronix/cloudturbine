@@ -51,7 +51,7 @@ import java.util.ArrayList;
  * JDialog to launch CTweb server.  The guts of this dialog is a JavaFX scene.
  *
  * @author John P. Wilson
- * @version 02/09/2018
+ * @version 02/19/2018
  *
  */
 
@@ -66,6 +66,7 @@ public class LaunchCTweb extends javax.swing.JDialog {
     // UI controls
     private TextField dataFolderTF = null;
     private TextField portTF = null;
+    private TextField otherOptionsTF = null;
 
     /**
      * Constrcutor
@@ -197,7 +198,18 @@ public class LaunchCTweb extends javax.swing.JDialog {
         grid.add(portTF,1,row);
         grid.setConstraints(portTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.NEVER,Priority.NEVER,new Insets(0,0,0,0));
 
-        // Row 3: command button
+        // Row 3: other command line options
+        row = row + 1;
+        tempL = new Label("Other options");
+        otherOptionsTF = new TextField(ctStream.otherCTwebOptions);
+        otherOptionsTF.setPrefWidth(150);
+        grid.add(tempL, 0, row, 1, 1);
+        // grid.add(otherOptionsTF, 1, row, 1, 1);
+        // Here's a way to specify all the constraints for the otherOptionsTF node: position, row/col span, hor/ver alignment, growth policy, insets
+        grid.add(otherOptionsTF,1,row);
+        grid.setConstraints(otherOptionsTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.ALWAYS,Priority.NEVER,new Insets(0,0,0,0));
+
+        // Row 4: command button
         row = row + 1;
         Button launchB = new Button("Launch");
         launchB.setOnAction(this::launchAction);
@@ -287,10 +299,22 @@ public class LaunchCTweb extends javax.swing.JDialog {
         // Save the port number
         ctStream.webScanPort = portNum;
 
+        // Other options entered by the user
+        String otherOptionsStr = otherOptionsTF.getText().trim();
+        // Save the other options
+        ctStream.otherCTwebOptions = otherOptionsStr;
+
         // Fill in arguments from the user's settings
         ArrayList<String> argList=new ArrayList();
         argList.add("-p");
         argList.add(Integer.toString(portNum));
+        // If there are other options, add them
+        if (!otherOptionsStr.isEmpty()) {
+            String[] optionStrings = otherOptionsStr.split("\\s+");
+            for (String nextStr : optionStrings) {
+                argList.add(nextStr);
+            }
+        }
         // For a discussion of File.getPath(), File.getAbsolutePath() and File.getCanonicalPath() see
         // https://stackoverflow.com/questions/1099300/whats-the-difference-between-getpath-getabsolutepath-and-getcanonicalpath
         // Using getPath() here, which gets the path string that the File object was constructed with.
@@ -304,6 +328,10 @@ public class LaunchCTweb extends javax.swing.JDialog {
                 // See example at https://www.tutorialspoint.com/java/util/arraylist_toarray.htm
                 String strList[] = new String[argList.size()];
                 strList = argList.toArray(strList);
+                System.err.println("CTweb arguments:");
+                for (String nextStr : strList) {
+                    System.err.println("\t" + nextStr);
+                }
                 /*
                 // Launch CTweb directly
                 try {

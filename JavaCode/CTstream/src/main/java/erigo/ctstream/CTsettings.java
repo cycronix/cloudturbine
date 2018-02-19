@@ -27,18 +27,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JFileChooser;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
+import javax.swing.*;
+
+import erigo.ctstream.CTstream.CTWriteMode;
 
 /**
  *
@@ -47,7 +38,7 @@ import javax.swing.SwingConstants;
  * These settings are mainly for CTwriter or overall program settings.
  *
  * @author John P. Wilson
- * @version 02/16/2018
+ * @version 02/19/2018
  *
  */
 
@@ -73,20 +64,17 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private String orig_textChannelName;
 	private boolean orig_bEncrypt;
 	private String orig_encryptionPassword;
-	private boolean orig_bFTP;
-	private boolean orig_bHTTP;
+	private CTWriteMode orig_writeMode;
 	private String orig_serverHost;
 	private String orig_serverUser;
 	private String orig_serverPassword;
 	private long orig_autoFlushMillis;
 	private long orig_numBlocksPerSegment;
 	private boolean orig_bDebugMode;
-	private boolean orig_bIncludeMouseCursor;
+	// private boolean orig_bIncludeMouseCursor;
 	private boolean orig_bStayOnTop;
 	
 	// Dialog components
-	private JTextField outputFolderTF = null;
-	private JButton browseButton = null;
 	private JTextField sourceNameTF = null;
 	private JTextField screencapChannelNameTF = null;
 	private JTextField webcamChannelNameTF = null;
@@ -95,11 +83,17 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JCheckBox bEncryptCheckB = null;
 	private JLabel encryptionPasswordLabel = null;
 	private JPasswordField encryptionPasswordTF = null;
-	private JCheckBox bFTPCheckB = null;
-	private JCheckBox bHTTPCheckB = null;
+	private ButtonGroup writeModeBG = new ButtonGroup();
+	private JRadioButton localRB = null;
+	private JRadioButton ftpRB = null;
+	private JRadioButton httpRB = null;
+	// controls related to different modes of writing output (e.g., local, FTP, etc.)
+	private JLabel outputFolderLabel = null;
+	private JTextField outputFolderTF = null;
+	private JButton browseButton = null;
 	private JLabel serverHostLabel = null;
 	private JTextField serverHostTF = null;
-	private JLabel serverHostHintLabel = null;
+	private JLabel httpServerHintLabel = null;
 	private JLabel serverUserLabel = null;
 	private JTextField serverUserTF = null;
 	private JLabel serverPasswordLabel = null;
@@ -107,7 +101,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JComboBox<String> flushIntervalComboB = null;
 	private JComboBox<String> numBlocksPerSegmentComboB = null;
 	private JCheckBox bDebugModeCheckB = null;
-	private JCheckBox bIncludeMouseCursorCheckB = null;
+	// private JCheckBox bIncludeMouseCursorCheckB = null;
 	private JCheckBox bStayOnTopCheckB = null;
 	private JButton okButton = null;
 	private JButton cancelButton = null;
@@ -136,9 +130,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		gbc.weighty = 0;
 		
 		// Create GUI components
-		outputFolderTF = new JTextField(25);
-		browseButton = new JButton("Browse...");
-		browseButton.addActionListener(this);
 		sourceNameTF = new JTextField(25);
 		screencapChannelNameTF = new JTextField(10);
 		webcamChannelNameTF = new JTextField(10);
@@ -148,15 +139,24 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		bEncryptCheckB.addItemListener(this);
 		encryptionPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
 		encryptionPasswordTF = new JPasswordField(15);
-		bFTPCheckB = new JCheckBox("Use FTP");
-		bFTPCheckB.addActionListener(this);
-		bHTTPCheckB = new JCheckBox("Use HTTP");
-		bHTTPCheckB.addActionListener(this);
+		localRB = new JRadioButton("Local");
+		writeModeBG.add(localRB);
+		localRB.addActionListener(this);
+		ftpRB = new JRadioButton("FTP");
+		writeModeBG.add(ftpRB);
+		ftpRB.addActionListener(this);
+		httpRB = new JRadioButton("HTTP");
+		writeModeBG.add(httpRB);
+		httpRB.addActionListener(this);
+		outputFolderLabel = new JLabel("Output folder",SwingConstants.LEFT);
+		outputFolderTF = new JTextField(25);
+		browseButton = new JButton("Browse...");
+		browseButton.addActionListener(this);
 		serverHostLabel = new JLabel("Host",SwingConstants.LEFT);
 		serverHostTF = new JTextField(20);
-		serverHostHintLabel = new JLabel("e.g., http://localhost:8000",SwingConstants.LEFT);
-		serverHostHintLabel.setFont(new Font(serverHostHintLabel.getFont().getName(),Font.ITALIC,serverHostHintLabel.getFont().getSize()));
-		serverHostHintLabel.setForeground(Color.red);
+		httpServerHintLabel = new JLabel("e.g., http://localhost:8000",SwingConstants.LEFT);
+		httpServerHintLabel.setFont(new Font(httpServerHintLabel.getFont().getName(),Font.ITALIC, httpServerHintLabel.getFont().getSize()));
+		httpServerHintLabel.setForeground(Color.red);
 		serverUserLabel = new JLabel("Username",SwingConstants.LEFT);
 		serverUserTF = new JTextField(15);
 		serverPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
@@ -167,7 +167,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		numBlocksPerSegmentComboB.setPrototypeDisplayValue("XXXXXXXXXXXX");
 		flushIntervalComboB.setEditable(false);
 		bDebugModeCheckB = new JCheckBox("Turn on CT debug");
-		bIncludeMouseCursorCheckB = new JCheckBox("Include cursor in screen capture");
+		// bIncludeMouseCursorCheckB = new JCheckBox("Include cursor in screen capture");
 		bStayOnTopCheckB = new JCheckBox("Keep UI on top");
 		okButton = new JButton("OK");
 		okButton.addActionListener(this);
@@ -177,29 +177,11 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Add components to the guiPanel
 		int row = 0;
 		
-		// output folder
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.weightx = 0;
-		gbc.weighty = 0;
-		JLabel tempLabel = new JLabel("Output folder",SwingConstants.LEFT);
-		gbc.insets = new Insets(15,15,0,10);
-		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
-		gbc.insets = new Insets(15,0,0,15);
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		gbc.weightx = 100;
-		gbc.weighty = 0;
-		Utility.add(guiPanel,outputFolderTF,gbl,gbc,1,row,1,1);
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.weightx = 0;
-		gbc.weighty = 0;
-		Utility.add(guiPanel,browseButton,gbl,gbc,2,row,1,1);
-		row++;
-		
 		// source name
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
-		tempLabel = new JLabel("Source name",SwingConstants.LEFT);
+		JLabel tempLabel = new JLabel("Source name",SwingConstants.LEFT);
 		gbc.insets = new Insets(10,15,0,10);
 		Utility.add(guiPanel,tempLabel,gbl,gbc,0,row,1,1);
 		gbc.insets = new Insets(10,0,0,15);
@@ -283,52 +265,71 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		Utility.add(guiPanel,encryptionPanel,gbl,gbc,0,row,3,1);
 		row++;
 
-		// FTP and HTTP checkboxes
-		JPanel serverCBPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,15,0));
-		serverCBPanel.add(bFTPCheckB);
-		serverCBPanel.add(bHTTPCheckB);
+		// write mode
+		JPanel writeModeRBPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,15,0));
+		writeModeRBPanel.add(localRB);
+		writeModeRBPanel.add(ftpRB);
+		writeModeRBPanel.add(httpRB);
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
 		// Since we have set the FlowLayout hgap to 15, don't have any padding on left or right
 		gbc.insets = new Insets(10,0,0,0);
-		Utility.add(guiPanel,serverCBPanel,gbl,gbc,0,row,3,1);
+		Utility.add(guiPanel,writeModeRBPanel,gbl,gbc,0,row,3,1);
 		row++;
 		
-		// panel containing the server parameters (host, username, password)
+		// panel containing the write output mode parameters (folder, host, username, password)
 		panel_gbl = new GridBagLayout();
-		JPanel serverPanel = new JPanel(panel_gbl);
+		JPanel writeModePanel = new JPanel(panel_gbl);
 		panel_gbc = new GridBagConstraints();
 		panel_gbc.anchor = GridBagConstraints.WEST;
 		panel_gbc.fill = GridBagConstraints.NONE;
 		panel_gbc.weightx = 0;
 		panel_gbc.weighty = 0;
 		int panel_row = 0;
-		// Panel row 1: host
+		// Panel row 1: output folder
 		panel_gbc.insets = new Insets(0,0,0,10);
-		Utility.add(serverPanel,serverHostLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		Utility.add(writeModePanel,outputFolderLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
 		panel_gbc.insets = new Insets(0,0,0,10);
-		Utility.add(serverPanel,serverHostTF,panel_gbl,panel_gbc,1,panel_row,1,1);
-		panel_gbc.insets = new Insets(0,0,0,0);
-		Utility.add(serverPanel,serverHostHintLabel,panel_gbl,panel_gbc,2,panel_row,1,1);
+		panel_gbc.fill = GridBagConstraints.HORIZONTAL;
+		panel_gbc.weightx = 100;
+		panel_gbc.weighty = 0;
+		Utility.add(writeModePanel,outputFolderTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		panel_gbc.fill = GridBagConstraints.NONE;
+		panel_gbc.weightx = 0;
+		panel_gbc.weighty = 0;
+		Utility.add(writeModePanel,browseButton,panel_gbl,panel_gbc,2,panel_row,1,1);
 		panel_row++;
-		// Panel row 2: username
-		panel_gbc.insets = new Insets(2,0,0,10);
-		Utility.add(serverPanel,serverUserLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
-		panel_gbc.insets = new Insets(2,0,0,0);
-		Utility.add(serverPanel,serverUserTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		// Panel row 2: host
+		panel_gbc.insets = new Insets(4,0,0,10);
+		Utility.add(writeModePanel,serverHostLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		// put serverHostTF and httpServerHintLabel in their own panel
+		FlowLayout panelLayout = new FlowLayout(FlowLayout.LEFT,0,0);
+		JPanel hostPanel = new JPanel(panelLayout);
+		hostPanel.add(serverHostTF);
+		// add some empty space between the text field and the label
+		hostPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+		hostPanel.add(httpServerHintLabel);
+		panel_gbc.insets = new Insets(4,0,0,0);
+		Utility.add(writeModePanel,hostPanel,panel_gbl,panel_gbc,1,panel_row,2,1);
 		panel_row++;
-		// Panel row 3: password
-		panel_gbc.insets = new Insets(2,0,0,10);
-		Utility.add(serverPanel,serverPasswordLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
-		panel_gbc.insets = new Insets(2,0,0,0);
-		Utility.add(serverPanel,serverPasswordTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		// Panel row 3: username
+		panel_gbc.insets = new Insets(7,0,0,10);
+		Utility.add(writeModePanel,serverUserLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		panel_gbc.insets = new Insets(7,0,0,0);
+		Utility.add(writeModePanel,serverUserTF,panel_gbl,panel_gbc,1,panel_row,1,1);
+		panel_row++;
+		// Panel row 4: password
+		panel_gbc.insets = new Insets(7,0,0,10);
+		Utility.add(writeModePanel,serverPasswordLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		panel_gbc.insets = new Insets(7,0,0,0);
+		Utility.add(writeModePanel,serverPasswordTF,panel_gbl,panel_gbc,1,panel_row,1,1);
 		// Add the panel to guiPanel
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.weightx = 0;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 100;
 		gbc.weighty = 0;
-		gbc.insets = new Insets(2,50,0,15);
-		Utility.add(guiPanel,serverPanel,gbl,gbc,0,row,3,1);
+		gbc.insets = new Insets(0,50,0,15);
+		Utility.add(guiPanel,writeModePanel,gbl,gbc,0,row,3,1);
 		row++;
 		
 		// flush interval
@@ -368,12 +369,12 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		row++;
 		
 		// include mouse cursor checkbox
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.weightx = 0;
-		gbc.weighty = 0;
-		gbc.insets = new Insets(10,15,0,15);
-		Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,3,1);
-		row++;
+		// gbc.fill = GridBagConstraints.NONE;
+		// gbc.weightx = 0;
+		// gbc.weighty = 0;
+		// gbc.insets = new Insets(10,15,0,15);
+		// Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,3,1);
+		// row++;
 		
 		// stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
@@ -428,7 +429,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	public void popupSettingsDialog() {
 		
 		// Squirrel away copies of the current data
-		orig_outputFolder = ctStream.outputFolder;
 		orig_sourceName = ctStream.sourceName;
 		orig_screencapChannelName = ctStream.screencapStreamName;
 		orig_webcamChannelName = ctStream.webcamStreamName;
@@ -436,20 +436,18 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		orig_textChannelName = ctStream.textStreamName;
 		orig_bEncrypt = ctStream.bEncrypt;
 		orig_encryptionPassword = ctStream.encryptionPassword;
-		orig_bFTP = ctStream.bFTP;
-		orig_bHTTP = ctStream.bHTTP;
+		orig_writeMode = ctStream.writeMode;
+		orig_outputFolder = ctStream.outputFolder;
 		orig_serverHost = ctStream.serverHost;
 		orig_serverUser = ctStream.serverUser;
 		orig_serverPassword = ctStream.serverPassword;
 		orig_autoFlushMillis = ctStream.flushMillis;
 		orig_numBlocksPerSegment = ctStream.numBlocksPerSegment;
 		orig_bDebugMode = ctStream.bDebugMode;
-		orig_bIncludeMouseCursor = ctStream.bIncludeMouseCursor;
+		// orig_bIncludeMouseCursor = ctStream.bIncludeMouseCursor;
 		orig_bStayOnTop = ctStream.bStayOnTop;
 		
 		// Initialize data in the dialog
-		outputFolderTF.setText(ctStream.outputFolder);
-		browseButton.setEnabled(!ctStream.bFTP && !ctStream.bHTTP);
 		sourceNameTF.setText(ctStream.sourceName);
 		screencapChannelNameTF.setText(ctStream.screencapStreamName);
 		webcamChannelNameTF.setText(ctStream.webcamStreamName);
@@ -459,19 +457,21 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		encryptionPasswordTF.setText(ctStream.encryptionPassword);
 		encryptionPasswordLabel.setEnabled(ctStream.bEncrypt);
 		encryptionPasswordTF.setEnabled(ctStream.bEncrypt);
-		bFTPCheckB.setSelected(ctStream.bFTP);
-		bHTTPCheckB.setSelected(ctStream.bHTTP);
+		// settings associated with write mode
+		if (ctStream.writeMode == CTWriteMode.LOCAL) {
+			localRB.setSelected(true);
+			setOutputModeControls(CTWriteMode.LOCAL);
+		} else if (ctStream.writeMode == CTWriteMode.FTP) {
+			ftpRB.setSelected(true);
+			setOutputModeControls(CTWriteMode.FTP);
+		} else if (ctStream.writeMode == CTWriteMode.HTTP) {
+			httpRB.setSelected(true);
+			setOutputModeControls(CTWriteMode.HTTP);
+		}
+		outputFolderTF.setText(ctStream.outputFolder);
 		serverHostTF.setText(ctStream.serverHost);
 		serverUserTF.setText(ctStream.serverUser);
 		serverPasswordTF.setText(ctStream.serverPassword);
-		serverHostLabel.setEnabled(ctStream.bFTP || ctStream.bHTTP);
-		serverHostTF.setEnabled(ctStream.bFTP || ctStream.bHTTP);
-		// Only display the hint label for the HTTP case
-		serverHostHintLabel.setVisible(ctStream.bHTTP);
-		serverUserLabel.setEnabled(ctStream.bFTP || ctStream.bHTTP);
-		serverUserTF.setEnabled(ctStream.bFTP || ctStream.bHTTP);
-		serverPasswordLabel.setEnabled(ctStream.bFTP || ctStream.bHTTP);
-		serverPasswordTF.setEnabled(ctStream.bFTP || ctStream.bHTTP);
 		int selectedIdx = Arrays.asList(flushIntervalLongs).indexOf(ctStream.flushMillis);
 		if (selectedIdx == -1) {
 			selectedIdx = 1;
@@ -483,7 +483,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		}
 		numBlocksPerSegmentComboB.setSelectedIndex(selectedIdx);
 		bDebugModeCheckB.setSelected(ctStream.bDebugMode);
-		bIncludeMouseCursorCheckB.setSelected(ctStream.bIncludeMouseCursor);
+		// bIncludeMouseCursorCheckB.setSelected(ctStream.bIncludeMouseCursor);
 		bStayOnTopCheckB.setSelected(ctStream.bStayOnTop);
 		
 		// Pop up the dialog centered on the parent frame
@@ -525,6 +525,19 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		if (source == null) {
 			return;
+		} else if (eventI.getActionCommand().equals("OK")) {
+			okAction();
+		} else if (eventI.getActionCommand().equals("Cancel")) {
+			cancelAction();
+		} else if (source == localRB) {
+			// User has specified to write output data to local filesystem.
+			setOutputModeControls(CTWriteMode.LOCAL);
+		} else if (source == ftpRB) {
+			// User has specified to write output data to an FTP server.
+			setOutputModeControls(CTWriteMode.FTP);
+		} else if (source == httpRB) {
+			// User has specified to write output data to an HTTP server.
+			setOutputModeControls(CTWriteMode.HTTP);
 		} else if (eventI.getActionCommand().equals("Browse...")) {
 			// Code largely taken from http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
 			JFileChooser fc = new JFileChooser();
@@ -566,36 +579,33 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 				}
 				outputFolderTF.setText(fullPathStr);
 			}
-		}  else if ( (source == bFTPCheckB) || (source == bHTTPCheckB) ) {
-			// We use checkboxes to allow the user to specify FTP or HTTP mode, but
-			// we can only have at most one of them checked at a time; thus, they are
-			// a bit like radio buttons, however it is fine to have neither of them
-			// checked (to specify using the default type of CT connection).
-			boolean bChecked = false;
-			if ( (source == bFTPCheckB) && (bFTPCheckB.isSelected()) ) {
-				bChecked = true;
-				// Make sure bHTTPCheckB is not selected
-				bHTTPCheckB.setSelected(false);
-			} else if ( (source == bHTTPCheckB) && (bHTTPCheckB.isSelected()) ) {
-				bChecked = true;
-				// Make sure bFTPCheckB is not selected
-				bFTPCheckB.setSelected(false);
-			}
-			browseButton.setEnabled(!bChecked);
-			serverHostLabel.setEnabled(bChecked);
-			serverHostTF.setEnabled(bChecked);
-			// Only display the hint label for the HTTP case
-			serverHostHintLabel.setVisible(bChecked && (source == bHTTPCheckB));
-			serverUserLabel.setEnabled(bChecked);
-			serverUserTF.setEnabled(bChecked);
-			serverPasswordLabel.setEnabled(bChecked);
-			serverPasswordTF.setEnabled(bChecked);
-		} else if (eventI.getActionCommand().equals("OK")) {
-			okAction();
-		} else if (eventI.getActionCommand().equals("Cancel")) {
-			cancelAction();
-		} 
+		}
 		
+	}
+
+	/*
+	 * Set the enabled state and visibility of controls related to the output write mode.
+	 *
+	 * This method should be called on the Swing Event Dispatch Thread (EDT).
+	 */
+	private void setOutputModeControls(CTWriteMode writeModeI) {
+		boolean bEnableServerControls = true;
+		boolean bDisplayHTTPMsg = false;
+		if (writeModeI == CTWriteMode.LOCAL) {
+			bEnableServerControls = false;
+		} else if (writeModeI == CTWriteMode.HTTP) {
+			bDisplayHTTPMsg = true;
+		}
+		outputFolderLabel.setEnabled(!bEnableServerControls);
+		outputFolderTF.setEnabled(!bEnableServerControls);
+		browseButton.setEnabled(!bEnableServerControls);
+		serverHostLabel.setEnabled(bEnableServerControls);
+		serverHostTF.setEnabled(bEnableServerControls);
+		httpServerHintLabel.setVisible(bDisplayHTTPMsg);
+		serverUserLabel.setEnabled(bEnableServerControls);
+		serverUserTF.setEnabled(bEnableServerControls);
+		serverPasswordLabel.setEnabled(bEnableServerControls);
+		serverPasswordTF.setEnabled(bEnableServerControls);
 	}
 	
 	/*
@@ -613,14 +623,21 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.bEncrypt = bEncryptCheckB.isSelected();
 		char[] encryptPasswordCharArray = encryptionPasswordTF.getPassword();
 		ctStream.encryptionPassword = new String(encryptPasswordCharArray).trim();
-		ctStream.bFTP = bFTPCheckB.isSelected();
-		ctStream.bHTTP = bHTTPCheckB.isSelected();
+		// set the output mode
+		if (localRB.isSelected()) {
+			ctStream.writeMode = CTWriteMode.LOCAL;
+		} else if (ftpRB.isSelected()) {
+			ctStream.writeMode = CTWriteMode.FTP;
+		} else if (httpRB.isSelected()) {
+			ctStream.writeMode = CTWriteMode.HTTP;
+		}
 		ctStream.serverHost = serverHostTF.getText().trim();
-		if (ctStream.bHTTP) {
-			// The HTTP server name should start with "http://" or "https://" and NOT end in a "/"
+		if (ctStream.writeMode == CTWriteMode.HTTP) {
+			// HTTP server name should start with "http://" or "https://"
 			if ( !ctStream.serverHost.startsWith("http://") && !ctStream.serverHost.startsWith("https://") ) {
 				ctStream.serverHost = "http://" + ctStream.serverHost;
 			}
+			// HTTP server name should not end in "/"
 			if (ctStream.serverHost.endsWith("/")) {
 				ctStream.serverHost = ctStream.serverHost.substring(0,ctStream.serverHost.length()-1);
 			}
@@ -631,7 +648,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.flushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
 		ctStream.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctStream.bDebugMode = bDebugModeCheckB.isSelected();
-		ctStream.bIncludeMouseCursor = bIncludeMouseCursorCheckB.isSelected();
+		// ctStream.bIncludeMouseCursor = bIncludeMouseCursorCheckB.isSelected();
 		ctStream.bStayOnTop = bStayOnTopCheckB.isSelected();
 		if (ctStream.bStayOnTop) {
 			parentFrame.setAlwaysOnTop(true);
@@ -666,15 +683,14 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.textStreamName = orig_textChannelName;
 		ctStream.bEncrypt = orig_bEncrypt;
 		ctStream.encryptionPassword = orig_encryptionPassword;
-		ctStream.bFTP = orig_bFTP;
-		ctStream.bHTTP = orig_bHTTP;
+		ctStream.writeMode = orig_writeMode;
 		ctStream.serverHost = orig_serverHost;
 		ctStream.serverUser = orig_serverUser;
 		ctStream.serverPassword = orig_serverPassword;
 		ctStream.flushMillis = orig_autoFlushMillis;
 		ctStream.numBlocksPerSegment = orig_numBlocksPerSegment;
 		ctStream.bDebugMode = orig_bDebugMode;
-		ctStream.bIncludeMouseCursor = orig_bIncludeMouseCursor;
+		// ctStream.bIncludeMouseCursor = orig_bIncludeMouseCursor;
 		ctStream.bStayOnTop = orig_bStayOnTop;
 		
 		// Pop down the dialog
