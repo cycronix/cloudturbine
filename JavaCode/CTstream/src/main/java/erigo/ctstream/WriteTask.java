@@ -94,6 +94,13 @@ public class WriteTask implements Runnable {
 			}
 		} else if (cts.writeMode == CTWriteMode.HTTP) {
 			CThttp cthttp = new CThttp(cts.sourceName,cts.serverHost);
+			if (!cts.serverUser.isEmpty()) {
+				try {
+					cthttp.login(cts.serverUser, cts.serverPassword);
+				} catch (Exception e) {
+					throw new IOException( new String("Error logging into HTTP server \"" + cts.serverHost + "\":\n" + e.getMessage()) );
+				}
+			}
 			ctw = cthttp; // upcast to CTWriter
 		}
 		ctw.setZipMode(cts.bZipMode);
