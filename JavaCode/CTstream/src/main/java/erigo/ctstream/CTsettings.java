@@ -87,13 +87,13 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JRadioButton localRB = null;
 	private JRadioButton ftpRB = null;
 	private JRadioButton httpRB = null;
+	private JRadioButton httpsRB = null;
 	// controls related to different modes of writing output (e.g., local, FTP, etc.)
 	private JLabel outputFolderLabel = null;
 	private JTextField outputFolderTF = null;
 	private JButton browseButton = null;
 	private JLabel serverHostLabel = null;
 	private JTextField serverHostTF = null;
-	private JLabel httpServerHintLabel = null;
 	private JLabel serverUserLabel = null;
 	private JTextField serverUserTF = null;
 	private JLabel serverPasswordLabel = null;
@@ -101,7 +101,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	private JComboBox<String> flushIntervalComboB = null;
 	private JComboBox<String> numBlocksPerSegmentComboB = null;
 	private JCheckBox bDebugModeCheckB = null;
-	// private JCheckBox bIncludeMouseCursorCheckB = null;
 	private JCheckBox bStayOnTopCheckB = null;
 	private JButton okButton = null;
 	private JButton cancelButton = null;
@@ -148,15 +147,18 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		httpRB = new JRadioButton("HTTP");
 		writeModeBG.add(httpRB);
 		httpRB.addActionListener(this);
+		httpsRB = new JRadioButton("HTTPS");
+		writeModeBG.add(httpsRB);
+		httpsRB.addActionListener(this);
 		outputFolderLabel = new JLabel("Output folder",SwingConstants.LEFT);
 		outputFolderTF = new JTextField(25);
 		browseButton = new JButton("Browse...");
 		browseButton.addActionListener(this);
 		serverHostLabel = new JLabel("Host",SwingConstants.LEFT);
 		serverHostTF = new JTextField(20);
-		httpServerHintLabel = new JLabel("e.g., http://localhost:8000",SwingConstants.LEFT);
-		httpServerHintLabel.setFont(new Font(httpServerHintLabel.getFont().getName(),Font.ITALIC, httpServerHintLabel.getFont().getSize()));
-		httpServerHintLabel.setForeground(Color.red);
+		// httpServerHintLabel = new JLabel("e.g., http://localhost:8000",SwingConstants.LEFT);
+		// httpServerHintLabel.setFont(new Font(httpServerHintLabel.getFont().getName(),Font.ITALIC, httpServerHintLabel.getFont().getSize()));
+		// httpServerHintLabel.setForeground(Color.red);
 		serverUserLabel = new JLabel("Username",SwingConstants.LEFT);
 		serverUserTF = new JTextField(15);
 		serverPasswordLabel = new JLabel("Password",SwingConstants.LEFT);
@@ -167,7 +169,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		numBlocksPerSegmentComboB.setPrototypeDisplayValue("XXXXXXXXXXXX");
 		flushIntervalComboB.setEditable(false);
 		bDebugModeCheckB = new JCheckBox("Turn on CT debug");
-		// bIncludeMouseCursorCheckB = new JCheckBox("Include cursor in screen capture");
 		bStayOnTopCheckB = new JCheckBox("Keep UI on top");
 		okButton = new JButton("OK");
 		okButton.addActionListener(this);
@@ -270,6 +271,7 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		writeModeRBPanel.add(localRB);
 		writeModeRBPanel.add(ftpRB);
 		writeModeRBPanel.add(httpRB);
+		writeModeRBPanel.add(httpsRB);
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.weightx = 0;
 		gbc.weighty = 0;
@@ -303,15 +305,18 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Panel row 2: host
 		panel_gbc.insets = new Insets(4,0,0,10);
 		Utility.add(writeModePanel,serverHostLabel,panel_gbl,panel_gbc,0,panel_row,1,1);
+		// JPW 2018-02-20  No longer use httpServerHintLabel
 		// put serverHostTF and httpServerHintLabel in their own panel
-		FlowLayout panelLayout = new FlowLayout(FlowLayout.LEFT,0,0);
-		JPanel hostPanel = new JPanel(panelLayout);
-		hostPanel.add(serverHostTF);
-		// add some empty space between the text field and the label
-		hostPanel.add(Box.createRigidArea(new Dimension(5, 0)));
-		hostPanel.add(httpServerHintLabel);
+		// FlowLayout panelLayout = new FlowLayout(FlowLayout.LEFT,0,0);
+		// JPanel hostPanel = new JPanel(panelLayout);
+		// hostPanel.add(serverHostTF);
+		// // add some empty space between the text field and the label
+		// hostPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+		// hostPanel.add(httpServerHintLabel);
+		// panel_gbc.insets = new Insets(4,0,0,0);
+		// Utility.add(writeModePanel,hostPanel,panel_gbl,panel_gbc,1,panel_row,2,1);
 		panel_gbc.insets = new Insets(4,0,0,0);
-		Utility.add(writeModePanel,hostPanel,panel_gbl,panel_gbc,1,panel_row,2,1);
+		Utility.add(writeModePanel,serverHostTF,panel_gbl,panel_gbc,1,panel_row,1,1);
 		panel_row++;
 		// Panel row 3: username
 		panel_gbc.insets = new Insets(7,0,0,10);
@@ -367,14 +372,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		gbc.insets = new Insets(10,15,0,15);
 		Utility.add(guiPanel,bDebugModeCheckB,gbl,gbc,0,row,3,1);
 		row++;
-		
-		// include mouse cursor checkbox
-		// gbc.fill = GridBagConstraints.NONE;
-		// gbc.weightx = 0;
-		// gbc.weighty = 0;
-		// gbc.insets = new Insets(10,15,0,15);
-		// Utility.add(guiPanel,bIncludeMouseCursorCheckB,gbl,gbc,0,row,3,1);
-		// row++;
 		
 		// stay on top checkbox
 		gbc.fill = GridBagConstraints.NONE;
@@ -467,6 +464,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		} else if (ctStream.writeMode == CTWriteMode.HTTP) {
 			httpRB.setSelected(true);
 			setOutputModeControls(CTWriteMode.HTTP);
+		} else if (ctStream.writeMode == CTWriteMode.HTTPS) {
+			httpsRB.setSelected(true);
+			setOutputModeControls(CTWriteMode.HTTPS);
 		}
 		outputFolderTF.setText(ctStream.outputFolder);
 		serverHostTF.setText(ctStream.serverHost);
@@ -483,7 +483,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		}
 		numBlocksPerSegmentComboB.setSelectedIndex(selectedIdx);
 		bDebugModeCheckB.setSelected(ctStream.bDebugMode);
-		// bIncludeMouseCursorCheckB.setSelected(ctStream.bIncludeMouseCursor);
 		bStayOnTopCheckB.setSelected(ctStream.bStayOnTop);
 		
 		// Pop up the dialog centered on the parent frame
@@ -538,6 +537,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		} else if (source == httpRB) {
 			// User has specified to write output data to an HTTP server.
 			setOutputModeControls(CTWriteMode.HTTP);
+		} else if (source == httpsRB) {
+			// User has specified to write output data to an HTTPS server.
+			setOutputModeControls(CTWriteMode.HTTPS);
 		} else if (eventI.getActionCommand().equals("Browse...")) {
 			// Code largely taken from http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
 			JFileChooser fc = new JFileChooser();
@@ -589,23 +591,39 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	 * This method should be called on the Swing Event Dispatch Thread (EDT).
 	 */
 	private void setOutputModeControls(CTWriteMode writeModeI) {
-		boolean bEnableServerControls = true;
-		boolean bDisplayHTTPMsg = false;
+		boolean bEnableFolder = true;
+		boolean bEnableHost = true;
+		boolean bEnableUsernamePassword = true;
 		if (writeModeI == CTWriteMode.LOCAL) {
-			bEnableServerControls = false;
+			bEnableFolder = true;
+			bEnableHost = false;
+			bEnableUsernamePassword = false;
+			serverHostLabel.setText("Host");
+		} else if (writeModeI == CTWriteMode.FTP) {
+			bEnableFolder = false;
+			bEnableHost = true;
+			bEnableUsernamePassword = true;
+			serverHostLabel.setText("Host");
 		} else if (writeModeI == CTWriteMode.HTTP) {
-			bDisplayHTTPMsg = true;
+			bEnableFolder = false;
+			bEnableHost = true;
+			bEnableUsernamePassword = false;
+			serverHostLabel.setText("Host:Port");
+		} else if (writeModeI == CTWriteMode.HTTPS) {
+			bEnableFolder = false;
+			bEnableHost = true;
+			bEnableUsernamePassword = true;
+			serverHostLabel.setText("Host:Port");
 		}
-		outputFolderLabel.setEnabled(!bEnableServerControls);
-		outputFolderTF.setEnabled(!bEnableServerControls);
-		browseButton.setEnabled(!bEnableServerControls);
-		serverHostLabel.setEnabled(bEnableServerControls);
-		serverHostTF.setEnabled(bEnableServerControls);
-		httpServerHintLabel.setVisible(bDisplayHTTPMsg);
-		serverUserLabel.setEnabled(bEnableServerControls);
-		serverUserTF.setEnabled(bEnableServerControls);
-		serverPasswordLabel.setEnabled(bEnableServerControls);
-		serverPasswordTF.setEnabled(bEnableServerControls);
+		outputFolderLabel.setEnabled(bEnableFolder);
+		outputFolderTF.setEnabled(bEnableFolder);
+		browseButton.setEnabled(bEnableFolder);
+		serverHostLabel.setEnabled(bEnableHost);
+		serverHostTF.setEnabled(bEnableHost);
+		serverUserLabel.setEnabled(bEnableUsernamePassword);
+		serverUserTF.setEnabled(bEnableUsernamePassword);
+		serverPasswordLabel.setEnabled(bEnableUsernamePassword);
+		serverPasswordTF.setEnabled(bEnableUsernamePassword);
 	}
 	
 	/*
@@ -614,7 +632,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 	public void okAction() {
 		
 		// Save data from the dialog
-		ctStream.outputFolder = outputFolderTF.getText().trim();
 		ctStream.sourceName = sourceNameTF.getText().trim();
 		ctStream.screencapStreamName = screencapChannelNameTF.getText().trim();
 		ctStream.webcamStreamName = webcamChannelNameTF.getText().trim();
@@ -630,17 +647,14 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 			ctStream.writeMode = CTWriteMode.FTP;
 		} else if (httpRB.isSelected()) {
 			ctStream.writeMode = CTWriteMode.HTTP;
+		} else if (httpsRB.isSelected()) {
+			ctStream.writeMode = CTWriteMode.HTTPS;
 		}
+		ctStream.outputFolder = outputFolderTF.getText().trim();
 		ctStream.serverHost = serverHostTF.getText().trim();
-		if (ctStream.writeMode == CTWriteMode.HTTP) {
-			// HTTP server name should start with "http://" or "https://"
-			if ( !ctStream.serverHost.startsWith("http://") && !ctStream.serverHost.startsWith("https://") ) {
-				ctStream.serverHost = "http://" + ctStream.serverHost;
-			}
-			// HTTP server name should not end in "/"
-			if (ctStream.serverHost.endsWith("/")) {
-				ctStream.serverHost = ctStream.serverHost.substring(0,ctStream.serverHost.length()-1);
-			}
+		// server name should not end in "/"
+		if (ctStream.serverHost.endsWith("/")) {
+			ctStream.serverHost = ctStream.serverHost.substring(0,ctStream.serverHost.length()-1);
 		}
 		ctStream.serverUser = serverUserTF.getText().trim();
 		char[] serverPasswordCharArray = serverPasswordTF.getPassword();
@@ -648,7 +662,6 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		ctStream.flushMillis = flushIntervalLongs[flushIntervalComboB.getSelectedIndex()];
 		ctStream.numBlocksPerSegment = numBlocksPerSegmentLongs[numBlocksPerSegmentComboB.getSelectedIndex()];
 		ctStream.bDebugMode = bDebugModeCheckB.isSelected();
-		// ctStream.bIncludeMouseCursor = bIncludeMouseCursorCheckB.isSelected();
 		ctStream.bStayOnTop = bStayOnTopCheckB.isSelected();
 		if (ctStream.bStayOnTop) {
 			parentFrame.setAlwaysOnTop(true);

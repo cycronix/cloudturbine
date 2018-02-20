@@ -88,12 +88,17 @@ public class WriteTask implements Runnable {
 			CTftp ctftp = new CTftp(cts.sourceName);
 			try {
 				ctftp.login(cts.serverHost, cts.serverUser, cts.serverPassword);
-				ctw = ctftp; // upcast to CTWriter
 			} catch (Exception e) {
 				throw new IOException( new String("Error logging into FTP server \"" + cts.serverHost + "\":\n" + e.getMessage()) );
 			}
+			ctw = ctftp; // upcast to CTWriter
 		} else if (cts.writeMode == CTWriteMode.HTTP) {
-			CThttp cthttp = new CThttp(cts.sourceName,cts.serverHost);
+			// Don't send username/pw in HTTP mode since they will be unencrypted
+			CThttp cthttp = new CThttp(cts.sourceName,"http://"+cts.serverHost);
+			ctw = cthttp; // upcast to CTWriter
+		} else if (cts.writeMode == CTWriteMode.HTTPS) {
+			CThttp cthttp = new CThttp(cts.sourceName,"https://"+cts.serverHost);
+			// Username/pw are optional for HTTPS mode; only use them if username is not empty
 			if (!cts.serverUser.isEmpty()) {
 				try {
 					cthttp.login(cts.serverUser, cts.serverPassword);
