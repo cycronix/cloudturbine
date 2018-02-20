@@ -159,7 +159,7 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 	public boolean bEncrypt = false;			// Use CT encryption?
 	public String encryptionPassword = "";		// Password when encryption is on
 	public enum CTWriteMode {                   // Possible modes for writing out CT data which CTstream supports
-		LOCAL, FTP, HTTP
+		LOCAL, FTP, HTTP, HTTPS
 	}
 	CTWriteMode writeMode = CTWriteMode.LOCAL;  // The selected mode for writing out CT data
 	public String serverHost = "";				// Server (FTP or HTTP) hostname
@@ -878,7 +878,9 @@ public class CTstream implements ActionListener,ChangeListener,MouseMotionListen
 			if ( (writeMode == CTWriteMode.FTP) && ((serverUser == null) || (serverUser.length() == 0)) ) {
 				return "You must specify the server username";
 			}
-			if (serverUser.contains(" ")) {
+			if ( ( (writeMode == CTWriteMode.FTP) || (writeMode == CTWriteMode.HTTPS) ) && serverUser.contains(" ") ) {
+				// username can be used with FTP or HTTPS;
+				// if we are in one of those modes and the username contains a space, flag it as an error
 				return "The server username must not contain embedded spaces";
 			}
 			// serverPassword is only required for FTP
