@@ -43,21 +43,21 @@ public class CTsource {
 		
 		try {
 			// setup CTwriter
-			CTwriter ctw = new CTwriter(dstFolder);
+			CTwriter ctw = new CTwriter(dstFolder, 100.);			// ,trimtime
 			if(password!=null) ctw.setPassword(password);
 
 			CTinfo.setDebug(false);
 			ctw.setBlockMode(false,false);		// no pack, no zip
 			ctw.autoFlush(0);					// no autoflush, no segments
-			ctw.autoSegment(0);
-			ctw.setHiResTime(true);             // usec timestamps
+			ctw.autoSegment(10);					// was 10
+//			ctw.setHiResTime(true);             // usec timestamps
 			
 			double time = 1460000000.;			// round-number starting time
 			double dt = 1.;
 			Map<String,Object>cmap = new LinkedHashMap<String,Object>();
 			
 			// loop and write some output
-			for(int i=0; i<100; i++) {
+			for(int i=0; i<1000; i++) {
 				ctw.setTime(time);				
 				cmap.clear(); 
 				cmap.put("c0", 9999);
@@ -70,6 +70,7 @@ public class CTsource {
 					System.err.println("flushed: "+i);
 				}
 				time += dt;
+				Thread.sleep(100);
 			}
 			ctw.flush(); 	// wrap up
 		} catch(Exception e) {

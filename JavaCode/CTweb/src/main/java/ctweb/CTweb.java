@@ -63,7 +63,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Properties;
 
 import javax.imageio.ImageIO;
@@ -136,7 +135,7 @@ public class CTweb {
 
     	if(args.length == 0) {
     		System.err.println("CTweb -r -x -X -F -W -p <port> -P <sslport> -f <webfolder> -s <sourceFolder> -k <keystoreFile> -K <keystorePW> -a <authenticationFile> -S <scaleImage> -R <routingFile> rootFolder");
-    		if(args[0].equals("-h")) System.exit(0);		// print help and exit
+    		if(args!=null && args.length>0 && args[0].equals("-h")) System.exit(0);		// print help and exit
     	}
     	
      	int dirArg = 0;
@@ -862,8 +861,11 @@ public class CTweb {
     	@Override
     	protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     		if(maxCTwriters == 0) {
-    			System.err.println("CTweb PUT not allowed!");
-    			return;
+    			if(keepTime > 0.) maxCTwriters = 100;		// keepTime enables writers
+    			else {
+    				System.err.println("CTweb PUT not allowed!");
+    				return;
+    			}
     		}
     		
     		ServletInputStream in = request.getInputStream();
@@ -914,22 +916,21 @@ public class CTweb {
     		int length;
     		while ((length = in.read(buffer)) > 0) {
     			out.write(buffer, 0, length);
-//    			System.err.println("CTweb write bytes: "+length);
     		}
     		in.close();
     		out.close();
-    		
+
     		// trim (loop) if spec
     		if(keepTime > 0.) {
-    			if(ctwriter == null) ctwriter = new CTwriter(rootFolder);
-    			double now = (double)(System.currentTimeMillis())/1000.;
-    			if(now > (lastTime + keepTime/2.)) {			// no thrash
-    				double oldTime = now - keepTime;
-    				if(debug) System.err.println("dotrim, rootFolder: "+rootFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime);
-    				ctwriter.dotrim(oldTime);
-    				lastTime = now;
-    			}
-    		}
+				double now = (double)(System.currentTimeMillis())/1000.;
+				if(now > (lastTime + keepTime/2.)) {			// no thrash
+					double oldTime = now - keepTime;
+					String trimFolder = rootFolder+File.separator+source;
+					if(debug) System.err.println("dotrim, folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime);
+					new CTwriter(trimFolder).dotrim(oldTime, false);
+					lastTime = now;
+				}
+    		}	
     	}
     }
     

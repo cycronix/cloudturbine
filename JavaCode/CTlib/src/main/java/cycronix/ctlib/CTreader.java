@@ -735,7 +735,7 @@ public class CTreader {
 	}
 
 	public void preCache(String source) throws Exception {
-		CTcache.buildIndices(source);		// should build in place new one-pass index...
+		CTcache.buildIndices(source);		// build in place one-pass index...
 /*
 		ArrayList<String> chans = listChans(source, true);		// ,true for fastSearch
 		Thread itt=null;

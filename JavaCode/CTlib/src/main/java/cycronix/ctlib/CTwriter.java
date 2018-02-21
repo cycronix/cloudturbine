@@ -384,7 +384,7 @@ public class CTwriter {
 		if(initBaseTime) newSegment();
 	}
 */
-	
+	static double prevSegmentTime = 0.;				// used to decide if dotrim worth calling
 	public synchronized void flush() throws IOException {
 		try {	
 			// if data has been queued in blocks, write it out once per channel before normal flush
@@ -410,11 +410,17 @@ public class CTwriter {
 				if(baos.size() > 0) writeToStream(destName, baos.toByteArray());	
 			}
 			
+			// could run dotrim only if new segment (if segments enabled, trim happens at segment level)
 			if(trimTime > 0 && blockTime > 0) {					// trim old data (trimTime=0 if ftp Mode)
-				double trim = blockTime/(double)timeFactor - trimTime;	// relative to putData time, 
-				// use blockTime (less than thisFtime) as trim will only look at old block-times
-				CTinfo.debugPrint("trimming at: "+trim);
-				dotrim(trim);			
+				if ((blocksPerSegment>0 && segmentTime>prevSegmentTime) || (blocksPerSegment==0)) {
+					CTinfo.debugPrint("calling dotrim, segmentTime: "+segmentTime+", blocksPerSegment: "+blocksPerSegment);
+
+					double trim = blockTime/(double)timeFactor - trimTime;	// relative to putData time, 
+					// use blockTime (less than thisFtime) as trim will only look at old block-times
+					CTinfo.debugPrint("trimming at: "+trim);
+					dotrim(trim, blocksPerSegment==0);		// fullcheck trim if no segments
+					prevSegmentTime = segmentTime;
+				}
 			}
 
 			lastFtime = thisFtime;				// remember last time flushed	
@@ -841,7 +847,10 @@ public class CTwriter {
 	 * @param oldTime time point at which to delete older files
 	 */
 	public boolean dotrim(double oldTime) throws IOException {
-		
+		return dotrim(oldTime, false);
+	}
+	
+	public boolean dotrim(double oldTime, boolean fullcheck) throws IOException {
 		// validity checks (beware unwanted deletes!)
 		if(destPath == null || destPath.length() < 1) {		// was <6 ?
 			throw new IOException("CTtrim Error, illegal parent folder: "+destPath);
@@ -850,18 +859,22 @@ public class CTwriter {
 			throw new IOException("CTtrim time error, must specify full-seconds time since epoch.  oldTime: "+oldTime);
 		}
 		
-		return oldTimeTrim(new CTFile(destPath), oldTime);
-		
-//		File rootFolder = new File(destPath);
-//		return deleteOldTimes(rootFolder, oldTime);
+		CTinfo.debugPrint("dotrim, destPath: "+destPath);
+		try {
+			if(fullcheck) 	deleteOldTimes(new File(destPath), oldTime);
+			else 			oldTimeTrim(new CTFile(destPath), oldTime);
+		} catch (IOException e) {
+			System.err.println("CTwriter dotrim exception: "+e);  	// print warning and continue
+		}
+		return true;					// not meaningful return
 	}
 	
-	private boolean deleteOldTimes(File rootFolder, double trimTime) throws IOException {
+	private boolean deleteOldTimes(File basefolder, double trimTime) throws IOException {
 		final double oldTime = trimTime;
 
-		Path directory = rootFolder.toPath();
+		Path directory = basefolder.toPath();
 		final boolean mydebug = false;
-//		System.err.println("****** deleteOldTimes, trimTime: "+trimTime+", rootFolder: "+rootFolder);
+//		System.err.println("****** deleteOldTimes, trimTime: "+trimTime+", basefolder: "+basefolder);
 		try {
 			Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
 				@Override
@@ -889,12 +902,12 @@ public class CTwriter {
 							throw new IOException("Failed to delete dir: "+dir);
 						}
 					}
-//					else System.err.println("leave non-empty dir: "+dir);
+//					else System.err.println("CTtrim, leave non-empty dir: "+dir);
 					return FileVisitResult.CONTINUE;
 				}
 			});
 		} catch(IOException e) {
-			throw new IOException("Exception on deleteOldTimes folder: "+rootFolder);
+			throw new IOException("Exception on deleteOldTimes folder: "+basefolder);
 //			return false;
 		}
 
@@ -903,32 +916,59 @@ public class CTwriter {
 
 	//------------------------------------------------------------------------------------------------
 	// fast oldTime:  crawl down first (oldest) folder branch to bottom file time
-	private boolean oldTimeTrim(CTFile baseFolder, double thisTrimTime) throws IOException {
-//		System.err.println("oldTime baseFolder: "+baseFolder.getPath()+", isDir: "+baseFolder.isDirectory());
-		if(!baseFolder.isDirectory()) return false;  
-
-		CTFile[] baseFolders = baseFolder.listFiles();
-		if(baseFolders==null || baseFolders.length == 0) return false;		// catch empty folder case
+	private void oldTimeTrim(CTFile baseFolder, double thisTrimTime) throws IOException {
+//		System.err.println("oldTimeTrim baseFolder: "+baseFolder.getPath()+", isDir: "+baseFolder.isDirectory());
+		if(!baseFolder.isDirectory()) return;  
 		
+		CTFile[] baseFolders = baseFolder.listFiles();
+		if(baseFolders==null || baseFolders.length == 0) return;		// catch empty folder case
+		
+		// if no segments, brute force check baseFolder
+		if(!CTinfo.isNumeric(baseFolders[0].getName())) {
+//			System.err.println("oldTimeTrim, no segments, checking all for delete!");
+			deleteOldTimes(baseFolder, thisTrimTime);		
+			return;
+		}
+
+		// else delete-by-segment folder if present
 		for(CTFile bFolder:baseFolders) {		// trim based on two-deep scan (basefolder list of segment times)
 			CTFile[] segmentFolders = bFolder.listFiles();
-			int nseg = segmentFolders.length;
-			for(int i=0; i<nseg; i++) {
-				double sTime;
-				int j = (i<(nseg-1))?i+1:i;		// one-past if more than one
-				CTFile sFolder = segmentFolders[j];
-				sTime = sFolder.fileTime();		
-//				System.err.println("segmentFolder: "+sFolder.getAbsolutePath()+", fileTime: "+sTime+", delta: "+(sTime - thisTrimTime));
-				if(sTime > 0.) {
-					if(sTime<thisTrimTime) 	return deleteOldTimes(segmentFolders[i], thisTrimTime);
-					else 					return false;
-				}
+//			System.err.println("checking segment: "+bFolder+", nfiles: "+segmentFolders.length);
+			if(segmentFolders==null || segmentFolders.length==0) {
+//				System.err.println("delete empty segment: "+bFolder.toPath());
+				deleteOldTimes(bFolder, thisTrimTime);			// this gets hidden files?
+//				Files.delete(bFolder.toPath());
 			}
-		}
-//		System.err.println("oldTimeTrim, notta!");
-		return false;
+			else {
+//				System.err.println("non-empty segment, seg0: "+segmentFolders[0].getPath());
+				if(CTinfo.isNumeric(segmentFolders[0].getName())) {		// drop into segment layer if present
+//					System.err.println("oldTimeTrim, checking segment layer: "+bFolder);
+					trimLayer(segmentFolders, thisTrimTime);
+				}
+				else	deleteOldTimes(bFolder, thisTrimTime);			// no segments, crawl this whole folder of blocks
+			}
+		}	
 	}
 
+	private boolean trimLayer(CTFile[] folders, double trimTime) throws IOException {
+		boolean gotOne = false;
+		int nseg = folders.length;			
+		for(int i=0; i<nseg; i++) {
+			double sTime;
+			CTFile sFolder = folders[i<(nseg-1)?i+1:i];		// check one-past except full-check last in list
+			sTime = sFolder.fileTime();		
+//			System.err.println("trimLayer folder: "+sFolder.getPath()+", fileTime: "+sTime+", delta: "+(sTime - trimTime));
+			if(sTime > 0.) {
+				if(sTime<trimTime) 	{
+					deleteOldTimes(folders[i], trimTime);
+					gotOne = true;
+				}
+				else 				break;
+			}
+		}
+		return gotOne;
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	/**
 	 *  cleanup.  for now, just flush.

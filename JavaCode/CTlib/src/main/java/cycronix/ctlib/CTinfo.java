@@ -290,7 +290,7 @@ public class CTinfo {
 		
   	}
   	
-  	private static boolean isNumeric(String str) {
+  	public static boolean isNumeric(String str) {
 //  		return Character.isDigit(str.charAt(0));		// quick check first char
   	    if (str == null) return false;
   	    int sz = str.length();
