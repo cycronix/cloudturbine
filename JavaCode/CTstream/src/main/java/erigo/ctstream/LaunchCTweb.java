@@ -44,6 +44,8 @@ import java.awt.event.WindowEvent;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 
 /**
@@ -344,7 +346,18 @@ public class LaunchCTweb extends javax.swing.JDialog {
                 // Launch CTweb using reflection
                 // From https://stackoverflow.com/questions/15582476/how-to-call-main-method-of-a-class-using-reflection-in-java
                 try {
-                    final Class<?> ctwebClass = Class.forName("ctweb.CTweb");
+                    // We will assume CTweb.jar is located in the same directory as CTstream.jar
+                    // For some reason we aren't able to locate CTweb.jar even if "CTweb.jar" is included on
+                    // CTstream's Class-Path in the manifest.  I have some notion that the default class
+                    // loader is looking *internally* in CTstream.jar rather than at external files
+                    // outside of this JAR.  Anyway, if this were working, we could just use the following line:
+                    // final Class<?> ctwebClass = Class.forName("ctweb.CTweb");
+                    File ctwebFile = new File("./CTweb.jar");
+                    URL ctwebURL = ctwebFile.toURI().toURL();
+                    URL[] urlList = new URL[1];
+                    urlList[0] = ctwebURL;
+                    URLClassLoader loader = new URLClassLoader(urlList, this.getClass().getClassLoader());
+                    final Class<?> ctwebClass = Class.forName("ctweb.CTweb",true, loader);
                     final Method method = ctwebClass.getMethod("main", String[].class);
                     final Object[] args = new Object[1];
                     args[0] = (String[]) strList;
