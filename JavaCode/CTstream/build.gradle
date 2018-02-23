@@ -26,11 +26,20 @@ jar.doFirst {
         sb.append(it.name + ' ')
     }
     String runtimeDependenciesStr = sb.toString().trim()
-    
+
+    // manifest {
+    //     attributes 'Main-Class': 'erigo.ctstream.CTstream',
+    //                'Class-Path': runtimeDependenciesStr
+    // }
+    // Only thing we really need on the class-path is CTweb.jar;
+    // this is so CTstream can launch the CTweb server.
+    // Need to have CTweb.jar in the same folder where CTstream.jar
+    // is located.
     manifest {
         attributes 'Main-Class': 'erigo.ctstream.CTstream',
-                   'Class-Path': runtimeDependenciesStr
+                   'Class-Path': 'CTweb.jar'
     }
+
 }
 
 repositories {
@@ -38,7 +47,8 @@ repositories {
     	// Location of CTlib.jar
     	dirs "$rootProject.projectDir/CTlib/build/libs"
         // Location of CTweb.jar
-        dirs "$rootProject.projectDir/CTweb/build/libs"
+        // This line is only needed if we are bundling CTweb.jar into this fat CTstream.jar
+        // dirs "$rootProject.projectDir/CTweb/build/libs"
     }
     mavenCentral()
 	maven {
@@ -53,9 +63,10 @@ dependencies {
     compile name: 'CTlib'
 
     // Build CTweb project first, because we use CTweb.jar
-    compile project(':CTweb')
+    // This line is only needed if we are bundling CTweb.jar into this fat CTstream.jar
+    // compile project(':CTweb')
     // Specify that we use CTweb.jar
-    compile name: 'CTweb'
+    // compile name: 'CTweb'
 
     compile group: 'commons-cli', name: 'commons-cli', version: '1.3.1'
 //    compile group: 'com.github.sarxos', name: 'webcam-capture', version: '0.3.11+'
