@@ -46,16 +46,34 @@ public class CTdata {
 
 	private java.nio.ByteOrder border = java.nio.ByteOrder.LITTLE_ENDIAN;	// Intel order (default, most common)
 		
+	/**
+	 * Constructor
+	 */
 	CTdata() {}
 
+	/**
+	 * Constructor
+	 * @param mytime time of this CTdata (seconds)
+	 * @param mydata data for this CTdata
+	 */
 	CTdata(double mytime, byte[] mydata) {		// mytime units = full-seconds
 		this.add(mytime, mydata);				// mydata = full CT file worth each datalist element
 	}
 	
+	/**
+	 * Constructor
+	 * @param mytime time (sec)
+	 * @param mydata data (byte[])
+	 * @param file CTfile ref
+	 */
 	CTdata(double mytime, byte[] mydata, CTFile file) {	
 		this.add(mytime, mydata, file);
 	}
 	
+	/**
+	 * set word swap 
+	 * @param swap true: BIG_ENDIAN, false: LITTLE_ENDIAN (default)
+	 */
 	public void setSwap(boolean swap) {
 		if(swap) 	border = java.nio.ByteOrder.BIG_ENDIAN;			// Java (non-Intel) order
 		else 		border = java.nio.ByteOrder.LITTLE_ENDIAN;		// Intel order (default, most common)
@@ -67,12 +85,23 @@ public class CTdata {
 //		debug = idebug;
 	}
 	
+	/**
+	 * add byte array
+	 * @param mytime (sec)
+	 * @param mydata data array
+	 */
 	// add byte array
 	void add(double mytime, byte[] mydata) {
 		timelist.add(mytime);
 		datalist.add(mydata);
 	}
 	
+	/**
+	 * add byte array with CTFile ref
+	 * @param mytime time (sec)
+	 * @param mydata data array
+	 * @param file CTfile ref
+	 */
 	// add byte array
 	void add(double mytime, byte[] mydata, CTFile file) {
 //		if(mydata==null) return;		// firewall
@@ -93,8 +122,16 @@ public class CTdata {
 		filelist.addAll(tdata.filelist);
 	}
 	
+	/**
+	 * getter for datalist.size
+	 * @return size
+	 */
 	public int size() {	return datalist.size(); }
 	
+	/**
+	 * getter for times
+	 * @return double[] array of times
+	 */
 	public double[] getTime() { 
 		double mytime[] = new double[timelist.size()];
 		for(int i=0; i< mytime.length; i++) mytime[i] = timelist.get(i);
@@ -415,7 +452,10 @@ public class CTdata {
 	
 //-----------------------------------------------------------------------------------------------------------------------------
 // getData as various primitive types
-	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public double[] getDataAsFloat64() {
 		int nword = datalist.size();
 		int count = 0;
@@ -430,6 +470,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public float[] getDataAsFloat32() {
 		int nword = datalist.size();
 		int count = 0;
@@ -444,6 +488,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public long[] getDataAsInt64() {
 		int nword = datalist.size();
 		int count = 0;
@@ -458,6 +506,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public int[] getDataAsInt32() {
 		int nword = datalist.size();
 		int count = 0;
@@ -472,6 +524,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public short[] getDataAsInt16() {
 		int nword = datalist.size();
 		int count = 0;
@@ -487,6 +543,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public double[] getDataAsNumericF64() {
 		int nword = datalist.size();
 		double data[] = new double[nword];		// presume 1 word per arraylist
@@ -496,6 +556,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public float[] getDataAsNumericF32() {
 		int nword = datalist.size();
 		float data[] = new float[nword];		// presume 1 word per arraylist
@@ -505,6 +569,10 @@ public class CTdata {
 		return data;
 	}
 	
+	/**
+	 *  getData as various primitive types
+	 * @return array of data
+	 */
 	public byte[] getDataAsByteArray() {
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
 		try {
@@ -517,7 +585,10 @@ public class CTdata {
 		return outputStream.toByteArray();
 	}
 	
-	// get raw (byte[][]) data
+	/**
+	 *  getData as raw (byte[][]) data
+	 * @return array of data
+	 */
 	public byte[][] getData() {
 		int nword = datalist.size();
 		byte[][] data = new byte[nword][];		// presume 1 element per arraylist
@@ -527,7 +598,11 @@ public class CTdata {
 		return data;
 	}
 	
-	// get any type of numeric data converted to string
+	/**
+	 * get any type of numeric data converted to string
+	 * @param ftype type of data: 's', 'N', 'n', 'I', 'i', 'j', 'f', 'F', 'b', 'B'
+	 * @return array of data
+	 */
 	public String[] getDataAsString(char ftype) {
 		
 		int numData = datalist.size();

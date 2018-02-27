@@ -58,21 +58,36 @@ public class CTreader {
 
 //---------------------------------------------------------------------------------	
  // constructor for CTread.get() method
+	/**
+	 * Constructor.  sets CTreader to look for sources in default rootFolder: "CTdata"
+	 */
 	public CTreader() {
 		// Use the default root folder
 		rootFolder = "CTdata";
 		CTcache = new CTcache(rootFolder);
 	}
 	
+	/**
+	 * Constructor
+	 * @param fname Root folder to read CT sources.  Of form: "CTdata"
+	 */
 	public CTreader(String fname) {
 		rootFolder = new String(fname);
 		CTcache = new CTcache(rootFolder);
 	}
 
+	/**
+	 * set source root folder
+	 * @param fname Root folder to read CT sources.  Of form: "CTdata"
+	 */
 	public void setFolder(String fname) {
 		rootFolder = fname;
 	}
 
+	/**
+	 * get source root folder
+	 * @return rootFolder 
+	 */
 	public String getFolder() {
 		return rootFolder;
 	}
@@ -95,7 +110,8 @@ public class CTreader {
 	
 	/**
 	 * Set encryption password, none if null.
-	 * @param password 
+	 * @param password cryto password
+	 * @throws Exception on error
 	 */
 	public void setPassword(String password) throws Exception {
 		ctcrypto = new CTcrypto(password);
@@ -105,6 +121,7 @@ public class CTreader {
 	 * Set encryption password, none if null.
 	 * @param password			decryption password
 	 * @param optionalDecrypt	if true, return non-encrypted data if decryption fails.  Otherwise fail with exception.
+	 * @throws Exception on error
 	 */
 	public void setPassword(String password, boolean optionalDecrypt) throws Exception {
 		ctcrypto = new CTcrypto(password, optionalDecrypt);
@@ -115,6 +132,16 @@ public class CTreader {
 // note:	this uses multi-channel ctmap internally, but only returns one channel (ctdata)
 //			retain ctmap as a cache?  prefetch from ctmap, fill in balance from files...
 		
+	/**
+	 * Get CT data 
+	 * @param source Source folder to read CT files.  e.g. "mysource"
+	 * @param chan Channel name to get, e.g. "chan1"
+	 * @param tget Time to get (seconds since epoch)
+	 * @param tdur Duration to get (seconds)
+	 * @param tmode Fetch mode, options: "absolute", "oldest", "newest", "after", "prev"
+	 * @return CTdata object containing data
+	 * @throws Exception on error
+	 */
 	public CTdata getData(String source, String chan, double tget, double tdur, String tmode) throws Exception {
 		CTmap ctmap= new CTmap(chan);
 //		String sourceFolder;
@@ -138,7 +165,13 @@ public class CTreader {
 		
 //---------------------------------------------------------------------------------	
 // timeLimits:  get oldest, newest time limits in one-pass from cache
-	
+	/**
+	 * Get oldest, newest time limits in one-pass from cache
+	 * @param sourceFolder source Source folder to read CT files.  e.g. "mysource"
+	 * @param chan Channel name to check, e.g. "chan1"
+	 * @return two-element double[] array with oldest, newest times
+	 * @throws Exception on error
+	 */
 	public double[] timeLimits(String sourceFolder, String chan) throws Exception {
 		double[] tlimits = new double[]{0,0};
 		boolean newWay = true;
@@ -161,18 +194,33 @@ public class CTreader {
 	
 //---------------------------------------------------------------------------------	
 // oldTime:  find oldest time for this source (neglects block-duration)
-	
-	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
+	/**
+	 * Get oldest time for source
+	 * @param sourceFolder path to source (not full path, ie not prepended by rootFolder)
+	 * @return oldest time for this source
+	 */
 	public double oldTime(String sourceFolder) {
 //		System.err.println("oldTime sourceFolder: "+sourceFolder);
 		return oldTime(sourceFolder, (CTmap)null);
 	}
 	
+	/**
+	 * Get oldest time for source and chan
+	 * @param sourceFolder path to source (not full path, ie not prepended by rootFolder)
+	 * @param chan Channel name
+	 * @return oldest time
+	 */
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double oldTime(String sourceFolder, String chan) {
 		return oldTime(sourceFolder, new CTmap(chan));
 	}
 	
+	/**
+	 * Get oldest time for any chan in CTmap
+	 * @param sourceFolder Source
+	 * @param ctmap Channel Map
+	 * @return oldest time
+	 */
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	//       in this method we prepend sourceFolder with rootFolder (if it is defined)
 	public double oldTime(String sourceFolder, CTmap ctmap) {
@@ -250,18 +298,34 @@ public class CTreader {
 //---------------------------------------------------------------------------------	
 // newTime:  find newest time for this source	(neglects block-duration)
 //	CTFile newFile = null;
-	
+	/**
+	 * Get newest time for source
+	 * @param sourceFolder name of source
+	 * @return newest time
+	 */
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double newTime(String sourceFolder) {
 //		System.err.println("newTime: "+sourceFolder);
 		return newTime(sourceFolder, (CTmap)null);
 	}
 	
+	/** 
+	 * Get newest time for source and chan
+	 * @param sourceFolder Source Folder
+	 * @param chan Channel name
+	 * @return newest time
+	 */
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	public double newTime(String sourceFolder, String chan) {
 		return newTime(sourceFolder, new CTmap(chan));
 	}
 	
+	/**
+	 * Get newest time for channels in CTmap
+	 * @param sourceFolder Source folder
+	 * @param ctmap Channel Map
+	 * @return newest time
+	 */
 	// NOTE: sourceFolder is NOT full path (ie, isn't prepended by rootFolder)
 	//       in this method we prepend sourceFolder with rootFolder (if it is defined)
 	public double newTime(String sourceFolder, CTmap ctmap) {
@@ -353,11 +417,21 @@ public class CTreader {
 	
 	//---------------------------------------------------------------------------------	
 	// listChans:  build list of channels all folders under source folder 
-
+	/**
+	 * List channels for source
+	 * @param sfolder source folder
+	 * @return list of channels
+	 */
 	public ArrayList<String> listChans(String sfolder) {
 		return listChans(sfolder, false);		// default to fastSearch=false
 	}
-	
+
+	/**
+	 * List channels for source (fast search by sampling some (not all) branches of CT files)
+	 * @param sfolder Source folder
+	 * @param fastSearch boolean fastsearch T/F
+	 * @return list of channels
+	 */
 	// fastSearch galumps thru chans if lots
 	public ArrayList<String> listChans(String sfolder, boolean fastSearch) {
 //		long startTime = System.nanoTime();
@@ -480,15 +554,25 @@ public class CTreader {
 		return SourceList;
 	}
 */	
+	/**
+	 * Check if rootFolder exists
+	 * @return T/F
+	 */
 	public boolean checkRoot() {
 		return new File(rootFolder).exists();
 	}
 	
-	@Deprecated
-	public ArrayList<String> listSourcesRecursive() throws IOException {
-		return listSources();
-	}
+
+//	@Deprecated
+//	public ArrayList<String> listSourcesRecursive() throws IOException {
+//		return listSources();
+//	}
 	
+	/**
+	 * List sources with recursive search
+	 * @return list of sources
+	 * @throws IOException on error
+	 */
 	public ArrayList<String> listSources() throws IOException {
 		final ArrayList<String> SourceList = new ArrayList<String>();		// for registration
 		final Path rootPath = new CTFile(rootFolder).toPath();
@@ -554,6 +638,8 @@ public class CTreader {
 	 * @param getftime start time of fetch (s)
 	 * @param duration duraton of fetch (s)
 	 * @param rmode fetch-mode ("newest", "absolute", "oldest")
+	 * @return Channel map with data
+	 * @throws Exception on error
 	 */
 	public CTmap getDataMap(CTmap ctmap, String source, double getftime, double duration, String rmode) throws Exception {
 		// arg source is relative path source, sourceFolder is abs path
@@ -716,7 +802,9 @@ public class CTreader {
 
 //	private synchronized CTFile[] flatFileList(CTFile baseFolder, CTmap ictmap, String thisChan, boolean fileRefresh) throws Exception {
 	// beware: this will multi-thread
-	
+	/**
+	 * Clear data caches
+	 */
 	public void clearFileListCache() {
 //		System.err.println("Clear File List Cache! size: "+CTcache.fileListByChan.size());
 //		CTcache.fileListByChan.clear();
@@ -729,11 +817,20 @@ public class CTreader {
 		CTcache.ZipMapCache.clear();			// big
 	}
 	
+	/**
+	 * Clear data caches for given channel key
+	 * @param chanKey channel key string
+	 */
 	public void clearFileListCache(String chanKey) {
 //		CTinfo.debugPrint("CLEAR fileListCache! chan: "+chanKey+", size: "+CTcache.fileListByChan.get(chanKey).length);
 		CTcache.fileListByChan.put(chanKey, null);
 	}
 
+	/**
+	 * Pre-cache:  build file index cache from existing CT files
+	 * @param source Source to cache
+	 * @throws Exception on error
+	 */
 	public void preCache(String source) throws Exception {
 		CTcache.buildIndices(source);		// build in place one-pass index...
 /*
@@ -758,6 +855,10 @@ public class CTreader {
  */
 	}
 	
+	/**
+	 * Build file index cache from all sources
+	 * @throws Exception on error
+	 */
 	public void preCache() throws Exception {
 //		System.err.println("Indexing sources...");
 		ArrayList<String> sources = listSources();

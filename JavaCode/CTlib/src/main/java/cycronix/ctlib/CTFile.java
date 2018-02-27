@@ -83,6 +83,7 @@ class CTFile extends File {
 	// constructors
 	
 	/**
+	 * Constructor
 	 * New CTfile with parent .zip or regular file
 	 * 
 	 * @param path file path to new CTFile
@@ -118,6 +119,11 @@ class CTFile extends File {
 	}
 
 	// alternate zip File 
+	/**
+	 * Constructor for zip file
+	 * @param mypath file path
+	 * @param myzipfile zip file path
+	 */
 	public CTFile(String mypath, String myzipfile) {
 		super(mypath);
 		myPath = new String(mypath);		// note:  here myPath is short zip-entry name (inconsistent)
@@ -167,6 +173,10 @@ class CTFile extends File {
 		return myZipFile;
 	}
 	
+	/**
+	 * get parent file
+	 * @return parent file name
+	 */
 	public String getParent() {
 		if(myZipFile!=null) return myZipFile;
 		else				return super.getParent();
@@ -196,6 +206,7 @@ class CTFile extends File {
 	//---------------------------------------------------------------------------------	
 	/**
 	 * Get filename as either native file or zip entry name
+	 * @return file name
 	 */
 	public String getName() {
 		switch(fileType) {
@@ -232,6 +243,7 @@ class CTFile extends File {
 
 	/**
 	 * list files in this folder.  list zip-entries if zip file
+	 * @return list of files
 	 */
 	public CTFile[] listFiles() {
 		CTFile[] clist = null;
@@ -356,6 +368,10 @@ class CTFile extends File {
 		return prunedlist;
 	}
 	
+	/**
+	 * test if directory (folder)
+	 * @return T/F
+	 */
 	public boolean isDirectory() {
 		switch(fileType) {
 		case ZIP:		return true;
@@ -365,12 +381,6 @@ class CTFile extends File {
 		case TFILE: 	return false;
 		default:		return super.isDirectory();
 		}
-/*
-		if(isZip) 			return(true);
-		else if(isEntry) 	return(true);
-		else if(isFile)		return(false);
-		else	  			return super.isDirectory();
-*/
 	}
 
 	/**
@@ -387,34 +397,17 @@ class CTFile extends File {
 		default:	
 			if(super.isDirectory()) {
 				File[] files = super.listFiles();
-//				if(files!=null && files.length>0 && files[0].isFile()) return true;
-				// check last (vs first) file to avoid .DS_Store or other hidden files messing up test (MJM 7/12/16)
-//				String checkname = files[files.length-1].getName();
-//				System.err.println("isFileFolder, files.length: "+files.length+", checkname: "+checkname+", isTimeFile: "+isTimeFile(checkname) );
-//				if(files!=null && files.length>0 && !isTimeFile(checkname)) return true;
-//				else							  return false;		// needs testing
-				
 				// more robust:  if any time files in folder, this is NOT a file folder
 				if(files==null) return false;
 				for(int i=0; i<files.length; i++) if(isTimeFile(files[i].getName())) return false;
 				return true;
 			} else return false;
 		}
-/*		
-		if(isZip) 			return false;
-		else if(isEntry) 	return true;
-		else if(isFile)		return false;
-		else{
-			if(super.isDirectory()) {
-				if(super.listFiles()[0].isFile()) return true;
-				else							  return false;		// needs testing
-			} else return false;
-		}
-*/
 	}
 	
 	/**
 	 * test if this CTFile is a "file" (non-folder)
+	 * @return T/F
 	 */
 	public boolean isFile() {
 		return !isDirectory();
@@ -422,6 +415,7 @@ class CTFile extends File {
 
 	/**
 	 * size of file or zip-entry
+	 * @return size
 	 */
 	public long length() {
 		long len=0;
@@ -456,6 +450,7 @@ class CTFile extends File {
 	/**
 	 * CTfile reader.  uses parent File read if native file, else reads data from within zip-entry
 	 * @return byte[] data read
+	 * @throws Exception on error
 	 */
 
 	byte[] read() throws Exception {
@@ -883,7 +878,11 @@ class CTFile extends File {
   	
 	//--------------------------------------------------------------------------------------------------------
 	// containsFile:  see if folder contains a file (channel) in ctmap
-
+  	/**
+  	 * test if CTmap contains file (channel)
+  	 * @param cm CTmap
+  	 * @return T/F
+  	 */
 	public boolean containsFile(CTmap cm) {
 		if(!this.isDirectory()) return false;
 		

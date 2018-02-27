@@ -43,6 +43,9 @@ public class CTinfo {
 
 	private static boolean debug = false;
 	
+	/**
+	 * Constructor
+	 */
 	private CTinfo() {};		// constructor
 	
 	//--------------------------------------------------------------------------------------------------------
@@ -151,17 +154,32 @@ public class CTinfo {
 		}
 	}
 	
+	/**
+	 * get wordsize of filetype
+	 * @param fname file name
+	 * @return word size (bytes)
+	 */
 	public static int wordSize(String fname) {
 		return wordSize(fileType(fname)); 
 	}
 	
-	// return data use under source folder.  
+	/**
+	 * get data use under source folder. 
+	 * @param folder folder name
+	 * @return bytes used
+	 */
 	public static long dataUsage(String folder) {
 		return diskUsage(folder, 1);
 	}
 	
-	// return (estimated) disk use under source folder.  Requires disk blocksize (not available via Java directly)
+
 	public static long diskSize=0;		// for fast retrieval after diskUsage call (cluge, need sourceStats class or equiv)
+	/**
+	 * get (estimated) disk use under source folder.  Requires disk blocksize (not available via Java directly)
+	 * @param folder folder name
+	 * @param bSize disk block size (must be provided, Java cannot determine local filesystem block size)
+	 * @return disk usage bytes
+	 */
 	public static long diskUsage(String folder, int bSize) {
 		Path path = Paths.get(folder);
 		diskSize=0;
@@ -290,6 +308,11 @@ public class CTinfo {
 		
   	}
   	
+  	/**
+  	 * test if file name is "numeric", i.e. valid CT time folder
+  	 * @param str file name string to test
+  	 * @return T/F
+  	 */
   	public static boolean isNumeric(String str) {
 //  		return Character.isDigit(str.charAt(0));		// quick check first char
   	    if (str == null) return false;

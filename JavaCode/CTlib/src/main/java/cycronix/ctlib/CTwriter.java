@@ -97,7 +97,7 @@ public class CTwriter {
 	/**
 	 * Constructor
 	 * @param dstFolder Destination folder to write CT files.  Of form: "rootFolder/sourceFolder"
-	 * @throws IOException
+	 * @throws IOException on error
 	 */
 	public CTwriter(String dstFolder) throws IOException {
 		destPath = dstFolder;		// only set name, no mkDirs in constructor?  MJM 1/11/16
@@ -108,7 +108,7 @@ public class CTwriter {
 	 * Constructor
 	 * @param dstFolder Destination folder to write CT files.  Of form: "rootFolder/sourceFolder"
 	 * @param itrimTime	Ring-buffer data by automatically trimming files older than this (sec relative to newest)
-	 * @throws IOException
+	 * @throws IOException on error
 	 */
 	public CTwriter(String dstFolder, double itrimTime) throws IOException {
 		destPath = dstFolder;		// only set name, no mkDirs in constructor?  MJM 1/11/16
@@ -133,7 +133,7 @@ public class CTwriter {
 	 * Set high-resolution timestamps (usec)
 	 * <p>Beware, this will be replaced by more flexible sec/msec/usec/nsec time resolution method
 	 * 
-	 * @param hiResTime 
+	 * @param hiResTime use microseconds vs milliseconds for file timestamps
 	 */
 	@Deprecated
 	public void setHiResTime(boolean hiResTime) {
@@ -146,7 +146,8 @@ public class CTwriter {
 	
 	/**
 	 * Set encryption password, none if null.
-	 * @param password 
+	 * @param password password string for encryption
+	 * @throws Exception on error
 	 */
 	public void setPassword(String password) throws Exception {
 		ctcrypto = new CTcrypto(password);
@@ -181,6 +182,7 @@ public class CTwriter {
 	/**
 	 * Automatically flush data blocks.  See {@link #autoFlush(long,boolean)}.
 	 * @param timePerBlock interval (msec) at which to flush data to new zip file
+	 * @param asyncFlag run sync (F) or async (T)
 	 */
 	public void autoFlush(double timePerBlock, boolean asyncFlag) {
 		autoFlush((long)(timePerBlock*timeFactor), asyncFlag);
@@ -239,6 +241,19 @@ public class CTwriter {
 	public void setBlockMode(boolean pflag) {
 		setBlockMode(pflag, true);
 	}
+	
+	/**
+	 * Set packed/zipped block mode options.
+	 * <p>  
+	 * A "block" is comprised of all putData (per channel) up to each <code>flush()</code>. 
+	 * The point times in a block are linearly interpolated start-to-end over block.
+	 * <p>
+	 * The start time of a block is the <code>setTime()</code> at the first <code>putData()</code>.
+	 * The end time of a block is the <code>setTime()</code> at the <code>flush()</code>.
+	 * <p>
+	 * @param pflag true/false set pack mode (default: false)
+	 * @param zflag true/false set zipmode mode (default: false)
+	 */
 	public void setBlockMode(boolean pflag, boolean zflag) {
 		packFlag = pflag;
 		zipFlag = zflag;
@@ -356,7 +371,8 @@ public class CTwriter {
     */
 	/**
 	 * Write collected entries to block (compacted) file
-	 * @throws IOException
+	 * @throws IOException on error
+	 * @param gapless true/false automatically set next-block time to end of current block (default: false)
 	 */
 	
 	public void flush(boolean gapless) throws IOException {
@@ -385,6 +401,10 @@ public class CTwriter {
 	}
 */
 	static double prevSegmentTime = 0.;				// used to decide if dotrim worth calling
+	/**
+	 * Write collected entries to block (compacted) file
+	 * @throws IOException on error
+	 */
 	public synchronized void flush() throws IOException {
 		try {	
 			// if data has been queued in blocks, write it out once per channel before normal flush
@@ -443,7 +463,7 @@ public class CTwriter {
     */
 	/**
 	 * Special case:  pack baseTime/0/0.zip to baseTime.zip for single-block data
-	 * @throws IOException
+	 * @throws IOException on error
 	 */	
 	public void packFlush() throws IOException {
 		if(!zipFlag /* || !packMode */) throw new IOException("packFlush only works for block/zip files");
@@ -452,8 +472,13 @@ public class CTwriter {
 	}
 	
 	//------------------------------------------------------------------------------------------------
-
-	// separate writeToStream from flush():  allows CTftp to over-ride this method for non-file writes
+	/**
+	 * separate writeToStream from flush():  allows CTftp/CThttp to over-ride this method for non-file writes
+	 * @throws IOException on error
+	 * @param fname Name of file to write
+	 * @param bdata byte-array of raw data to write
+	 */
+	// 
 	protected void writeToStream(String fname, byte[] bdata) throws IOException {
 		try {
 			new File(fname).getParentFile().mkdirs();  // mkdir before every file write
@@ -482,6 +507,7 @@ public class CTwriter {
 	/** Core underlying data-writer (all other puts go thru this)
 	 * @param outName Parameter Name
 	 * @param bdata Byte array of data 
+	 * @throws Exception on error
 	 */
 	public synchronized void putData(String outName, byte[] bdata) throws Exception {
 		// TO DO?:  deprecate following, use addData vs putData/packMode?
@@ -517,6 +543,7 @@ public class CTwriter {
 	/** Map form of putData.  Does synchronized putData of all map entries; good for ensuring 
 	 * no async autoFlush splits channel group between zip files.
 	 * @param cmap Map of name,value pairs.  Value class determined via instanceof operator.
+	 * @throws Exception on error
 	 */
 	
 	public synchronized void putData(Map<String,Object>cmap) throws Exception {
@@ -671,7 +698,7 @@ public class CTwriter {
 	 * putData as String
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, String data) throws Exception {
 		if(packFlag)	addData(outName, data);						
@@ -688,7 +715,7 @@ public class CTwriter {
 	 * putData as double
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, double data) throws Exception {	
 		if(outName.endsWith(".f64")) {			// enforce binary mode
@@ -711,7 +738,7 @@ public class CTwriter {
 	 * putData as float
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, float data) throws Exception {
 		if(outName.endsWith(".f32")) {			// enforce binary mode
@@ -734,7 +761,7 @@ public class CTwriter {
 	 * putData as long
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, long data) throws Exception {
 		if(outName.endsWith(".i64")) {			// enforce binary mode
@@ -754,7 +781,7 @@ public class CTwriter {
 	 * putData as int
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, int data) throws Exception {
 		if(outName.endsWith(".i32")) {			// enforce binary mode
@@ -773,7 +800,7 @@ public class CTwriter {
 	 * putData as short
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, short data) throws Exception {
 		if(outName.endsWith(".i16")) {			// enforce binary mode
@@ -792,7 +819,7 @@ public class CTwriter {
 	 * putData as char
 	 * @param outName parameter name
 	 * @param data parameter data
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, char data) throws Exception {
 		if(packFlag)	addData(outName, data);			// packed characters
@@ -813,7 +840,7 @@ public class CTwriter {
 	 * put disk file to CT (zip) file
 	 * @param outName parameter name
 	 * @param file File whose contents are to be written
-	 * @throws Exception
+	 * @throws Exception on error
 	 */
 	public void putData(String outName, File file) throws Exception {
 		byte[] bdata = new byte[(int) file.length()];
@@ -845,11 +872,20 @@ public class CTwriter {
 	/**
 	 * Trim (delete) files older than spec.  Note this will be done automatically if trimTime provided in constructor.
 	 * @param oldTime time point at which to delete older files
+	 * @throws IOException on error
+	 * @return T/F
 	 */
 	public boolean dotrim(double oldTime) throws IOException {
 		return dotrim(oldTime, false);
 	}
 	
+	/**
+	 * Trim (delete) files older than spec.  Note this will be done automatically if trimTime provided in constructor.
+	 * @param oldTime time point at which to delete older files
+	 * @param fullcheck brute-force walk file tree checking all files (slow)
+	 * @return T/F
+	 * @throws IOException on error
+	 */
 	public boolean dotrim(double oldTime, boolean fullcheck) throws IOException {
 		// validity checks (beware unwanted deletes!)
 		if(destPath == null || destPath.length() < 1) {		// was <6 ?
@@ -869,6 +905,7 @@ public class CTwriter {
 		return true;					// not meaningful return
 	}
 	
+	//  trim with brute-force walk file tree checking all files
 	private boolean deleteOldTimes(File basefolder, double trimTime) throws IOException {
 		final double oldTime = trimTime;
 

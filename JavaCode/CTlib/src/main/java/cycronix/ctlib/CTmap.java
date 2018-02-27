@@ -41,23 +41,43 @@ public class CTmap extends TreeMap<String,CTdata>{
 //	private Map<String, CTdata> ctMap = new TreeMap<String, CTdata>();
 	private boolean hasData=false;
 	
+	/**
+	 * Constructor
+	 */
 	public CTmap() {
 		super();
 	}
 	
+	/**
+	 * Constructor 
+	 * @param name initial name 
+	 */
 	CTmap(String name) {
 		this.add(name,  null);
 		hasData = false;
 	}
 	
+	/**
+	 * test if CTmap has data in it
+	 * @return T/F
+	 */
 	boolean hasData() {
 		return hasData;
 	}
 	
+	/**
+	 * add named channel without data
+	 * @param cname chan name
+	 */
 	public void add(String cname) {
 		add(cname, null);		// list-of-channels without data (for ref)
 	}
 	
+	/**
+	 * add channel with data to map
+	 * @param cname channel name
+	 * @param timedata time/data 
+	 */
 	public void add(String cname, CTdata timedata) {
 		if(timedata != null) hasData=true;				// book-keep
 		CTdata tdata = this.get(cname);
@@ -68,11 +88,26 @@ public class CTmap extends TreeMap<String,CTdata>{
 		else	this.put(cname,  timedata);
 	}
 	
+	/**
+	 * get CTdata for channel at time
+	 * @param cname channel name
+	 * @param tstart start time (sec)
+	 * @param tdur interval duration (sec)
+	 * @return CTdata with results
+	 */
 	public CTdata get(String cname, double tstart, double tdur) {		// time units = seconds
 //		System.err.println("CTmap.get: "+cname+", ctMap.get: "+this.get(cname));
 		return this.get(cname, tstart, tdur, "absolute");
 	}
 	
+	/**
+	 * get CTdata for channel at time and reference mode
+	 * @param cname channel name
+	 * @param tstart start time (sec)
+	 * @param tdur interval (sec)
+	 * @param tmode time reference ("absolute", "oldest", "newest")
+	 * @return CTdata with results
+	 */
 	public CTdata get(String cname, double tstart, double tdur, String tmode) {		// time units = seconds
 //		System.err.println("CTmap.get: "+cname+", ctMap.get: "+this.get(cname));
 		CTdata tdata = this.get(cname);
@@ -98,14 +133,28 @@ public class CTmap extends TreeMap<String,CTdata>{
 		return this.get(cname, tstart, tdur, tmode);
 	} 
 	
+	/**
+	 * get name at index
+	 * @param index integer
+	 * @return channel name
+	 */
 	public String getName(int index) {
 		return (String) this.keySet().toArray()[index];
 	}
 	
+	/**
+	 * check if name present
+	 * @param cname channel name
+	 * @return T/F
+	 */
 	public boolean checkName(String cname) {
 		return this.containsKey(cname);
 	}
 
+	/**
+	 * size of data
+	 * @return size
+	 */
 	public long datasize() {
 		long n=0;
 		for (Map.Entry<String, CTdata> entry : this.entrySet()) {

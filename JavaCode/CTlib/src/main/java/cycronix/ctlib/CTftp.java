@@ -47,22 +47,46 @@ public class CTftp extends CTwriter {
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
-
+	/**
+	 * Constructor
+	 * @param dstFolder destination folder on remote host
+	 * @throws IOException on error
+	 */
 	public CTftp(String dstFolder) throws IOException {
 		super(dstFolder);
 	}
 	
+	/**
+	 * Constructor
+	 * @param dstFolder destination folder on remote host
+	 * @param itrimTime trim-time for data writes
+	 * @throws IOException on error
+	 */
 	public CTftp(String dstFolder, double itrimTime) throws IOException {
 		super(dstFolder);
 		throw new IOException("CTftp does not yet support file trim");
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	
+	/**
+	 * FTP login by providing username and password
+	 * @param host host name
+	 * @param user user name
+	 * @param pw password
+	 * @throws Exception on error
+	 */
 	public void login(String host, String user, String pw) throws Exception {
 		login(host, user, pw, false);
 	}
 	
+	/**
+	 * FTP login with secure (FTPS) connection
+	 * @param host host name
+	 * @param user user name
+	 * @param pw password
+	 * @param secure T/F
+	 * @throws Exception on error
+	 */
 	public void login(String host, String user, String pw, boolean secure) throws Exception {
 		if(secure) 	client = new FTPSClient(true);
 		else		client = new FTPClient();
@@ -78,6 +102,9 @@ public class CTftp extends CTwriter {
 		CTinfo.debugPrint("FTP login, u: "+user+", pw: "+pw+", loginDir: "+loginDir);
 	}
 
+	/**
+	 * logout of FTP connection
+	 */
 	public void logout() {
 		try { 
 			client.logout(); 

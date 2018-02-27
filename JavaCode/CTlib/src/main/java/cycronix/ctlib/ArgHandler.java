@@ -72,6 +72,11 @@ public ArgHandler() {
   * construct from space-delimited string by converting to string array,
   * then parsing
   */
+/**
+ * construct from space-delimited string by converting to string array, then parsing
+ * @param arg argument 
+ * @throws Exception on error
+ */
 public ArgHandler(String arg) throws Exception {
   Vector v=new Vector();
   int last=-1;
@@ -86,9 +91,12 @@ public ArgHandler(String arg) throws Exception {
   parseArgs(args);
 } //end String constructor
 
+
 /**
-  * construct from string array by parsing
-  */
+ * construct from string array by parsing
+ * @param args arguments
+ * @throws Exception on error
+ */
 public ArgHandler(String[] args) throws Exception {
   parseArgs(args);
 } //end String[] constructor
@@ -115,7 +123,11 @@ private void parseArgs(String[] args) throws Exception {
 
 //methods to add fiags and fields
 
-//add flag with no option
+/**
+ * add flag with no option
+ * @param flag Flag to add
+ * @return T/F replace old flag
+ */
 public boolean addFlag(char flag) {
   Character cflag=new Character(flag);
   String option=new String("");
@@ -127,7 +139,12 @@ public boolean addFlag(char flag) {
   return true;
 }
 
-//add flag with option
+/**
+ * add flag with option
+ * @param flag Flag to add
+ * @param option flagged option
+ * @return T/F replace old flag
+ */
 public boolean addFlag(char flag, String option) {
   Character cflag=new Character(flag);
   Object oldOption=hash.put(cflag,option);
@@ -138,7 +155,10 @@ public boolean addFlag(char flag, String option) {
   return true;
 }
 
-//clear flag
+/**
+ * clear flag
+ * @param flag Flag to clear
+ */
 public void clearFlag(char flag) {
   Character cflag=new Character(flag);
   hash.remove(cflag);
@@ -146,7 +166,10 @@ public void clearFlag(char flag) {
 
 //methods to return complete argument lists
 
-//return argument list as space-delimited string
+/**
+ * return argument list as space-delimited string
+ * @return string with arg list
+ */
 public String getArgString() {
   StringBuffer sb=new StringBuffer();
   Enumeration flags=hash.keys();
@@ -161,7 +184,10 @@ public String getArgString() {
   return sb.toString();
 } //end method getArgString
 
-//return argument list as string array.  Options are separated from flags.
+/**
+ * return argument list as string array.  Options are separated from flags.
+ * @return string array of args 
+ */
 public String[] getArgArray() {
   Vector v=new Vector();
   Enumeration flags=hash.keys();
@@ -180,6 +206,11 @@ public String[] getArgArray() {
 
 //methods to test for flags and get their options
 
+/**
+ * test for flags and get their options
+ * @param flag Flag to test
+ * @return T/F
+ */
 //tests for flag
 public boolean checkFlag(char flag) {
   Character cflag=new Character(flag);
@@ -192,8 +223,10 @@ public boolean checkFlag(char flag) {
 } //end method getFlag
 
 /**
-  * returns option for specified flag, or null if no option set
-  */
+ * returns option for specified flag, or null if no option set
+ * @param flag Flag to check
+ * @return T/F
+ */
 public String getOption(char flag) {
   Character cflag=new Character(flag);
   String value=(String)hash.get(cflag);
@@ -208,6 +241,12 @@ public String getOption(char flag) {
   * Returns option for specified flag, or <code>defaultOption</code>
   *  if no option set.
   */
+/**
+ * Returns option for specified flag, or <code>defaultOption</code> if no option set.
+ * @param flag specified flag
+ * @param defaultOption default
+ * @return option string
+ */
 public String getOption(char flag, String defaultOption) {
   Character cflag=new Character(flag);
   String value=(String)hash.get(cflag);

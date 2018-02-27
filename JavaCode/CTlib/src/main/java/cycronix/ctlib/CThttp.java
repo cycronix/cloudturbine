@@ -56,12 +56,22 @@ public class CThttp extends CTwriter {
 	
 	//------------------------------------------------------------------------------------------------
 	// constructor
-
+	/**
+	 * Constructor
+	 * @param source source name
+	 * @throws IOException on error
+	 */
 	public CThttp(String source) throws IOException {
 		super(source);
 		enableSelfSigned();
 	}
 	
+	/**
+	 * Constructor
+	 * @param source source name
+	 * @param ihost host name
+	 * @throws IOException on error
+	 */
 	public CThttp(String source, String ihost) throws IOException {
 		super(source);
 		if(ihost!=null) CTwebhost = ihost;
@@ -83,6 +93,12 @@ public class CThttp extends CTwriter {
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	/**
+	 * login by providing user name, password
+	 * @param user user name
+	 * @param pw password
+	 * @throws Exception on error
+	 */
 	public void login(String user, String pw) throws Exception {
 		userpass = new String(Base64.encodeBase64((user + ":" + pw).getBytes()));
 //		userpass = DatatypeConverter.printBase64Binary((user + ":" + pw).getBytes("UTF-8"));
