@@ -863,7 +863,7 @@ public class CTweb {
     		if(maxCTwriters == 0) {
     			if(keepTime > 0.) maxCTwriters = 100;		// keepTime enables writers
     			else {
-    				System.err.println("CTweb PUT not allowed!");
+    				System.err.println("CTweb PUT not allowed: "+request);
     				return;
     			}
     		}
