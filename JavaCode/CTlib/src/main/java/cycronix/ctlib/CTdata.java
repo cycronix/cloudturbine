@@ -420,9 +420,7 @@ public class CTdata {
 				
 				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count+", end: "+end+", nframe: "+nframe);
 //				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
-//				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
-				for(int j=0; j<count; j++) {		
-
+				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
 					if(duration==0 && j==(count-1)) {
 						System.err.println("adjust time to end: "+end);
 						time = end;		// tweek for +=dt round off error
@@ -449,8 +447,8 @@ public class CTdata {
 					}
 					
 					if(time >= end) break;		// double-check t>end
-					if(j<count) time=refTime+j*dt;	// only inc time if in-loop (prevtime check depends on its accuracy)
 				}
+				time = refTime + (count-1)*dt;		// adjust time to proper end of count-loop, prevTime check depends on it
 				oldZipFile = thisZipFile;	
 			}
 
