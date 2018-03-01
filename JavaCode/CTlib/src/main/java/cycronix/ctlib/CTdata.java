@@ -17,7 +17,9 @@
  * under the License.
  *******************************************************************************/
 
-package cycronix.ctlib;//---------------------------------------------------------------------------------	
+package cycronix.ctlib;
+
+//---------------------------------------------------------------------------------	
 
 import java.io.ByteArrayOutputStream;
 
@@ -303,7 +305,10 @@ public class CTdata {
 		for(int i=0; i<nframe; i++) {					// multiple frames per arraylist element
 			double time = timelist.get(i);
 
-			if(time == prevtime) continue;				// skip dupes		
+			if(time == prevtime) {
+				CTinfo.debugPrint("skipping dupe time: "+time);
+				continue;				// skip dupes		
+			}
 			
 			int count = 0;
 			try{ count = datalist.get(i).length/wordSize; } catch (Exception e) {};		// for timeonly, data could be nullptr
@@ -415,10 +420,13 @@ public class CTdata {
 				
 				CTinfo.debugPrint("CTdata frame: "+i+", t1: "+time+", t2: "+(time+count*dt)+", count: "+count+", end: "+end+", nframe: "+nframe);
 //				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
-				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
+//				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
+				for(int j=0; j<count; j++) {		
 
-					if(duration==0 && j==(count-1)) time = end;		// tweek for +=dt round off error
-
+					if(duration==0 && j==(count-1)) {
+						System.err.println("adjust time to end: "+end);
+						time = end;		// tweek for +=dt round off error
+					}
 					if(time < start) continue;
 					else if(time <= end) {
 						int idx = j + waveHeader/wordSize;
@@ -441,9 +449,11 @@ public class CTdata {
 					}
 					
 					if(time >= end) break;		// double-check t>end
+					if(j<count) time=refTime+j*dt;	// only inc time if in-loop (prevtime check depends on its accuracy)
 				}
-				oldZipFile = thisZipFile;		
+				oldZipFile = thisZipFile;	
 			}
+
 			if(time >= end) break;		// double-check t>end (was t>end)
 			prevtime = time; 
 		}
