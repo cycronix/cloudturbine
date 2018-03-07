@@ -200,13 +200,14 @@ public class CTdata {
 			}
 			
 			// not sure all the next/prev/oldest/newest logic is in here...
-//			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count+", duration: "+duration);
+			CTinfo.debugPrint("time("+i+"): "+time+", data: "+dds+", dt: "+dt+", count: "+count+", duration: "+duration);
 
 			if(i==0) { Tprev = time; Dprev=ddp[0]; }	// initialize
 			for(int j=0; j<count; j++) {
 				double t = time+j*dt;
 //				System.err.println("t["+j+"]: "+t+", tstart: "+start+", tend: "+tend);
-				if((t>tend && duration==0)) {		// single-point case
+//				if((t>tend && duration==0)) {		// single-point case
+				if(duration==0 && ( (t>=tend || j==(count-1)) )) {		// single-point case (catch at-or-after)
 					ctd.add(Tprev, Dprev.getBytes());
 //					System.err.println("d=0 grab t: "+t+", ptime: "+Tprev+", d: "+Dprev+", j: "+j+", count: "+count);
 				}
