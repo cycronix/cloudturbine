@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,31 +17,31 @@ limitations under the License.
 package erigo.ctstream;
 
 import javax.swing.text.Document;
-import java.awt.*;
+import java.awt.Dimension;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A DataStream for generating text.
  *
  * @author John P. Wilson
- * @version 2017-05-11
+ * @version 2018-03-07
  */
 
 public class TextStream extends DataStream {
 
-    private String lastMsg = "";  // The last message sent to the queue
+    private String lastMsg = "";        // The last message sent to the queue
 
     /**
      * TextStream constructor
      *
-     * @param ctsI          CTstream object
-     * @param channelNameI  Channel name
+     * @param specI   Stores specifications for running this DataStream
      */
     // constructor
-    public TextStream(CTstream ctsI, String channelNameI) {
+    public TextStream(DataStreamSpec specI) {
         super(PreviewWindow.PreviewType.TEXT);
-        channelName = channelNameI;
-        cts = ctsI;
+        spec = specI;
+        channelName = spec.channelName;
+        cts = spec.cts;
         bCanPreview = true;
     }
 
@@ -87,7 +87,7 @@ public class TextStream extends DataStream {
      */
     public void updatePreview() {
         super.updatePreview();
-        if (bPreview && bIsRunning && cts.bPreview) {
+        if (bPreview && bIsRunning && spec.bPreview) {
             // set the size of the window
             Dimension previewSize = new Dimension(400,200);
             previewWindow.setFrameSize(previewSize);

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import org.openimaj.image.ImageUtilities;
  * http://www.codejava.net/java-se/graphics/how-to-capture-screenshot-programmatically-in-java
  *
  * @author John P. Wilson
- * @version 05/03/2017
+ * @version 03/07/2018
  *
  */
 
@@ -47,6 +47,7 @@ public class ImageTask extends TimerTask implements Runnable {
 	
 	private CTstream cts = null;
 	private DataStream dataStream = null;
+	ImageStreamSpec spec = null;
 	private JPEGImageWriteParam jpegParams = null; // to specify image quality
 
 	// (MJM) static variables used to implement the "change detect" feature
@@ -55,13 +56,14 @@ public class ImageTask extends TimerTask implements Runnable {
 	static long skipChangeDetectDelay = 1000; // don't drop images for longer than this delay
 	
 	// Constructor
-	public ImageTask(CTstream ctsI, DataStream dataStreamI) {
+	public ImageTask(CTstream ctsI, DataStream dataStreamI, ImageStreamSpec specI) {
 		cts = ctsI;
 		dataStream = dataStreamI;
+		spec = specI;
 		// Setup image quality
 		jpegParams = new JPEGImageWriteParam(null);
 		jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-		jpegParams.setCompressionQuality(cts.imageQuality);
+		jpegParams.setCompressionQuality(spec.imageQuality);
 	}
 
 	//
@@ -96,7 +98,7 @@ public class ImageTask extends TimerTask implements Runnable {
 				Rectangle captureRect = ((ScreencapStream)dataStream).regionToCapture;
 				Robot robot = new Robot();
 				bufferedImage = robot.createScreenCapture(captureRect);
-				if (cts.bIncludeMouseCursor) {
+				if (((ScreencapStreamSpec)spec).bIncludeMouseCursor) {
 					// Need to add the mouse cursor to the image
 					int mouse_x = MouseInfo.getPointerInfo().getLocation().x;
 					int mouse_y = MouseInfo.getPointerInfo().getLocation().y;
@@ -108,21 +110,18 @@ public class ImageTask extends TimerTask implements Runnable {
 			}
 
 			// Implement "change detect" logic where we only save images that have changed
-			// Check for changes if all of the following are true
-			// 1. User has indicated they want to use "Change detect"
-			// 2. CTstream isn't forcing us to save the image, ie bForceImageCapture is false
-			// 3. We are within skipChangeDetectDelay milliseconds of the last image being saved
-			if(cts.bChangeDetect && !cts.bForceImageCapture && startTime < (oldImageTime+skipChangeDetectDelay)) {
+			// Check for changes if:
+			// - User has indicated they want to use "Change detect"
+			// - We are within skipChangeDetectDelay milliseconds of the last image being saved
+			if(spec.bChangeDetect && startTime < (oldImageTime+skipChangeDetectDelay)) {
 				// check to see if the image has changed
 				if (imageSame(bufferedImage, oldImage)) {
 					// no change, just return
 					return;
 				}
 			}
-			// if (cts.bForceImageCapture) System.err.println("\nforcing image on change UI");
 			oldImage = bufferedImage;
 			oldImageTime = startTime;
-			cts.bForceImageCapture = false; // make sure CTstream's "force save" flag is reset
 
 			//
 			// Convert image to byte array and save it in the DataStream's queue
@@ -167,7 +166,7 @@ public class ImageTask extends TimerTask implements Runnable {
 			// Display preview image
 			//
 			if (dataStream.bPreview && (dataStream.previewWindow != null) ) {
-				if ( (dataStream instanceof ScreencapStream) && cts.bFullScreen ) {
+				if ( (dataStream instanceof ScreencapStream) && ((ScreencapStreamSpec)spec).bFullScreen ) {
 					// In full screen mode, we will pop down the preview window
 					dataStream.updatePreview();
 				} else {

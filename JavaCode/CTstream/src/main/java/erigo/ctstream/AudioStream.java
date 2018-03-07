@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Cycronix
+Copyright 2017-2018 Cycronix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,14 +46,14 @@ public class AudioStream extends DataStream implements Runnable {
 	/**
 	 * AudioStream constructor
 	 *
-	 * @param ctsI          CTstream object
-	 * @param channelNameI  Channel name
+	 * @param specI   Stores specifications for running this DataStream
 	 */
 	// constructor
-	public AudioStream(CTstream ctsI, String channelNameI) {
+	public AudioStream(DataStreamSpec specI) {
 		super(PreviewWindow.PreviewType.PLOT);
-		channelName = channelNameI;
-		cts = ctsI;
+		spec = specI;
+		channelName = spec.channelName;
+		cts = spec.cts;
 		bCanPreview = true;
 		bManualFlush = true;
 	}

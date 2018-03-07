@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,13 +23,16 @@ import java.util.concurrent.BlockingQueue;
  * Abstract class to act as the parent of all data stream classes which send data to CloudTurbine.
  *
  * @author John Wilson
- * @version 05/01/2017
+ * @version 03/07/2018
  */
 
 public abstract class DataStream {
 
     // ID to uniquely identify this DataStream
     public int id = -1;
+
+    // Specifications for running the data stream
+    public DataStreamSpec spec = null;
 
     public String channelName = "";
 
@@ -101,11 +104,11 @@ public abstract class DataStream {
      * Manage popping up or down the preview window
      */
     public void updatePreview() {
-        if (bIsRunning && cts.bPreview && bCanPreview && !bPreview) {
+        if (bIsRunning && spec.bPreview && bCanPreview && !bPreview) {
             // open preview window
             previewWindow = new PreviewWindow(channelName + " preview", new Dimension(400,400), previewType);
             bPreview = true;
-        } else if (!cts.bPreview || !bIsRunning) {
+        } else if (!spec.bPreview || !bIsRunning) {
             bPreview = false;
             if (previewWindow != null) {
                 previewWindow.close();
