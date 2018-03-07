@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import erigo.ctstream.CTstream.CTWriteMode;
  * These settings are mainly for CTwriter or overall program settings.
  *
  * @author John P. Wilson
- * @version 02/19/2018
+ * @version 03/07/2018
  *
  */
 
@@ -427,10 +427,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		// Squirrel away copies of the current data
 		orig_sourceName = ctStream.sourceName;
-		orig_screencapChannelName = ctStream.screencapStreamName;
-		orig_webcamChannelName = ctStream.webcamStreamName;
-		orig_audioChannelName = ctStream.audioStreamName;
-		orig_textChannelName = ctStream.textStreamName;
+		orig_screencapChannelName = ctStream.getScreencapStreamName();
+		orig_webcamChannelName = ctStream.getWebcamStreamName();
+		orig_audioChannelName = ctStream.getAudioStreamName();
+		orig_textChannelName = ctStream.getTextStreamName();
 		orig_bEncrypt = ctStream.bEncrypt;
 		orig_encryptionPassword = ctStream.encryptionPassword;
 		orig_writeMode = ctStream.writeMode;
@@ -446,10 +446,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		// Initialize data in the dialog
 		sourceNameTF.setText(ctStream.sourceName);
-		screencapChannelNameTF.setText(ctStream.screencapStreamName);
-		webcamChannelNameTF.setText(ctStream.webcamStreamName);
-		audioChannelNameTF.setText(ctStream.audioStreamName);
-		textChannelNameTF.setText(ctStream.textStreamName);
+		screencapChannelNameTF.setText(ctStream.getScreencapStreamName());
+		webcamChannelNameTF.setText(ctStream.getWebcamStreamName());
+		audioChannelNameTF.setText(ctStream.getAudioStreamName());
+		textChannelNameTF.setText(ctStream.getTextStreamName());
 		bEncryptCheckB.setSelected(ctStream.bEncrypt);
 		encryptionPasswordTF.setText(ctStream.encryptionPassword);
 		encryptionPasswordLabel.setEnabled(ctStream.bEncrypt);
@@ -633,10 +633,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		
 		// Save data from the dialog
 		ctStream.sourceName = sourceNameTF.getText().trim();
-		ctStream.screencapStreamName = screencapChannelNameTF.getText().trim();
-		ctStream.webcamStreamName = webcamChannelNameTF.getText().trim();
-		ctStream.audioStreamName = audioChannelNameTF.getText().trim();
-		ctStream.textStreamName = textChannelNameTF.getText().trim();
+		ctStream.setScreencapStreamName(screencapChannelNameTF.getText().trim());
+		ctStream.setWebcamStreamName(webcamChannelNameTF.getText().trim());
+		ctStream.setAudioStreamName(audioChannelNameTF.getText().trim());
+		ctStream.setTextStreamName(textChannelNameTF.getText().trim());
 		ctStream.bEncrypt = bEncryptCheckB.isSelected();
 		char[] encryptPasswordCharArray = encryptionPasswordTF.getPassword();
 		ctStream.encryptionPassword = new String(encryptPasswordCharArray).trim();
@@ -690,10 +690,10 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		// Restore original values
 		ctStream.outputFolder = orig_outputFolder;
 		ctStream.sourceName = orig_sourceName;
-		ctStream.screencapStreamName = orig_screencapChannelName;
-		ctStream.webcamStreamName = orig_webcamChannelName;
-		ctStream.audioStreamName = orig_audioChannelName;
-		ctStream.textStreamName = orig_textChannelName;
+		ctStream.setScreencapStreamName(orig_screencapChannelName);
+		ctStream.setWebcamStreamName(orig_webcamChannelName);
+		ctStream.setAudioStreamName(orig_audioChannelName);
+		ctStream.setTextStreamName(orig_textChannelName);
 		ctStream.bEncrypt = orig_bEncrypt;
 		ctStream.encryptionPassword = orig_encryptionPassword;
 		ctStream.writeMode = orig_writeMode;

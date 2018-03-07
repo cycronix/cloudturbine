@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import java.util.TimerTask;
  * not really needed now since we only need to schedule 1 task.
  *
  * @author John P. Wilson
- * @version 05/03/2017
+ * @version 03/07/2018
  *
  */
 
@@ -62,7 +62,7 @@ public class ImageTimerTask extends TimerTask {
 			return;
 		}
 		if (dataStream instanceof ScreencapStream) {
-			if (cts.bFullScreen) {
+			if (((ScreencapStreamSpec)dataStream.spec).bFullScreen) {
 				((ScreencapStream)dataStream).regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
 			} else {
 				// User will specify the region to capture via the JFame
@@ -87,7 +87,7 @@ public class ImageTimerTask extends TimerTask {
 			}
 		}
 		// Run an instance of ImageTask in a new thread
-        Thread threadObj = new Thread(new ImageTask(cts,dataStream));
+        Thread threadObj = new Thread(new ImageTask(cts,dataStream,(ImageStreamSpec)dataStream.spec));
         threadObj.start();
 	}
 	

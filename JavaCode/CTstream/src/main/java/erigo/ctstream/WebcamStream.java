@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * ImageTask: Generates a webcam image and puts it on WebcamStream's queue.
  *
  * @author John P. Wilson
- * @version 2017-05-09
+ * @version 2018-03-07
  */
 
 public class WebcamStream extends DataStream {
@@ -59,13 +59,13 @@ public class WebcamStream extends DataStream {
     /**
      * WebcamStream constructor
      *
-     * @param ctsI          CTstream object
-     * @param channelNameI  Channel name
+     * @param specI   Stores specifications for running this DataStream
      */
-    public WebcamStream(CTstream ctsI, String channelNameI) {
+    public WebcamStream(ImageStreamSpec specI) {
         super(PreviewWindow.PreviewType.IMAGE);
-        channelName = channelNameI;
-        cts = ctsI;
+        spec = specI;
+        channelName = spec.channelName;
+        cts = spec.cts;
         bCanPreview = true;
     }
 
@@ -108,9 +108,9 @@ public class WebcamStream extends DataStream {
             return;
         }
         // Check the frame rate; if this has changed, start a new Timer
-        long updatedCapturePeriodMillis = (long)(1000.0 / cts.framesPerSec);
+        long updatedCapturePeriodMillis = (long)(1000.0 / ((ImageStreamSpec)spec).framesPerSec);
         if (updatedCapturePeriodMillis != capturePeriodMillis) {
-            System.err.println("\nRestarting webcam captures at new rate: " + cts.framesPerSec + " frames/sec");
+            System.err.println("\nRestarting webcam captures at new rate: " + ((ImageStreamSpec)spec).framesPerSec + " frames/sec");
             startWebcamTimer();
         }
     }
@@ -120,7 +120,7 @@ public class WebcamStream extends DataStream {
      */
     public void updatePreview() {
         super.updatePreview();
-        if (bPreview && bIsRunning && cts.bPreview && (webcam != null) /* && webcam.isOpen() */) {
+        if (bPreview && bIsRunning && spec.bPreview && (webcam != null) /* && webcam.isOpen() */) {
             // Set the size of the preview window to match the image size plus some extra padding
             // so scrollbars aren't needed
             previewWindow.setFrameSize(new Dimension(IMAGE_SIZE.width+25,IMAGE_SIZE.height+55));
@@ -137,7 +137,7 @@ public class WebcamStream extends DataStream {
         // First, make sure any existing webcamTimer is finished
         stopWebcamTimer();
         // Now start the new Timer
-        capturePeriodMillis = (long)(1000.0 / cts.framesPerSec);
+        capturePeriodMillis = (long)(1000.0 / ((ImageStreamSpec)spec).framesPerSec);
         webcamTimer = new Timer();
         webcamTimerTask = new ImageTimerTask(cts,this);
         webcamTimer.schedule(webcamTimerTask, 0, capturePeriodMillis);

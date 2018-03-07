@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * ImageTask: Generates a screen capture and puts it on ScreencapStream's queue.
  *
  * @author John P. Wilson
- * @version 2017-05-02
+ * @version 2018-03-07
  */
 
 public class ScreencapStream extends DataStream {
@@ -49,22 +49,22 @@ public class ScreencapStream extends DataStream {
     // Encoded byte array of the cursor image data from "Cursor_NoShadow.png"
     private static String encoded_cursor_noshadow = "iVBORw0KGgoAAAANSUhEUgAAABQAAAAgCAYAAAASYli2AAACa0lEQVR42q2WT2jSYRjHR+QtwX/oREVBhIYxGzJNyEOIXTp0yr8HYTRQlNz8O6dgoJ4FT2ZeJAw8CEkdhBYMFHfypLBDsZ3CUYcijErn7+l9BCPZbJrvF97L+/D7/N7neZ8/74rVan27QlngdDpfUQWKxWJwuVwvqQG73S6srq7C1tbWMyrAwWAAnU4HhEIhbG9vZ6kAUe12GwQCAbjd7jQVIOro6Ah4PB7j9XpjVICow8ND4HA4jM/ne0IFiKrX68DlcpmdnZ3HVICoWq02dn93d9dBBYiqVCrA5/NHoVDoIRUgqlQqYUoh9D4VICqfz2NFnUej0btUgKhsNgsymWy4t7e3SQWIymQyoFAofsVisVtUgKh4PA4qlepHIpFQUQEyDAOBQADW1ta+E7hsaeAESmoe1tfXvxH3RUsDUaPRCPsoaLXaL8lkkrcQ8OTkBFqt1oXVaDRAo9GAXq//TKA35gaSmgY2m81g3GYti8Xybm7g8fHxuK7JKTj/ldgHBwdweno6tWcymXBMPF8YWK1WgcVigd/vv7CvVqv7CwHL5TJ2F4bMlhzph9Dv9//YhsMhSKVSjKdrLmCxWMSZMiJJ+wgNBoPhU6FQmDplKpUCs9n8/kpgLpcDkUh0HgwGH0wMHo/nKaYEJvFEvV4PbxvLTzkTmE6nQSKRDMPh8L2/DeRGr2N3aTabU6e02Wxgt9tfzwTK5fJBJBK5c5mRfPjG4XBMxZEML1AqlT8vpaFhf3//9qy/YUdBF8/OzsZze2NjA9fXmd2bFPbNq9KAXMIHnU43noKkdl+QUFxb6mmBaWI0Gj/+y5OJfgOMmgOC3DbusQAAAABJRU5ErkJggg==";
 
-    public BufferedImage cursor_img = null;                 // cursor to add to the screen captures
-    private Timer screencapTimer = null;			        // Periodic Timer object
+    public BufferedImage cursor_img = null;             // cursor to add to the screen captures
+    private Timer screencapTimer = null;			    // Periodic Timer object
     private ImageTimerTask screencapTimerTask = null;	// TimerTask executed each time the periodic Timer expires
-    public long capturePeriodMillis;                        // capture period in milliseconds
-    public Rectangle regionToCapture = null;                // Region of the screen to capture
+    public long capturePeriodMillis;                    // capture period in milliseconds
+    public Rectangle regionToCapture = null;            // Region of the screen to capture
 
     /**
      * ScreencapStream constructor
      *
-     * @param ctsI          CTstream object
-     * @param channelNameI  Channel name
+     * @param specI   Stores specifications for running this DataStream
      */
-    public ScreencapStream(CTstream ctsI, String channelNameI) {
+    public ScreencapStream(ScreencapStreamSpec specI) {
         super(PreviewWindow.PreviewType.IMAGE);
-        channelName = channelNameI;
-        cts = ctsI;
+        spec = specI;
+        channelName = spec.channelName;
+        cts = spec.cts;
         bCanPreview = true;
         // Decode the String corresponding to binary cursor data; produce a BufferedImage with it
         Base64.Decoder byte_decoder = Base64.getDecoder();
@@ -112,9 +112,9 @@ public class ScreencapStream extends DataStream {
             return;
         }
         // Check the frame rate; if this has changed, start a new Timer
-        long updatedCapturePeriodMillis = (long)(1000.0 / cts.framesPerSec);
+        long updatedCapturePeriodMillis = (long)(1000.0 / ((ScreencapStreamSpec)spec).framesPerSec);
         if (updatedCapturePeriodMillis != capturePeriodMillis) {
-            System.err.println("\nRestarting screen captures at new rate: " + cts.framesPerSec + " frames/sec");
+            System.err.println("\nRestarting screen captures at new rate: " + ((ScreencapStreamSpec)spec).framesPerSec + " frames/sec");
             startScreencapTimer();
         }
     }
@@ -124,12 +124,12 @@ public class ScreencapStream extends DataStream {
      * If user is running in full screen mode, don't display a preview window.
      */
     public void updatePreview() {
-        if (bPreview && bIsRunning && cts.bPreview && (previewWindow != null) && cts.bFullScreen) {
+        if (bPreview && bIsRunning && spec.bPreview && (previewWindow != null) && ((ScreencapStreamSpec)spec).bFullScreen) {
             // Pop down the preview window
             bPreview = false;
             previewWindow.close();
             previewWindow = null;
-        } else if (!cts.bFullScreen) {
+        } else if (!((ScreencapStreamSpec)spec).bFullScreen) {
             super.updatePreview();
         }
     }
@@ -144,7 +144,7 @@ public class ScreencapStream extends DataStream {
         // First, make sure any existing screencapTimer is finished
         stopScreencapTimer();
         // Now start the new Timer
-        capturePeriodMillis = (long)(1000.0 / cts.framesPerSec);
+        capturePeriodMillis = (long)(1000.0 / ((ScreencapStreamSpec)spec).framesPerSec);
         screencapTimer = new Timer();
         screencapTimerTask = new ImageTimerTask(cts,this);
         screencapTimer.schedule(screencapTimerTask, 0, capturePeriodMillis);
