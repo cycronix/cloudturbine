@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Erigo Technologies LLC
+Copyright 2017-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ import java.util.ArrayList;
  * JDialog to launch CTweb server.  The guts of this dialog is a JavaFX scene.
  *
  * @author John P. Wilson
- * @version 02/19/2018
+ * @version 03/08/2018
  *
  */
 
@@ -62,7 +62,6 @@ public class LaunchCTweb extends javax.swing.JDialog {
     private static final long serialVersionUID = 1L;
 
     private JFXPanel fxPanel = null;
-    private GridPane grid = null;
     private CTstream ctStream = null;
 
     // UI controls
@@ -92,27 +91,6 @@ public class LaunchCTweb extends javax.swing.JDialog {
         gbc.insets = new java.awt.Insets(0,0,0,0);
         fxPanel = new JFXPanel();
         Utility.add(this,fxPanel,gbl,gbc,0,0,1,1);
-
-        // For some unknown reason, the GridPane inside the JFXPanel doesn't automatically resize as the dialog is
-        // being resized.  Here's an attempt to force the resize, but it doesn't work.
-        /*
-        addComponentListener(new ComponentAdapter()
-        {
-            public void componentResized(ComponentEvent e)
-            {
-                // Dialog has been resized; request new layout for the JFXPanel (needs to be done on the JavaFX thread)
-                Platform.runLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (grid != null) {
-                            fxPanel.validate();
-                            grid.requestLayout();
-                        }
-                    }
-                });
-            }
-        });
-        */
 
         // Handle the close operation in the windowClosing() method of the
         // registered WindowListener object.  This will get around
@@ -162,18 +140,17 @@ public class LaunchCTweb extends javax.swing.JDialog {
      * @return the created Scene.
      */
     private Scene createJavaFXInterface() {
-        Group root = new  Group();
+
+        GridPane root = new GridPane();
         Scene scene = new Scene(root, Color.ALICEBLUE);
-        grid = new GridPane();
         // For debug: display grid lines
-        // grid.setGridLinesVisible(true);
+        // root.setGridLinesVisible(true);
         // Center this GridPane within its parent
-        grid.setAlignment(Pos.CENTER);
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(25, 25, 25, 25));
-        grid.setMaxWidth(Double.MAX_VALUE);
-        root.getChildren().add(grid);
+        root.setAlignment(Pos.CENTER);
+        root.setHgap(10);
+        root.setVgap(10);
+        root.setPadding(new Insets(25, 25, 25, 25));
+        root.setMaxWidth(Double.MAX_VALUE);
 
         int row = 0;
 
@@ -183,9 +160,9 @@ public class LaunchCTweb extends javax.swing.JDialog {
         dataFolderTF.setPrefWidth(150);
         Button browseB = new Button("Browse...");
         browseB.setOnAction(this::selectDirAction);
-        grid.add(tempL, 0, row, 1, 1);
-        grid.add(dataFolderTF, 1, row, 1, 1);
-        grid.add(browseB, 2, row, 1, 1);
+        root.add(tempL, 0, row, 1, 1);
+        root.add(dataFolderTF, 1, row, 1, 1);
+        root.add(browseB, 2, row, 1, 1);
 
         // Row 2: Port
         row = row + 1;
@@ -194,22 +171,22 @@ public class LaunchCTweb extends javax.swing.JDialog {
         // Don't have this control fill the width
         portTF.setPrefWidth(75);
         portTF.setMaxWidth(Control.USE_PREF_SIZE);
-        grid.add(tempL, 0, row, 1, 1);
-        // grid.add(portTF, 1, row, 1, 1);
+        root.add(tempL, 0, row, 1, 1);
+        // root.add(portTF, 1, row, 1, 1);
         // Here's a way to specify all the constraints for the portTF node: position, row/col span, hor/ver alignment, growth policy, insets
-        grid.add(portTF,1,row);
-        grid.setConstraints(portTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.NEVER,Priority.NEVER,new Insets(0,0,0,0));
+        root.add(portTF,1,row);
+        root.setConstraints(portTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.NEVER,Priority.NEVER,new Insets(0,0,0,0));
 
         // Row 3: other command line options
         row = row + 1;
         tempL = new Label("Other options");
         otherOptionsTF = new TextField(ctStream.otherCTwebOptions);
         otherOptionsTF.setPrefWidth(150);
-        grid.add(tempL, 0, row, 1, 1);
-        // grid.add(otherOptionsTF, 1, row, 1, 1);
+        root.add(tempL, 0, row, 1, 1);
+        // root.add(otherOptionsTF, 1, row, 1, 1);
         // Here's a way to specify all the constraints for the otherOptionsTF node: position, row/col span, hor/ver alignment, growth policy, insets
-        grid.add(otherOptionsTF,1,row);
-        grid.setConstraints(otherOptionsTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.ALWAYS,Priority.NEVER,new Insets(0,0,0,0));
+        root.add(otherOptionsTF,1,row);
+        root.setConstraints(otherOptionsTF,1,row,1,1, HPos.LEFT, VPos.CENTER,Priority.ALWAYS,Priority.NEVER,new Insets(0,0,0,0));
 
         // Row 4: command button
         row = row + 1;
@@ -225,14 +202,14 @@ public class LaunchCTweb extends javax.swing.JDialog {
         tileP.getChildren().add(launchB);
         tileP.getChildren().add(cancelB);
         tileP.setAlignment(Pos.CENTER);
-        grid.add(tileP, 0, row, 3, 1);
+        root.add(tileP, 0, row, 3, 1);
 
         // Set constraints on the columns; have second column grow
         ColumnConstraints column1 = new ColumnConstraints();
         ColumnConstraints column2 = new ColumnConstraints(50,150,Double.MAX_VALUE);
         column2.setHgrow(Priority.ALWAYS);
         ColumnConstraints column3 = new ColumnConstraints();
-        grid.getColumnConstraints().addAll(column1, column2, column3);
+        root.getColumnConstraints().addAll(column1, column2, column3);
 
         return scene;
     }
@@ -307,7 +284,7 @@ public class LaunchCTweb extends javax.swing.JDialog {
         ctStream.otherCTwebOptions = otherOptionsStr;
 
         // Fill in arguments from the user's settings
-        ArrayList<String> argList=new ArrayList();
+        ArrayList<String> argList=new ArrayList<String>();
         argList.add("-p");
         argList.add(Integer.toString(portNum));
         // If there are other options, add them
