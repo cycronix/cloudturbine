@@ -423,7 +423,7 @@ public class CTdata {
 //				for(int j=0; j<count; j++, time+=dt) {		// could jump ahead for "newest" and save some effort...
 				for(int j=0; j<count; j++, time=refTime+j*dt) {		// avoid +=dt accum round off error
 					if(duration==0 && j==(count-1)) {
-						System.err.println("adjust time to end: "+end);
+//						System.err.println("adjust time to end: "+end);
 						time = end;		// tweek for +=dt round off error
 					}
 					if(time < start) continue;
