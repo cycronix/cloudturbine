@@ -23,12 +23,12 @@ import cycronix.ctlib.*;
 //MJM 08/08/2016
 
 public class CTbigtest {
-	static int totalSamps = 14*24*60*60;	// total duration of test (e.g. 14 days)
-	static int sampInterval = 1000;			// delta-time between samples (msec)
-	static int blockInterval = 10000;		// block interval (msec)
-	static int Nchan = 3;					// number of channels
-	static int Nsource = 4;					// number of sources (e.g. 400)
-	static int rateFactor = 100;			// run faster than RT (e.g. 100)
+	static int totalSamps = 100000;			// total duration of test (e.g. 14 days)
+	static int sampInterval = 20;			// delta-time between samples (msec)  (e.g. 1000)
+	static int blockInterval = 100;			// block interval (msec) (e.g. 10000)
+	static int Nchan = 1000;				// number of channels (e.g. 10)
+	static int Nsource = 10;				// number of sources (e.g. 400)
+	static int rateFactor = 1;				// run faster than RT (e.g. 100)
 	static long baseTime = 1460000000000L;	// base start time (round number)
 	static int blocksPerSegment = 100;		// new segment every this many blocks (default=100)
 
