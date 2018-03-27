@@ -878,7 +878,15 @@ public class CTweb {
     			return;
     		}
     		String folder = rootFolder;
-    		for(int i=1; i<parse.length-1; i++) folder += File.separator + parse[i];	// add multi-part source dirs
+    		String source = "";
+    		for(int i=1; i<parse.length-1; i++) {
+    			folder += File.separator + parse[i];	// add multi-part source dirs
+    		}
+    		for(int i=1; i<parse.length-1; i++) {
+    			source += parse[i];
+    			if(Character.isDigit(parse[i+1].charAt(0))) break;		// check next for numeric (time folder)
+    			source += File.separator;
+    		}
     		String file = parse[parse.length-1];
     		
     		if(!Character.isDigit(file.charAt(0))) {
@@ -887,7 +895,8 @@ public class CTweb {
     		}
 
     		// security limit check on number of sources
-    		String source = parse[1];
+//    		String source = parse[1];
+//    		System.err.println("source: "+source+", folder: "+folder);
     		if(!CTwriters.contains(source)) {
     			if(CTwriters.size() >= maxCTwriters) {
 					System.err.println("CTweb, no more CTwriters! (max="+maxCTwriters+"), this: "+source);
@@ -926,8 +935,13 @@ public class CTweb {
 				if(now > (lastTime + keepTime/2.)) {			// no thrash
 					double oldTime = now - keepTime;
 					String trimFolder = rootFolder+File.separator+source;
-					if(debug) System.err.println("dotrim, folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime);
-					new CTwriter(trimFolder).dotrim(oldTime, false);
+					if(debug) 
+						System.err.println("dotrim, folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime+", file: "+file+", target: "+targetFile);
+					try {
+						new CTwriter(trimFolder).dotrim(oldTime, false);
+					} catch(IOException ioe) {
+						System.err.println("dotrim folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime+", file: "+file+", target: "+targetFile+", source: "+source);
+					}
 					lastTime = now;
 				}
     		}	
