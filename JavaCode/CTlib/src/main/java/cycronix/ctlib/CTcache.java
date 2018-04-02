@@ -262,7 +262,8 @@ class CTcache {
 			folderTime = time;
 			String myZipFile = file.getMyZipFile();
 			if(myZipFile!=null) {
-				String trimZip = myZipFile.replace(".zip",  "/");
+//				String trimZip = myZipFile.replace(".zip",  "/");
+				String trimZip = myZipFile.replace(".zip",  File.separator);			// oops this was broke on Windows
 				myPath = myPath.replace(trimZip, "");			// shorten myPath (saves space)
 				myZipFile = myZipFile.replace(".zip",  "");
 				myZipFile = myZipFile.replace(rootFolder, "");	// stingy
