@@ -248,6 +248,8 @@ class CTcache {
 	// utility class to store time/folder pairs
 	// NOTE:  the size of this class has string influence on size of CTFileCache for large CTdata archives
 
+	private String tmpdir = System.getProperty("java.io.tmpdir");			// for decode ref
+	
 	public TimeFolder newTimeFolder(CTFile file, double time) {
 		return new TimeFolder(file, time);
 	}
@@ -256,7 +258,7 @@ class CTcache {
 		private byte[] myPathBytes=null;
 		private double folderTime;
 		private byte[] myZipFileBytes=null;
-				
+		
 		public TimeFolder(CTFile file, double time) {
 			String myPath = file.getMyPath();
 			folderTime = time;
@@ -266,8 +268,10 @@ class CTcache {
 				String trimZip = myZipFile.replace(".zip",  File.separator);			// oops this was broke on Windows
 				myPath = myPath.replace(trimZip, "");			// shorten myPath (saves space)
 				myZipFile = myZipFile.replace(".zip",  "");
-				myZipFile = myZipFile.replace(rootFolder, "");	// stingy
-			}
+//				System.err.println("myZipFile: "+myZipFile+", rootFolder: "+rootFolder+", startswith: "+(myZipFile.startsWith(rootFolder)));
+				if(myZipFile.startsWith(rootFolder))
+					myZipFile = myZipFile.replace(rootFolder, "");	// stingy
+			} 
 			else myPath = myPath.replace(rootFolder,  "");
 			
 			CTFileCache.put(myPath, file);			// stock up FileCache here?
@@ -283,10 +287,20 @@ class CTcache {
 //			System.err.println("Decode: myPath: "+myPath+", myZipFile; "+myZipFile);
 			
 			try {
-				if(myZipFile==null) return cachedCTFile(rootFolder + myPath, null);
-				else				return cachedCTFile(myPath, rootFolder + myZipFile+".zip");
+				CTFile ctfile=null;
+				if(myZipFile==null) ctfile = cachedCTFile(rootFolder + myPath, null);
+//				else				ctfile = cachedCTFile(myPath, rootFolder + myZipFile+".zip");
+				else	{
+					if(myZipFile.startsWith(tmpdir))
+						ctfile = cachedCTFile(myPath, myZipFile+".zip");			// if absolute path presume gzip/temp folder?
+					else
+						ctfile = cachedCTFile(myPath, rootFolder + myZipFile+".zip");
+				}
+
+//				System.err.println("+++++++CTfile: "+ctfile);
+				return ctfile;
 			} catch(Exception e) {
-//				System.err.println("TimeFolder getCTFile exception: "+e);
+				System.err.println("TimeFolder getCTFile exception: "+e);
 				return null;
 			}
 		}
