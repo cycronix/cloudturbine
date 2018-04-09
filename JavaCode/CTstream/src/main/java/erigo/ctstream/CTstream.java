@@ -118,6 +118,12 @@ import cycronix.ctlib.CTreader;
  * (not continue) mode, getNextTime() returns System.currentTimeMillis(); in continue mode,
  * getNextTime() will calculate the appropriate timestamp to use to maintain seamless
  * video/audio playback.
+ *
+ * Known issues
+ * ------------
+ * 01. Screen capture does not work under Ubuntu (possibly under other flavors of Linux as well); the captured image is
+ *     black.
+ * 02. Under Mac OS, the user can't "reach through" the capture frame to interact with windows behind it.
  * 
  * @author John P. Wilson, Matt J. Miller
  * @version 03/07/2018
