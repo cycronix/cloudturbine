@@ -175,7 +175,7 @@ public class CTblocktest {
 		options.addOption("x", "debug", false, "debug mode"+", default: "+debug);
 		options.addOption("r", "readCheck", false, "readCheck mode"+", default: "+readCheck);
 
-		options.addOption(Option.builder("o").argName("outputFolder").hasArg().desc("name of output folder"+", default: "+sourceFolder).build());
+//		options.addOption(Option.builder("o").argName("outputFolder").hasArg().desc("name of output folder"+", default: "+sourceFolder).build());
 		options.addOption(Option.builder("n").argName("nsamp").hasArg().desc("number samples per channel"+", default: "+nsamp).build());
 		options.addOption(Option.builder("c").argName("nchan").hasArg().desc("number of channels"+", default: "+nchan).build());
 

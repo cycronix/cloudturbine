@@ -812,7 +812,7 @@ public class CTreader {
 		// clear all the other caches too:
 		System.err.println("Clear Caches! File,Data,ZipMap size: "+CTcache.CTFileCache.size()+","+CTcache.DataCache.size()+","+CTcache.ZipMapCache.size());
 		CTcache.CTFileCache.clear();			// small memory use
-//		CTcache.ZipFileCache.clear();			// small
+		CTcache.ZipFileCache.clear();			// small
 		CTcache.DataCache.clear();				// biggest
 		CTcache.ZipMapCache.clear();			// big
 	}

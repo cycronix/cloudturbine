@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 import cycronix.ctlib.CTinfo;
 import cycronix.ctlib.CTreader;
@@ -107,6 +108,8 @@ public class CTadmin extends Application {
 
 	private void refreshTree() {
 		try {
+			System.gc();  	// force garbage collect (e.g. close files from pack)
+			
 			TreeMap<String,String>tree = new TreeMap<String,String>();
 
 			if(CTopen.equals(".")) 	CTlocation = System.getProperty("user.dir");
@@ -131,9 +134,11 @@ public class CTadmin extends Application {
 		
 				if(CTsources.size()==0) {		// check if this path is source itself (vs rootfolder)
 					String CTlocationFullPath = CTfile.getAbsolutePath();  				// work with absolute path
-					String[] tmp = CTlocationFullPath.split("/"); 
+//					String[] tmp = CTlocationFullPath.split("/"); 
+					String[] tmp = CTlocationFullPath.split(Pattern.quote(File.separator)); 
 					if(tmp.length > 1) {
-						CTlocationFullPath = CTlocationFullPath.substring(0,CTlocationFullPath.lastIndexOf('/'));	// try parent folder
+//						CTlocationFullPath = CTlocationFullPath.substring(0,CTlocationFullPath.lastIndexOf('/'));	// try parent folder
+						CTlocationFullPath = CTlocationFullPath.substring(0,CTlocationFullPath.lastIndexOf(File.separatorChar));	// try parent folder
 						myCTreader = new CTreader(CTlocationFullPath);
 						String testSource = tmp[tmp.length-1];
 						System.err.println("testSource: "+testSource);
@@ -157,7 +162,8 @@ public class CTadmin extends Application {
 				//  parse source paths into treeMap
 				for (String path : CTsources) {
 					CTinfo.debugPrint("add src: "+path);
-					String[] tmp = path.split("/", 2); 
+//					String[] tmp = path.split("/", 2); 
+					String[] tmp = path.split(Pattern.quote(File.separator), 2); 
 					if(tmp.length > 1) 	treeput(tree, tmp[0], tmp[1]);
 					else				treeput(tree, tmp[0], null);
 				}
@@ -365,6 +371,7 @@ public class CTadmin extends Application {
 									String newName = result.get();
 								    File oldFile = new File(thisFolderPath + thisFile);	// doesn't follow subdirs
 								    File newFile = new File(thisFolderPath + newName);
+								    System.err.println("Rename: "+oldFile.getPath()+", to: "+newFile.getPath());
 								    boolean status = oldFile.renameTo(newFile);
 //								    if(status) 	refreshTree();
 								    if(status)  {
@@ -440,6 +447,9 @@ public class CTadmin extends Application {
 								Optional<ButtonType> result = alert.showAndWait();
 								if (result.get() == ButtonType.OK){
 									System.err.println("Delete: "+thisFolderPath + thisFile);
+									myCTreader.clearFileListCache();   // dump open files
+									System.gc();
+									
 									Path directory = Paths.get(fullPath);
 									try {
 										Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
@@ -609,7 +619,8 @@ public class CTadmin extends Application {
 
 	private static void treeput(TreeMap structure, String root, String rest) {
 		String[] tmp;
-		if(rest != null) tmp = rest.split("/", 2);
+//		if(rest != null) tmp = rest.split("/", 2);
+		if(rest != null) tmp = rest.split(Pattern.quote(File.separator), 2);
 		else{
 			structure.put(root,null);
 			return;
