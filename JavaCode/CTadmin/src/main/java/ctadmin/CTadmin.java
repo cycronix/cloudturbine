@@ -448,7 +448,7 @@ public class CTadmin extends Application {
 								if (result.get() == ButtonType.OK){
 									System.err.println("Delete: "+thisFolderPath + thisFile);
 									myCTreader.clearFileListCache();   // dump open files
-									System.gc();
+									System.gc();	// force release of files (otherwise delete may fail on windows)
 									
 									Path directory = Paths.get(fullPath);
 									try {
