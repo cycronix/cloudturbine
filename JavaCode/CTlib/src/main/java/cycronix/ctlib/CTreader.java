@@ -492,7 +492,7 @@ public class CTreader {
 		int i=0;
 		int last = listOfFiles.length-1;
 		if(last<0) {
-			System.err.println("Warning, buildChanList, no files: "+sourceFolder);
+			CTinfo.debugPrint("Warning, buildChanList, no files: "+sourceFolder);
 			return;
 		}
 		

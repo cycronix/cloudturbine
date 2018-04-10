@@ -555,6 +555,43 @@ public class CTweb {
     				formResponse(response, sbresp);
     				return;
     			}
+    			else if(pathInfo.contains("/*")) {									// wildcard source: /SourceBase/*/channel
+    				String[] sbaseParts = pathInfo.split("\\*");
+    				String cbase = null;
+    				if(sbaseParts.length > 1) cbase = pathParts[pathParts.length-1];
+
+    				sbaseParts = sbaseParts[0].split("/");
+    				String sbase = null;
+//    				String sbase = sbaseParts[2];
+    				if(sbaseParts.length > 2) {
+    					sbase = sbaseParts[2];
+    					for(int i=3; i<sbaseParts.length; i++) {
+    						if(sbaseParts[i].equals("*")) break;
+    						sbase += ("/"+sbaseParts[i]);
+    					}
+    				}
+    				if(debug) System.err.println("got wildcard source, pathInfo: "+pathInfo+", sbase: "+sbase+", cbase: "+cbase);
+    				sourceList = ctreader.listSources();
+
+    				// simply append all matching sources/chans as single response:
+    				for(String sname : sourceList) {
+    					if(sbase==null || sname.startsWith(sbase)) {		// get it
+    						ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
+    						for(String chan : clist) {
+    							if(cbase==null || chan.equals(cbase)) {
+    								CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
+    								String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
+    								if(dlist != null) {
+    									for(String d : dlist) sbresp.append(d+"\n");
+    								}
+    							}
+    						}
+    					}
+    				}
+
+    				formResponse(response, sbresp);
+    				return;
+    			}
     			else if(pathInfo.endsWith("/")) {										// Source level request for Channels
     				if(debug) System.err.println("channel request: "+pathInfo);
     				if(pathParts.length < 3) {
@@ -563,14 +600,13 @@ public class CTweb {
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
         				return;
     				}
+    				
     				String sname = pathParts[2];
     				for(int i=3; i<pathParts.length; i++) sname += ("/"+pathParts[i]);		// multi-level source name
     				if(sname.endsWith("/")) sname = sname.substring(0,sname.length()-2);    				
     				if(debug) System.err.println("CTweb listChans for source: "+(rootFolder+File.separator+sname));
+
     				ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
-    				
-    				// auto-refresh cache with every listChans?
-//    				ctreader.clearFileListCache();
 
     				if(clist == null) sbresp.append("<NULL>");
     				else {
@@ -932,7 +968,10 @@ public class CTweb {
     		// trim (loop) if spec
     		if(keepTime > 0.) {
 				double now = (double)(System.currentTimeMillis())/1000.;
-				if(now > (lastTime + keepTime/2.)) {			// no thrash
+				double checkDelta = 60.;						// default is 60s
+				if(checkDelta >= keepTime) checkDelta = keepTime;
+//				if(now > (lastTime + keepTime/2.)) {			// no thrash
+				if(now > checkDelta) {			// no thrash
 					double oldTime = now - keepTime;
 					String trimFolder = rootFolder+File.separator+source;
 					if(debug) 
