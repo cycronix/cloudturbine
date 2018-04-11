@@ -33,7 +33,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * A DataStream for capturing audio data.
  *
  * @author Matt Miller, Cycronix
- * @version 2017-05-08
+ * @version 2018-04-11
  *
  */
 public class AudioStream extends DataStream implements Runnable {
@@ -50,11 +50,11 @@ public class AudioStream extends DataStream implements Runnable {
 	 */
 	// constructor
 	public AudioStream(DataStreamSpec specI) {
-		super(PreviewWindow.PreviewType.PLOT);
+		super(PreviewWindow.PreviewType.NONE);
 		spec = specI;
 		channelName = spec.channelName;
 		cts = spec.cts;
-		bCanPreview = true;
+		bCanPreview = false;
 		bManualFlush = true;
 	}
 
@@ -156,7 +156,8 @@ public class AudioStream extends DataStream implements Runnable {
 							sampTimes.add((double)i/(double)frequency);
 							sampValues.add((double)bb.getShort()/32768.0);
 						}
-						previewWindow.updatePlot(sampTimes,sampValues,true);
+						// No more preview window for audio streams (the library we were using was covered by LGPL)
+						// previewWindow.updatePlot(sampTimes,sampValues,true);
 					}
 				}
 			}
