@@ -17,6 +17,7 @@ limitations under the License.
 /**
  * FileWatch
  * Watch a directory for new files; report throughput and latency metrics based on arrival time.
+ * See notes below for Known Issues
  * <p>
  * @author John P. Wilson (JPW), Erigo Technologies
  * @version 04/17/2017
@@ -150,6 +151,10 @@ package erigo.filewatch;
  * and System B.  With this configuration, *NO CLOCK SYNCHRONIZATION* need be
  * conducted since the clock which is used for source time is the same as the clock
  * for destination time.
+ *
+ * Known Issues
+ * ------------
+ * 1. Recaster mode does not currently support FTP/SFTP (see FileWatch.java line 520).
  *
  */
 
