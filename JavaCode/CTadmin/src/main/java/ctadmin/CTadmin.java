@@ -22,6 +22,11 @@ limitations under the License.
  * 
 */
 
+/* Known issues (4/11/18):
+ * "Repack" is limited to continuous time-sequence values, use with caution.  See CTpack.java for more details.
+ * Channels popup is not (yet) functional
+ * Some quirks on Windows renaming/deleting files (stray open files)
+ */
 
 package ctadmin;
 
