@@ -1,6 +1,6 @@
 FileWatch
 
-Copyright 2015-2017 Erigo Technologies LLC
+Copyright 2015-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,11 +14,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+FileWatch uses the following third-party libraries:
+
 ------------------------------------------------------------------------------
 
-This code is based on the WatchDir example program from Oracle:
+Library: Apache Commons CLI (https://commons.apache.org/proper/commons-cli/index.html)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
-    http://docs.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
+------------------------------------------------------------------------------
+
+Library: JFreeChart (http://www.jfree.org/jfreechart/)
+License: GNU Lesser General Public License Version 3 (http://www.gnu.org/licenses/lgpl.html)
+
+------------------------------------------------------------------------------
+
+Portions of the FileWatch application software (FileWatch.java) which use the
+Java WatchService are based on the WatchDir example program from Oracle:
+
+http://docs.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
 
 Per the Oracle copyright, their copyright notice follows.
 
@@ -53,7 +66,5 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
 
-FileWatch uses the JFreeChart library (Dave Gilbert, david.gilbert@object-refinery.com,
-JFreeChart Project Leader) for chart/plot support. For information on this library,
-see http://www.jfree.org/jfreechart/. JFreeChart is covered by the GNU Lesser GPL, Version 3
-(see http://www.gnu.org/licenses/lgpl.html).
+Library: Apache Commons Math (http://commons.apache.org/proper/commons-math/)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)

@@ -1,2 +1,2 @@
-// The following sub-projects are not built by default: CTjms, CTserial, FileWatch
-include 'CT2CSV','CTadmin','CTarchive','CTaudio','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTstream','CTsync','CTtext','CTudp','CTweb','FilePump'
+// The following sub-projects are not built by default: CTjms, FileWatch
+include 'CT2CSV','CTadmin','CTarchive','CTaudio','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTserial','CTstream','CTsync','CTtext','CTudp','CTweb','FilePump'
