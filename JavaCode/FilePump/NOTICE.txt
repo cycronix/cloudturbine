@@ -1,6 +1,6 @@
 FilePump
 
-Copyright 2015-2017 Erigo Technologies LLC
+Copyright 2015-2018 Erigo Technologies LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,15 +14,34 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+FilePump uses the following third-party libraries:
+
 -----------------------------------------------------------------------------
 
-FilePump uses the JSch library for SFTP support.  Here is a copy
-of their license, available at http://www.jcraft.com/jsch/LICENSE.txt
+Library: Apache Commons Net (https://commons.apache.org/proper/commons-net/)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
-JSch 0.0.* was released under the GNU LGPL license.  Later, we have switched 
-over to a BSD-style license. 
+-----------------------------------------------------------------------------
 
-------------------------------------------------------------------------------
+Library: Apache Commons CLI (https://commons.apache.org/proper/commons-cli/index.html)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
+Library: Apache Commons Logging (http://commons.apache.org/proper/commons-logging/)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
+Library: Apache Commons VFS (https://commons.apache.org/proper/commons-vfs/)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
+Library: JSch (http://www.jcraft.com/jsch/)
+License: BSD-style license (http://www.jcraft.com/jsch/LICENSE.txt)
+License shown below
+
 Copyright (c) 2002-2015 Atsuhiko Yamanaka, JCraft,Inc. 
 All rights reserved.
 
@@ -49,3 +68,10 @@ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-----------------------------------------------------------------------------
+
+The "add" method contained in FilePump's Utility.java file was copied from
+DataTurbine class com.rbnb.utility.Utility (http://dataturbine.org/,
+https://github.com/cycronix/dataturbine/blob/master/Source/DataTurbine/com/rbnb/utility/Utility.java)
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)

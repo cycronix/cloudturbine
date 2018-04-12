@@ -1,5 +1,11 @@
 
 // JAR settings
+jar {
+    // Include NOTICE.txt in the JAR's META-INF directory
+    into("META-INF") {
+        from "$projectDir/NOTICE.txt"
+    }
+}
 // Specify ".doFirst" to force this to run in the Execution phase.  Without
 // this specification, this would be run during the Configuration phase, which
 // would fail if CTlib.jar didn't yet exist; at Execution phase, CTlib.jar
