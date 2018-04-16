@@ -571,6 +571,7 @@ public class CTweb {
     				sourceList = ctreader.listSources();
 
     				// simply append all matching sources/chans as single response:
+    				double oldTime=0, newTime=0, lagTime=0, sTime=0, eTime=0;
     				for(String sname : sourceList) {
     					if(sbase==null || sname.startsWith(sbase)) {		// get it
     						ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
@@ -581,11 +582,21 @@ public class CTweb {
     								if(dlist != null) {
     									for(String d : dlist) sbresp.append(d+"\n");
     								}
+
+    								// gather header info:
+    								double[] tlimits = ctreader.timeLimits(sname, chan);
+    								if(oldTime > tlimits[0]) oldTime = tlimits[0];
+    								if(newTime==0 || newTime < tlimits[1]) newTime = tlimits[1];
+    								lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    								double time[] = tdata.getTime();
+    								if(sTime==0 || time[0] > sTime) sTime = time[0];			// freshest
+    								if(eTime==0 || time[time.length-1] > eTime) eTime = time[time.length-1];
     							}
     						}
     					}
     				}
 
+					formHeader(response, sTime, eTime, oldTime, newTime, lagTime);  
     				formResponse(response, sbresp);
     				return;
     			}
