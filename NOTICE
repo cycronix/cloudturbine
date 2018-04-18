@@ -375,7 +375,7 @@ License: Although not explicitly stated, it is assumed this demo program is
 -----------------------------------------------------------------------------
 
 Project: CTlib
-Portions of CTcrypto.java are based on Michael Hixson’s sample code found on Stack Overflow at
+Portions of CTcrypto.java are based on Michael Hixson's sample code found on Stack Overflow at
     http://stackoverflow.com/questions/31851612/java-aes-gcm-nopadding-what-is-cipher-getiv-giving-me
 Sample author: Michael Hixson, https://stackoverflow.com/users/359008/michael-hixson
 License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
