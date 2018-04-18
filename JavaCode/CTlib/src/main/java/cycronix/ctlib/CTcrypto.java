@@ -33,7 +33,10 @@ import javax.crypto.spec.SecretKeySpec;
  *
  */
 
-// ref: http://stackoverflow.com/questions/31851612/java-aes-gcm-nopadding-what-is-cipher-getiv-giving-me
+// Portions of this code are based on Michael Hixson's sample code found on Stack Overflow at
+//     http://stackoverflow.com/questions/31851612/java-aes-gcm-nopadding-what-is-cipher-getiv-giving-me
+// Sample author: Michael Hixson, https://stackoverflow.com/users/359008/michael-hixson
+// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
 
 public class CTcrypto {
     // AES-GCM parameters

@@ -42,8 +42,9 @@ import cycronix.ctlib.*;
  * 
  * Copyright Cycronix
  * Matt Miller, 9/21/2017
- * 
- * Ref:  http://activemq.apache.org/hello-world.html
+ *
+ * Portions of this software are based on or copied from the "App.java" demo program provided at
+ * http://activemq.apache.org/hello-world.html
  */
 
 public class CTjms {

@@ -106,6 +106,9 @@ import cycronix.ctlib.CTreader;
  * of how do we support moving and resizing the window (without decoration on the window, there is no
  * inherent way to move and resize the window)?  We do this by creating our own simple window manager:
  * CTstream implements MouseMotionListener by defining mouseDragged() and mouseMoved().
+ *
+ * For information and examples on translucent and shaped windows, see the following:
+ * https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
  * 
  * "Continue" mode
  * ---------------
@@ -455,59 +458,6 @@ public class CTstream implements ActionListener,MouseMotionListener {
 	    	System.err.println("\nimage quality must be a number in the range 0.0 <= x <= 1.0");
 	    	return;
 	    }
-	    
-	    //
-	    // THIS IS OLDER CODE WHERE THE USER SPECIFIED THE REGION TO CAPTURE AHEAD OF TIME;
-	    // WE NOW DO THIS DYNAMICALLY: THE USER PUTS A FRAME AROUND THE REGION TO CAPTURE
-	    // AND CAN CHANGE IT AS THE PROGRAM RUNS
-	    //
-	    // Determine if the GraphicsDevice supports translucency.
-	    // This code is from https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
-	    //
-	    // If translucent windows aren't supported, capture the entire screen.
-	    // Otherwise, have the user draw a rectangle around the area they wish to capture.
-	    //
-	    /*
-        GraphicsEnvironment graphEnv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice graphDev = graphEnv.getDefaultScreenDevice();
-        if (!graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.TRANSLUCENT)) {
-            System.err.println("Translucency is not supported; capturing the entire screen.");
-            regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-        } else {
-        	// Have user specify region to capture by drawing a rectangle with the mouse
-    	    // Create the GUI on the event-dispatching thread
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                	DefineCaptureRegion dcr = new DefineCaptureRegion(temporaryCTS);
-                    // Display the window; since this is a modal dialog, this method won't
-                	// return until the dialog is hidden
-                    dcr.setVisible(true);
-                }
-            });
-        }
-        // Wait until user has specified the region to capture before proceeding.
-        // (This is a bit hokey just waiting until regionToCapture has been defined, but it works.)
-        while (regionToCapture == null) {
-        	try {
-        		Thread.sleep(500);
-        	} catch (Exception e) {
-        		// Nothing to do
-        	}
-        }
-        */
-
-	    //
-	    // For a discussion of translucent and shaped windows see https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
-		//
-		GraphicsEnvironment graphEnv = GraphicsEnvironment.getLocalGraphicsEnvironment();
-	    GraphicsDevice graphDev = graphEnv.getDefaultScreenDevice();
-		if (!graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.TRANSLUCENT)) {
-	       	// Should we only allow full screen capture in this case?
-			// bFullScreen = true;
-			// regionToCapture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-	        System.err.println("WARNING\nWARNING Translucent windows are not supported\nWARNING");
-	    }
 
 		//
 		// Specify a shutdown hook to catch Ctrl+c
@@ -522,12 +472,13 @@ public class CTstream implements ActionListener,MouseMotionListener {
 			}
 		});
 
-		// See if shaped windows are supported
-		final boolean bShapedWindowSupported = graphDev.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSPARENT);
+		// For now, we are going to assume that shaped windows (PERPIXEL_TRANSPARENT) are supported.
+        // For a discussion of translucent and shaped windows see https://docs.oracle.com/javase/tutorial/uiswing/misc/trans_shaped_windows.html
+        // This includes examples on how to check if TRANSLUCENT and PERPIXEL_TRANSPARENT are supported by the graphics.
 		// For thread safety: Schedule a job for the event-dispatching thread to create and show the GUI
 		SwingUtilities.invokeLater(new Runnable() {
 	        public void run() {
-	        	    	temporaryCTS.createAndShowGUI(bShapedWindowSupported);
+	        	    	temporaryCTS.createAndShowGUI(true);
 	        	    }
 	    });
 
@@ -1438,13 +1389,8 @@ public class CTstream implements ActionListener,MouseMotionListener {
 		// Set the taskbar/dock icon; note that Mac OS has its own way of doing it
 		//
 		if (bMacOS) {
-			// The following solution from:
-			// http://stackoverflow.com/questions/11253772/setting-the-default-application-icon-image-in-java-swing-on-os-x
-			// https://gist.github.com/bchapuis/1562406
 			try {
-				// JPW 2018/02/02: changed how to load images
-				// Here's the original way we did this (which worked under Java 8 but not under Java 9):
-				// InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				// JPW 2018/02/02: changed how to load images to work under Java 9
 				InputStream imageInputStreamLarge = getClass().getClassLoader().getResourceAsStream("Icon_128x128.png");
 				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
 				/**
@@ -1465,22 +1411,12 @@ public class CTstream implements ActionListener,MouseMotionListener {
 				 *     java.awt.Taskbar taskbar = java.awt.Taskbar.getTaskbar();
 				 *     taskbar.setIconImage(bufferedImageLarge);
 				 *
-				 * If we had preprocessor directives in Java, we could do something like use the code below
-				 * if we are at JDK < Java9 or use the code above (using Taskbar) if we are at JDK > Java9;
-				 * might be able to do this with Java annotations but not worth it to implement.
+				 * Could use reflection to make calls in class com.apple.eawt.Application; for example, see
+				 * Bertil Chapuis' "dockicon.java" example code at https://gist.github.com/bchapuis/1562406
+				 *
+				 * For now, we just won't do dock icons under Mac OS.
 				 *
 				 **/
-				// Here's the call we really want to make, but we will do this via reflection
-		        // com.apple.eawt.Application.getApplication().setDockIconImage( bufferedImageLarge );
-				Class<?> util = Class.forName("com.apple.eawt.Application");
-			    Method getApplication = util.getMethod("getApplication", new Class[0]);
-			    // The following is the equivalent of invoking: com.apple.eawt.Application.getApplication()
-			    Object application = getApplication.invoke(util);
-			    Class<?> params[] = new Class[1];
-			    params[0] = Image.class;
-			    Method setDockIconImage = util.getMethod("setDockIconImage", params);
-			    // The following is the equivalent of invoking: com.apple.eawt.Application.getApplication().setDockIconImage(bufferedImageLarge)
-			    setDockIconImage.invoke(application, bufferedImageLarge);
 		    }
 		    catch (Exception excepI) {
 		    	System.err.println("Exception thrown trying to set icon: " + excepI);
@@ -1488,9 +1424,7 @@ public class CTstream implements ActionListener,MouseMotionListener {
 		} else {
 			// The following has been tested under Windows 10 and Ubuntu 12.04 LTS
 			try {
-				// JPW 2018/02/02: changed how to load images
-				// Here's the original way we did this (which worked under Java 8 but not under Java 9):
-				// InputStream imageInputStreamLarge = guiFrame.getClass().getResourceAsStream("/Icon_128x128.png");
+				// JPW 2018/02/02: changed how to load images to work under Java 9
 				InputStream imageInputStreamLarge = getClass().getClassLoader().getResourceAsStream("Icon_128x128.png");
 				BufferedImage bufferedImageLarge = ImageIO.read(imageInputStreamLarge);
 				InputStream imageInputStreamMed = getClass().getClassLoader().getResourceAsStream("Icon_64x64.png");

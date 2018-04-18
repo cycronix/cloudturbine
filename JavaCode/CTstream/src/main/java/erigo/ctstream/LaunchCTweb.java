@@ -294,9 +294,6 @@ public class LaunchCTweb extends javax.swing.JDialog {
                 argList.add(nextStr);
             }
         }
-        // For a discussion of File.getPath(), File.getAbsolutePath() and File.getCanonicalPath() see
-        // https://stackoverflow.com/questions/1099300/whats-the-difference-between-getpath-getabsolutepath-and-getcanonicalpath
-        // Using getPath() here, which gets the path string that the File object was constructed with.
         argList.add(folderF.getPath());
 
         // Launch CTweb process
@@ -304,13 +301,8 @@ public class LaunchCTweb extends javax.swing.JDialog {
             @Override
             public void run() {
                 // Convert ArrayList to an array of Strings
-                // See example at https://www.tutorialspoint.com/java/util/arraylist_toarray.htm
                 String strList[] = new String[argList.size()];
                 strList = argList.toArray(strList);
-                System.err.println("CTweb arguments:");
-                for (String nextStr : strList) {
-                    System.err.println("\t" + nextStr);
-                }
                 /*
                 // Launch CTweb directly
                 try {
@@ -321,7 +313,12 @@ public class LaunchCTweb extends javax.swing.JDialog {
                 }
                 */
                 // Launch CTweb using reflection
-                // From https://stackoverflow.com/questions/15582476/how-to-call-main-method-of-a-class-using-reflection-in-java
+                // Based on submissions to the following Stack Overflow post:
+                //     https://stackoverflow.com/questions/15582476/how-to-call-main-method-of-a-class-using-reflection-in-java
+                // Contributions from the following authors:
+                //     Perception, https://stackoverflow.com/users/680925/perception
+                //     Bruce Martin, https://stackoverflow.com/users/646723/bruce-martin
+                // License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
                 try {
                     // We will assume CTweb.jar is located in the same directory as CTstream.jar
                     // For some reason we aren't able to locate CTweb.jar even if "CTweb.jar" is included on

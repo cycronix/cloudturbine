@@ -68,3 +68,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Library: Apache Commons Math (http://commons.apache.org/proper/commons-math/)
 License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
+DisplayPlot.java has been adapted from the XYLineChartExample code available at:
+    https://www.boraji.com/jfreechart-xy-line-chart-example
+Author: Sunil Singh Bora, http://boraji.com/
+Licensed under a Creative Commons Attribution 4.0 International License, https://creativecommons.org/licenses/by/4.0/legalcode
+
+-----------------------------------------------------------------------------

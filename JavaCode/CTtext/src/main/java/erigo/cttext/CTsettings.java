@@ -610,7 +610,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 		} else if (eventI.getActionCommand().equals("Browse...")) {
 			// This was for a "Browse" button to locate a directory, but since
 			// we're using this for filesystems and FTP, don't bother
-			// Code largely taken from http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
+			// This "Browse..." support code is copied from Vit Bernatik's sample code found on Stack Overflow at http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
+			// Sample author: Vit Bernatik, https://stackoverflow.com/users/1093607/vit-bernatik
+			// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
 			JFileChooser fc = new JFileChooser();
 			fc.setCurrentDirectory(new java.io.File("."));
 			fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);

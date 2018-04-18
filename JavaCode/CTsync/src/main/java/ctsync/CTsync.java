@@ -360,7 +360,10 @@ public class CTsync {
 //        WatchKey key = dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
     	// following works better on Mac OS X, which as of Java7 does not use native watchservice.  OS X still slow relative to PC.  See:
     	WatchKey key;
-    	// http://stackoverflow.com/questions/9588737/is-java-7-watchservice-slow-for-anyone-else
+		// Code to speed up WatchService largely copied from makc's sample code found on Stack Overflow at
+		//     https://stackoverflow.com/questions/9588737/is-java-7-watchservice-slow-for-anyone-else
+		// Sample author: makc, https://stackoverflow.com/users/2207790/makc
+		// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
     	try {		// Windows (only) supports built-in recursive monitoring
     		key = dir.register(watcher, new WatchEvent.Kind[]{ENTRY_MODIFY, ENTRY_CREATE, ENTRY_DELETE}, SensitivityWatchEventModifier.HIGH, ExtendedWatchEventModifier.FILE_TREE);
     	} catch(Exception e) {
