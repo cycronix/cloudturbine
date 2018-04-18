@@ -49,7 +49,7 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-  * 	Redistributions of source code must retain the above copyright notice, 
+  * Redistributions of source code must retain the above copyright notice, 
 	this list of conditions and the following disclaimer.
 
   *	Redistributions in binary form must reproduce the above copyright notice,
@@ -84,7 +84,7 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-  * 	Redistributions of source code must retain the above copyright notice, 
+  * Redistributions of source code must retain the above copyright notice, 
 	this list of conditions and the following disclaimer.
 
   *	Redistributions in binary form must reproduce the above copyright notice,
@@ -136,11 +136,22 @@ License shown below
 
 Copyright (C) 2012 - 2015 Bartosz Firyn (https://github.com/sarxos)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -----------------------------------------------------------------------------
 
@@ -170,11 +181,22 @@ License shown below
 Copyright (c) 2004-2017 QOS.ch
 All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -----------------------------------------------------------------------------
 
@@ -341,6 +363,108 @@ License header shown below (copied from http://central.maven.org/maven2/javax/se
     and therefore, elected the GPL Version 2 license, then the option applies
     only if the new code is made subject to such option by the copyright
     holder.
+
+-----------------------------------------------------------------------------
+
+Project: CTjms
+Portions of CTjms.java are based on or copied from the "App.java" demo program
+provided at http://activemq.apache.org/hello-world.html
+License: Although not explicitly stated, it is assumed this demo program is
+  covered by Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
+Project: CTlib
+Portions of CTcrypto.java are based on Michael Hixson's sample code found on Stack Overflow at
+    http://stackoverflow.com/questions/31851612/java-aes-gcm-nopadding-what-is-cipher-getiv-giving-me
+Sample author: Michael Hixson, https://stackoverflow.com/users/359008/michael-hixson
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Projects: CTstream, CTtext
+The "Browse..." support code in CTsettings.java is copied from Vit Bernatik's sample code found on Stack Overflow at
+    http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
+Sample author: Vit Bernatik, https://stackoverflow.com/users/1093607/vit-bernatik
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Project: CTsync
+Code to speed up WatchService in CTsync.java largely copied from makc's sample code found on Stack Overflow at
+    https://stackoverflow.com/questions/9588737/is-java-7-watchservice-slow-for-anyone-else
+Sample author: makc, https://stackoverflow.com/users/2207790/makc
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Project: CTstream
+Code to set image quality in ImageTask.java was copied from JeanValjean's sample code found on Stack Overflow at
+    http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java
+Sample author: JeanValjean, https://stackoverflow.com/users/1339429/jeanvaljean
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Project: CTstream
+Code to write out the image at a custom compression/quality level in ImageTask.java
+is based on submissions to the following Stack Overflow post:
+    http://stackoverflow.com/questions/13204432/java-how-to-set-jpg-quality
+Contributions from the following authors:
+    NestedCodeblocksFTW, https://stackoverflow.com/users/1681751/nestedcodeblocksftw
+    lmiguelmh, https://stackoverflow.com/users/2692914/lmiguelmh
+    Hoku, https://stackoverflow.com/users/1214371/hoku
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Project: CTweb
+Method setupAuthentication in CTweb.java is based on the "Secured Hello Handler"
+example found at https://www.eclipse.org/jetty/documentation/9.4.x/embedded-examples.html
+Copyright notice follows:
+    ========================================================================
+    Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+    ------------------------------------------------------------------------
+    All rights reserved. This program and the accompanying materials
+    are made available under the terms of the Eclipse Public License v1.0
+	and Apache License v2.0 which accompanies this distribution.
+	
+	    The Eclipse Public License is available at
+	    http://www.eclipse.org/legal/epl-v10.html
+	
+	    The Apache License v2.0 is available at
+	    http://www.opensource.org/licenses/apache2.0.php
+	
+	You may elect to redistribute this code under either of these licenses.
+	========================================================================
+
+-----------------------------------------------------------------------------
+
+Project: CTstream
+Code in LaunchCTweb.java to launch CTweb using reflection is based on submissions
+to the following Stack Overflow post:
+    https://stackoverflow.com/questions/15582476/how-to-call-main-method-of-a-class-using-reflection-in-java
+Contributions from the following authors:
+    Perception, https://stackoverflow.com/users/680925/perception
+    Bruce Martin, https://stackoverflow.com/users/646723/bruce-martin
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Project: FilePump
+Code in FilePumpWorker.java to set SFTP configuration is largely copied from a
+submission to the following Stack Overflow post:
+    https://stackoverflow.com/questions/44763915/how-to-skip-password-prompt-during-sftp-using-commons-vfs
+Sample author: Som, https://stackoverflow.com/users/6416340/som
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------
+
+Project: FileWatch
+DisplayPlot.java has been adapted from the XYLineChartExample code available at:
+    https://www.boraji.com/jfreechart-xy-line-chart-example
+Author: Sunil Singh Bora, http://boraji.com/
+Licensed under a Creative Commons Attribution 4.0 International License, https://creativecommons.org/licenses/by/4.0/legalcode
 
 -----------------------------------------------------------------------------
 

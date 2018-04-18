@@ -1,2 +1,2 @@
-// The following sub-projects are not built by default: CTjms, FileWatch
+// The following sub-projects are not built by default: CTjms, FileWatch (FileWatch is not built because it uses an LGPL library, JFreeChart)
 include 'CT2CSV','CTadmin','CTarchive','CTaudio','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTserial','CTstream','CTsync','CTtext','CTudp','CTweb','FilePump'

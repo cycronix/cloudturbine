@@ -146,7 +146,20 @@ public class FilePumpWorker implements Runnable {
     			manager.init();
     			// Just use the default logger
     			// manager.setTemporaryFileStore(new DefaultFileReplicator(new File("C:\\TEMP")));
-                fileSystemOptions = createDefaultFileSystemOptions();
+				// Code to set SFTP configuration is largely copied from a submission to the following Stack Overflow post:
+				// https://stackoverflow.com/questions/44763915/how-to-skip-password-prompt-during-sftp-using-commons-vfs
+				// Sample author: Som, https://stackoverflow.com/users/6416340/som
+				// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+				// Setup our SFTP configuration
+                fileSystemOptions = new FileSystemOptions();
+				SftpFileSystemConfigBuilder.getInstance().setStrictHostKeyChecking(fileSystemOptions, "no");
+				// VFS file system root:
+				// setting this parameter false = cause VFS to choose File System's Root as VFS's root
+				// setting this parameter true = cause VFS to choose user's home directory as VFS's root
+				SftpFileSystemConfigBuilder.getInstance().setUserDirIsRoot(fileSystemOptions, true);
+				SftpFileSystemConfigBuilder.getInstance().setTimeout(fileSystemOptions, 10000);
+				// The following line was used by the Stack Overflow post author to be able to skip a credentials prompt
+				// SftpFileSystemConfigBuilder.getInstance().setPreferredAuthentications(fileSystemOptions, "publickey,keyboard-interactive,password");
     		} catch (Exception e) {
     			System.err.println("Caught exception setting up Apache Commons VFS manager for SFTP:\n" + e);
     			e.printStackTrace();
@@ -405,15 +418,10 @@ public class FilePumpWorker implements Runnable {
 	// Requires the following libraries:
 	// 1. Commons VFS: http://commons.apache.org/proper/commons-vfs/download_vfs.cgi
 	// 2. Commons Logging: http://commons.apache.org/proper/commons-logging/download_logging.cgi
-	// 2. JSCH: http://www.jcraft.com/jsch/
+	// 3. JSCH: http://www.jcraft.com/jsch/
 	//
-	// Examples using VFS to perform SFTP can be found at (note that these examples are almost all identical):
-	// http://stackoverflow.com/questions/21399561/sftp-upload-download-exist-and-move-using-apache-commons-vfs
-	// http://www.memorylack.com/2011/06/apache-commons-vfs-for-sftp.html
-	// http://thinkinginsoftware.blogspot.com/2012/01/commons-vfs-sftp-from-java-simple-way.html
-	//
-	// In contrast to these example, in our code here we directly write to the output file using an
-	// OutputStream and thus don't need to have a local copy of the file.
+	// We directly write to the output file using an OutputStream and thus don't need to have a
+	// local copy of the file.
 	//
 	// An alternate approach would be to perform a secure copy (SCP, which is the
 	// same as SFTP) using the JSCH open source library.
@@ -426,8 +434,8 @@ public class FilePumpWorker implements Runnable {
 		
 		try {
             // Create remote file object
-            FileObject remoteFile = manager.resolveFile(connectionStr, fileSystemOptions);
-            FileContent fc = remoteFile.getContent();
+            FileObject fo = manager.resolveFile(connectionStr, fileSystemOptions);
+            FileContent fc = fo.getContent();
             OutputStream ostream = fc.getOutputStream();
 			if(ostream==null) {
 				throw new IOException("Error opening output stream to SFTP");
@@ -437,56 +445,11 @@ public class FilePumpWorker implements Runnable {
     		pw.format("%06d\n",random_num);
 			pw.close();
 			// Cleanup
-			if (remoteFile != null) remoteFile.close();
+			if (fo != null) fo.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		/**
-		// Here's an alternate approach that creates a local file and then copies the
-		// local file to remote directory
-		// Create the local file
-		File local_file = new File("C:\\TEMP\\TEST",filename);
-		try {
-		    FileWriter fw = new FileWriter(local_file,false);
-		    PrintWriter pw = new PrintWriter(fw);
-			// Write out the index and a random number to the file
-			pw.format("%06d\n",random_num);
-			pw.close();
-		} catch (Exception e) {
-        	e.printStackTrace();
-        }
-		// Copy the local file to remote SFTP server
-        try {
-            // Create local file object
-            FileObject localFile = manager.resolveFile(local_file.getAbsolutePath());
-            // Create remote file object
-            FileObject remoteFile = manager.resolveFile(connectionStr, fileSystemOptions);
-            // Copy local file to SFTP server
-            remoteFile.copyFrom(localFile, Selectors.SELECT_SELF);
-        } catch (Exception e) {
-        	e.printStackTrace();
-        }
-        **/
-		
 	}
-    
-    protected FileSystemOptions createDefaultFileSystemOptions() throws FileSystemException {
-    	
-        FileSystemOptions opts = new FileSystemOptions();
-        
-        // SSH Key checking
-        SftpFileSystemConfigBuilder.getInstance().setStrictHostKeyChecking(opts, "no");
-        
-        // VFS file system root:
-        // setting this parameter false = cause VFS to choose File System's Root as VFS's root
-        // setting this parameter true = cause VFS to choose user's home directory as VFS's root
-        SftpFileSystemConfigBuilder.getInstance().setUserDirIsRoot(opts, true);
-        
-        // Timeout is count by Milliseconds
-        SftpFileSystemConfigBuilder.getInstance().setTimeout(opts, 20000);
-        
-        return opts;
-    }
-	
+
 }

@@ -296,7 +296,26 @@ public class CTweb {
     }
     
     //---------------------------------------------------------------------------------	
-    // setup authentication.  ref: https://www.eclipse.org/jetty/documentation/9.4.x/embedded-examples.html
+    // setup authentication.
+	// This method is based on the "Secured Hello Handler" example found at
+	//     https://www.eclipse.org/jetty/documentation/9.4.x/embedded-examples.html
+	// Copyright notice follows:
+	//  ========================================================================
+	//  Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+	//  ------------------------------------------------------------------------
+	//  All rights reserved. This program and the accompanying materials
+	//  are made available under the terms of the Eclipse Public License v1.0
+	//  and Apache License v2.0 which accompanies this distribution.
+	//
+	//      The Eclipse Public License is available at
+	//      http://www.eclipse.org/legal/epl-v10.html
+	//
+	//      The Apache License v2.0 is available at
+	//      http://www.opensource.org/licenses/apache2.0.php
+	//
+	//  You may elect to redistribute this code under either of these licenses.
+	//  ========================================================================
+	//
     
     private static void setupAuthentication(Server server, ServletHandler shandler) {
     	if(realmProps == null) {		// notta

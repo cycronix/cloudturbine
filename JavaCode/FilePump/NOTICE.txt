@@ -75,3 +75,13 @@ The "add" method contained in FilePump's Utility.java file was copied from
 DataTurbine class com.rbnb.utility.Utility (http://dataturbine.org/,
 https://github.com/cycronix/dataturbine/blob/master/Source/DataTurbine/com/rbnb/utility/Utility.java)
 License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
+Code in FilePumpWorker.java to set SFTP configuration is largely copied from a
+submission to the following Stack Overflow post:
+    https://stackoverflow.com/questions/44763915/how-to-skip-password-prompt-during-sftp-using-commons-vfs
+Sample author: Som, https://stackoverflow.com/users/6416340/som
+License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+-----------------------------------------------------------------------------

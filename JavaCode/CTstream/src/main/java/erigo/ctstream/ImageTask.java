@@ -35,9 +35,6 @@ import org.openimaj.image.ImageUtilities;
 /**
  * Generate an image for a DataStream and put it in the DataStream's queue.
  *
- * Screen capture code based on the example found at:
- * http://www.codejava.net/java-se/graphics/how-to-capture-screenshot-programmatically-in-java
- *
  * @author John P. Wilson
  * @version 03/07/2018
  *
@@ -61,6 +58,10 @@ public class ImageTask extends TimerTask implements Runnable {
 		dataStream = dataStreamI;
 		spec = specI;
 		// Setup image quality
+		// Code copied from JeanValjean's sample code found on Stack Overflow at
+		//     http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java
+		// Sample author: JeanValjean, https://stackoverflow.com/users/1339429/jeanvaljean
+		// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
 		jpegParams = new JPEGImageWriteParam(null);
 		jpegParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
 		jpegParams.setCompressionQuality(spec.imageQuality);
@@ -129,10 +130,13 @@ public class ImageTask extends TimerTask implements Runnable {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			// Write out the image using default compression
 			// ImageIO.write(bufferedImage, "jpg", baos);
-			// Write out the image using a custom compression
-			//   See the following websites for where I got this code:
-			//   http://stackoverflow.com/questions/13204432/java-how-to-set-jpg-quality
-			//   http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java
+			// Code to write out the image at a custom compression/quality level is based on submissions the following Stack Overflow post:
+			// http://stackoverflow.com/questions/13204432/java-how-to-set-jpg-quality
+			// Contributions from the following authors:
+			//     NestedCodeblocksFTW, https://stackoverflow.com/users/1681751/nestedcodeblocksftw
+			//     lmiguelmh, https://stackoverflow.com/users/2692914/lmiguelmh
+			//     Hoku, https://stackoverflow.com/users/1214371/hoku
+			// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
 			ImageOutputStream  ios =  ImageIO.createImageOutputStream(baos);
 		    Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName("jpg");
 		    ImageWriter writer = iter.next();

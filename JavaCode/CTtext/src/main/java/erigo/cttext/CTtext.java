@@ -184,16 +184,12 @@ public class CTtext implements ActionListener {
 		// DISABLE THE KEY BINDING SINCE WE DON'T NEED TO RESPOND TO LINE FEEDS;
 		// CTwriter WILL EITHER FLUSH CONTENT WITH EVERY EDIT OR ELSE USE ASYNC AUTO FLUSH
 		//
-		// Add a KeyBinding to the JTextArea so we know when the user hits the ENTER key
+		// We could add a KeyBinding to the JTextArea so we know when the user hits the ENTER key
 		// Information about Key Bindings and Key Listeners:
 		// o Key Binding (good tutorial): http://www.dreamincode.net/forums/topic/245148-java-key-binding-tutorial-and-demo-program/
 		// o Key Binding versus Key Listener: http://stackoverflow.com/questions/15290035/key-bindings-vs-key-listeners-in-java
 		// o DocumentListener and Key Binding: http://docs.oracle.com/javase/tutorial/uiswing/components/generaltext.html
-		// textArea.getInputMap().put(KeyStroke.getKeyStroke( "ENTER" ),"doEnterAction" );
-		// Specify that the action "doEnterAction" will be implemented by this object
-		// (the actionPerformed() method will get a callback when the user hits ENTER)
-		// textArea.getActionMap().put("doEnterAction",this);
-		
+
 		scrollPane = new JScrollPane(textArea);
 		
 		// Create a small button which will be active if user has selected "Manual flush on button click"

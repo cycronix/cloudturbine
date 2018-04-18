@@ -541,7 +541,9 @@ public class CTsettings extends JDialog implements ActionListener,ItemListener {
 			// User has specified to write output data to an HTTPS server.
 			setOutputModeControls(CTWriteMode.HTTPS);
 		} else if (eventI.getActionCommand().equals("Browse...")) {
-			// Code largely taken from http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
+			// This "Browse..." support code is copied from Vit Bernatik's sample code found on Stack Overflow at http://stackoverflow.com/questions/4779360/browse-for-folder-dialog
+			// Sample author: Vit Bernatik, https://stackoverflow.com/users/1093607/vit-bernatik
+			// License: Stack Overflow content is covered by the Creative Commons license, https://creativecommons.org/licenses/by-sa/3.0/legalcode
 			JFileChooser fc = new JFileChooser();
 			String currentPath = ".";
 			String currentOutputFolder = outputFolderTF.getText();
