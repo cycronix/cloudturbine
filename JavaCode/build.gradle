@@ -43,7 +43,8 @@ subprojects {
     compileJava.mustRunAfter clean
     
     // Copy the JAR file to a top level "Distribute" folder; do this last 
-    // so we make sure to get the newly built JAR file
+    // so we make sure to get the newly built JAR file.
+    // Also at the end of any build, copy LICENSE and NOTICE over to Distribute.
     build.doLast {
     	task -> println "Built $task.project.name"
     	String fromLoc = "${buildDir}/libs/" + project.name + ".jar"
@@ -52,6 +53,11 @@ subprojects {
     		from fromLoc
     		into toLoc
     	}
+        println "Copy LICENSE and NOTICE files to Distribute folder."
+        copy {
+            from "$rootDir/../LICENSE", "$rootDir/../NOTICE"
+            into "$rootDir/Distribute"
+        }
     }
     
     // Javadoc specifications
