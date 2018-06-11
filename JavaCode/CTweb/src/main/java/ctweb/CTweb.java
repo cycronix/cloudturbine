@@ -126,6 +126,12 @@ public class CTweb {
 	private static int maxCTwriters = 0;				// crude way to limit out of control PUTs
 	private static double keepTime=0., lastTime=0.;		// CTwriter.dotrim() keep-duration for PUTs
 	private static CTwriter ctwriter = null;			// CTwriter for dotrim
+	
+    private static String lastResponseString=null;			// track cache-response logic
+    private static String lastRequest =null;
+    private static long lastRequestTime = 0;
+    private static HttpServletResponse lastResponse = null;
+    
 	//---------------------------------------------------------------------------------	
 
     public static void main(String[] args) throws Exception {
@@ -382,7 +388,8 @@ public class CTweb {
     		            (request.getQueryString() != null ? "?" + request.getQueryString() : "");
     			System.err.println("doGet, URI: "+uri+", queryCount: "+queryCount+", request.method: "+request.getMethod());
     		}
-
+			String requestURI = request.getRequestURI();
+    		
     		//--------------------------------
     		// redirect if Proxy server
     		// local sources have priority; only redirect if proxy-source is unique
@@ -396,7 +403,6 @@ public class CTweb {
 				if(sourceFolder == null) sourceList = ctreader.listSources();
 				else					 sourceList.add(sourceFolder);
     			
-    			String requestURI = request.getRequestURI();
     			Enumeration CTnames = CTwebProps.propertyNames();
     			while(CTnames.hasMoreElements()) {
     				String CTname = (String)CTnames.nextElement();
@@ -521,11 +527,13 @@ public class CTweb {
     			double duration=0., start=0.;
     			String reference="newest";			
     			String param;	char ftype='s';	  char fetch = 'b';
+    			long cacheDur = 100;		// default 100ms (for wildcard requests only)
     			param = request.getParameter("d");	if(param != null) duration = Double.parseDouble(param);
     			param = request.getParameter("t");	if(param != null) { start = Double.parseDouble(param); reference="absolute"; }
     			param = request.getParameter("r");	if(param != null) reference = param;
     			param = request.getParameter("f");	if(param != null) fetch = param.charAt(0);
     			param = request.getParameter("dt");	if(param != null) ftype = param.charAt(0);
+    			param = request.getParameter("c");	if(param != null) cacheDur = Long.parseLong(param);
 
     			if(reference.equals("refresh")) {
     				ctreader.clearFileListCache();
@@ -572,6 +580,20 @@ public class CTweb {
     				return;
     			}
     			else if(pathInfo.contains("/*")) {									// wildcard source: /SourceBase/*/channel
+    				
+    	    		// check if cache response works:
+    				String fullrequest = request.getRequestURL()+"?"+request.getQueryString();
+    	    		long thisTime = System.currentTimeMillis();
+    	    		if ( ((thisTime - lastRequestTime) < cacheDur) && fullrequest.equals(lastRequest) && lastResponse!=null) {
+    	    			if(debug) System.err.println("Cached response for request: "+fullrequest);
+    	    			response.getWriter().println(lastResponseString);
+    	    			response = lastResponse;
+    	    			return;
+    	    		}
+//    	    		lastRequest = fullrequest;
+    	    		lastRequestTime = thisTime;
+    				
+    				// no cache, fetch CT data:
     				String[] sbaseParts = pathInfo.split("\\*");
     				String cbase = null;
     				if(sbaseParts.length > 1) cbase = pathParts[pathParts.length-1];
@@ -617,6 +639,11 @@ public class CTweb {
 
 					formHeader(response, sTime, eTime, oldTime, newTime, lagTime);  
     				formResponse(response, sbresp);
+    				synchronized(this) {						// make sure cache response matches corresponding fullRequest
+    					lastResponse = response;
+    					lastResponseString = sbresp.toString();
+    					lastRequest = fullrequest;
+    				}
     				return;
     			}
     			else if(pathInfo.endsWith("/")) {										// Source level request for Channels
