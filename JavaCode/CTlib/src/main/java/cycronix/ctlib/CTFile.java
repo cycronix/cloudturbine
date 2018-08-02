@@ -614,7 +614,8 @@ class CTFile extends File {
 				CTcache.ZipMapCache.put(myPath, zipMap);			// cache
 				//		} catch(IOException ex) { System.err.println("ZipMap Exception on zipfile: "+zipfile); ex.printStackTrace(); }
 			} catch(Exception ex) { 
-				zipMap = null;				// benign: partial zip-file as it is being written, ignore
+				// MJM 8/2/18:  following null causes windows CTweb to fail fetch...
+//				zipMap = null;				// benign: partial zip-file as it is being written, ignore
 				CTinfo.debugPrint("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
 				//			ex.printStackTrace(); 
 			}

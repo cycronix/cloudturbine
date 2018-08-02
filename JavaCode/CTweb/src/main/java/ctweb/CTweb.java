@@ -619,19 +619,22 @@ public class CTweb {
     						for(String chan : clist) {
     							if(cbase==null || chan.equals(cbase)) {
     								CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
-    								String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
-    								if(dlist != null) {
-    									for(String d : dlist) sbresp.append(d+"\n");
-    								}
+    								
+    								if(tdata != null) {  	// MJM 8/1/18
+    									String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
+    									if(dlist != null) {
+    										for(String d : dlist) sbresp.append(d+"\n");
+    									}
 
-    								// gather header info:
-    								double[] tlimits = ctreader.timeLimits(sname, chan);
-    								if(oldTime > tlimits[0]) oldTime = tlimits[0];
-    								if(newTime==0 || newTime < tlimits[1]) newTime = tlimits[1];
-    								lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    								double time[] = tdata.getTime();
-    								if(sTime==0 || time[0] > sTime) sTime = time[0];			// freshest
-    								if(eTime==0 || time[time.length-1] > eTime) eTime = time[time.length-1];
+    									// gather header info:
+    									double[] tlimits = ctreader.timeLimits(sname, chan);
+    									if(oldTime > tlimits[0]) oldTime = tlimits[0];
+    									if(newTime==0 || newTime < tlimits[1]) newTime = tlimits[1];
+    									lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    									double time[] = tdata.getTime();
+    									if(sTime==0 || time[0] > sTime) sTime = time[0];			// freshest
+    									if(eTime==0 || time[time.length-1] > eTime) eTime = time[time.length-1];
+    								}
     							}
     						}
     					}
