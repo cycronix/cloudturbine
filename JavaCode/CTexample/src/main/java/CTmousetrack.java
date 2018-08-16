@@ -6,6 +6,8 @@ import java.awt.PointerInfo;
 import java.awt.Toolkit;
 import java.io.File;
 import java.io.IOException;
+import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -17,7 +19,8 @@ import cycronix.ctlib.*;
  * Track mouse position and output x,y tracks
  * <p>
  * @author Matt Miller (MJM), Cycronix
- * @version 2018/07/20
+ * @author John Wilson (JPW), Erigo Technologies
+ * @version 2018/08/16
  * 
 */
 
@@ -39,7 +42,7 @@ limitations under the License.
 
 public class CTmousetrack {
 
-	enum CTWriteMode { LOCAL, FTP, HTTP, HTTPS }   // Modes for writing out CT data
+	enum CTWriteMode { LOCAL, FTP, HTTP, HTTPS, UDP }   // Modes for writing out data; all but UDP write to CT
 
 	public static void main(String[] args) {
 
@@ -55,6 +58,12 @@ public class CTmousetrack {
 		String serverHost = "";				   // Server (FTP or HTTP/S) host:port
 		String serverUser = "";				   // Server (FTP or HTTPS) username
 		String serverPassword = "";			   // Server (FTP or HTTPS) password
+
+		// For UDP output mode
+		DatagramSocket udpServerSocket = null;
+		InetAddress udpServerAddress = null;
+		String udpHost = "";
+		int udpPort = -1;
 
 		// Concatenate all of the CTWriteMode types
 		String possibleWriteModes = "";
@@ -72,11 +81,11 @@ public class CTmousetrack {
 		options.addOption("h", "help", false, "Print this message.");
 		options.addOption(Option.builder("o").argName("base output dir").hasArg().desc("Base output directory when writing data to local folder (i.e., this is the location of CTdata folder); default = \"" + outLoc + "\".").build());
 		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write data to; default = \"" + srcName + "\".").build());
-		options.addOption(Option.builder("b").argName("points per block").hasArg().desc("Number of points per block; default = " + Long.toString(blockPts) + ".").build());
+		options.addOption(Option.builder("b").argName("points per block").hasArg().desc("Number of points per block; UDP output mode will use 1 point/block; default = " + Long.toString(blockPts) + ".").build());
 		options.addOption(Option.builder("dt").argName("samp interval msec").hasArg().desc("Sampling period in msec; default = " + Long.toString(sampInterval) + ".").build());
 		options.addOption(Option.builder("t").argName("trim time sec").hasArg().desc("Trim (ring-buffer loop) time (sec); this is only used when writing data to local folder; specify 0 for indefinite; default = " + Double.toString(trimTime) + ".").build());
-		options.addOption(Option.builder("w").argName("write mode").hasArg().desc("Type of CT write connection; one of " + possibleWriteModes + "; default = " + writeMode.name() + ".").build());
-		options.addOption(Option.builder("host").argName("host[:port]").hasArg().desc("Host:port when writing to CT via FTP, HTTP, HTTPS.").build());
+		options.addOption(Option.builder("w").argName("write mode").hasArg().desc("Type of write connection; one of " + possibleWriteModes + "; all but UDP mode write out to CT; default = " + writeMode.name() + ".").build());
+		options.addOption(Option.builder("host").argName("host[:port]").hasArg().desc("Host:port when writing via FTP, HTTP, HTTPS, UDP.").build());
 		options.addOption(Option.builder("u").argName("username,password").hasArg().desc("Comma-delimited username and password when writing to CT via FTP or HTTPS.").build());
 		options.addOption("x", "debug", false, "Enable CloudTurbine debug output.");
 
@@ -93,7 +102,7 @@ public class CTmousetrack {
 		if (line.hasOption("help")) {			// Display help message and quit
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.setWidth(120);
-			formatter.printHelp( "CTmousetrack", options );
+			formatter.printHelp( "CTmousetrack", "", options, "NOTE: UDP output is a special non-CT output mode where single x,y points are sent via UDP to the specified host:port.");
 			return;
 		}
 
@@ -135,6 +144,24 @@ public class CTmousetrack {
 				System.err.println("When using write mode \"" + writeModeStr + "\", you must specify the server host.");
 				System.exit(0);
 			}
+			if (writeMode == CTWriteMode.UDP) {
+				// Force blockPts to be 1
+				blockPts = 1;
+				// User must have specified both host and port
+				int colonIdx = serverHost.indexOf(':');
+				if ( (colonIdx == -1) || (colonIdx >= serverHost.length()-1) ) {
+					System.err.println("For UDP output mode, both the host and port (<host>:<port>)) must be specified.");
+					System.exit(0);
+				}
+				udpHost = serverHost.substring(0,colonIdx);
+				String udpPortStr = serverHost.substring(colonIdx+1);
+				try {
+					udpPort = Integer.parseInt(udpPortStr);
+				} catch (NumberFormatException nfe) {
+					System.err.println("The UDP port must be a positive integer.");
+					System.exit(0);
+				}
+			}
 			if ((writeMode == CTWriteMode.FTP) || (writeMode == CTWriteMode.HTTPS)) {
 				String userpassStr = line.getOptionValue("u","");
 				if (!userpassStr.isEmpty()) {
@@ -153,14 +180,17 @@ public class CTmousetrack {
 		debug = line.hasOption("debug");
 
 		System.err.println("CTmousetrack parameters:");
-		System.err.println("\tsource = " + srcName);
+		System.err.println("\toutput mode = " + writeMode.name());
+		if (writeMode != CTWriteMode.UDP) {
+			System.err.println("\tsource = " + srcName);
+			System.err.println("\ttrim time = " + trimTime + " sec");
+		}
 		System.err.println("\tpoints per block = " + blockPts);
 		System.err.println("\tsample interval = " + sampInterval + " msec");
-		System.err.println("\ttrim time = " + trimTime + " sec");
 
 		try {
 			//
-			// Setup CTwriter
+			// Setup CTwriter or UDP output
 			//
 			CTwriter ctw = null;
 			CTinfo.setDebug(debug);
@@ -193,10 +223,25 @@ public class CTmousetrack {
 				}
 				ctw = cthttp; // upcast to CTWriter
 				System.err.println("\tdata will be written to HTTPS server at " + serverHost);
+			} else if (writeMode == CTWriteMode.UDP) {
+				try {
+					udpServerSocket = new DatagramSocket();
+				} catch (SocketException se) {
+					System.err.println("Error creating socket for UDP:\n" + se);
+					System.exit(0);
+				}
+				try {
+					udpServerAddress = InetAddress.getByName(udpHost);
+				} catch (UnknownHostException uhe) {
+					System.err.println("Error getting UDP server host address:\n" + uhe);
+					System.exit(0);
+				}
 			}
-			ctw.setBlockMode(blockPts>1,blockPts>1);
-			ctw.autoFlush(0);                          // no autoflush
-			ctw.autoSegment(1000);
+			if (writeMode != CTWriteMode.UDP) {
+				ctw.setBlockMode(blockPts > 1, blockPts > 1);
+				ctw.autoFlush(0);                          // no autoflush
+				ctw.autoSegment(1000);
+			}
 
 			// screen dims
 			Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -208,25 +253,56 @@ public class CTmousetrack {
 			
 			// loop and write some output
 			for(int i=0; i<1000000; i++) {						// go until killed
-				ctw.setTime(System.currentTimeMillis());				
-				cmap.clear(); 
-				
+				long currentTime = System.currentTimeMillis();
 				Point mousePos = MouseInfo.getPointerInfo().getLocation();
-				
-				cmap.put("x", (float)(mousePos.getX()/width));					// normalize
-				cmap.put("y", (float)((height-mousePos.getY())/height));		// flip Y (so bottom=0)
-				ctw.putData(cmap);
-				
-				if(((i+1)%blockPts)==0) {
-					ctw.flush();
+				float x_pt = (float)(mousePos.getX() / width);               // normalize
+				float y_pt = (float) ((height - mousePos.getY()) / height);  // flip Y (so bottom=0)
+				if (writeMode != CTWriteMode.UDP) {
+					// CT output mode
+					ctw.setTime(currentTime);
+					cmap.clear();
+					cmap.put("x", x_pt);
+					cmap.put("y", y_pt);
+					ctw.putData(cmap);
+					if(((i+1)%blockPts)==0) {
+						ctw.flush();
+						System.err.print(".");
+					}
+				} else {
+					// UDP output mode
+					// We force blockPts to be 1 for UDP output mode, i.e. we "flush" the data every time
+					// Write the following data (21 bytes total):
+					//     header = "MOUSE", 5 bytes
+					//     current time, long, 8 bytes
+					//     2 floats (x,y) 4 bytes each, 8 bytes
+					int len = 21;
+					ByteBuffer bb = ByteBuffer.allocate(len);
+					String headerStr = "MOUSE";
+					bb.put(headerStr.getBytes("UTF-8"));
+					bb.putLong(currentTime);
+					bb.putFloat(x_pt);
+					bb.putFloat(y_pt);
+					// Might be able to use the following, but not sure:
+					//     byte[] sendData = bb.array();
+					byte[] sendData = new byte[len];
+					bb.position(0);
+					bb.get(sendData,0,len);
+					DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, udpServerAddress, udpPort);
+					try {
+						udpServerSocket.send(sendPacket);
+					} catch (IOException e) {
+						System.err.println("Test server caught exception trying to send data to UDP client:\n" + e);
+					}
 					System.err.print(".");
 				}
 				try { Thread.sleep(sampInterval); } catch(Exception e) {};
 			}
-			ctw.flush(); 	// wrap up
+			if (writeMode != CTWriteMode.UDP) {
+				ctw.flush();    // wrap up
+			}
 		} catch(Exception e) {
-			System.err.println("CT exception: "+e);
+			System.err.println("CTmousetrack exception: "+e);
 			e.printStackTrace();
-		} 
+		}
 	}
 }
