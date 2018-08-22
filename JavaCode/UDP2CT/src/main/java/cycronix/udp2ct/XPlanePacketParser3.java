@@ -217,7 +217,7 @@ public class XPlanePacketParser3 implements UnityPlayer {
 		//
 		// Scale the position to fit nicely within the CTrollaball field of play
 		double scalingFactor = 25.0;
-		String unityStr = udp2ctI.createUnityString(time_sec, (float)(scalingFactor*delta_x_km),(float)(scalingFactor*alt_km),(float)(scalingFactor*delta_y_km),(float)(-1.0*pitch_deg),(float)hding_true,(float)(-1.0*roll_deg));
+		String unityStr = udp2ctI.createUnityString(time_sec, (float)(scalingFactor*delta_x_km),(float)(scalingFactor*alt_km + udp2ctI.getAltOffset()),(float)(scalingFactor*delta_y_km),(float)(-1.0*pitch_deg),(float)hding_true,(float)(-1.0*roll_deg));
 
 		return unityStr;
 	}

@@ -381,6 +381,22 @@ public class UDP2CT {
 	}
 
 	//---------------------------------------------------------------------------------------------
+	//
+	// Get minimum altitude for a given model; for example, balls should be set to half their height
+	// (0.25 in CTrollaball) so that a model doesn't sink into the ground when resting on the
+	// game table.
+
+	public float getAltOffset() {
+		float altOffset = 0.0f;
+		if (modelType.equals("Ball")) {
+			altOffset = 0.25f;
+		} else if ( (modelType.equals("Biplane")) || (modelType.equals("Primplane")) ) {
+			altOffset = 0.6f;
+		}
+		return altOffset;
+	}
+
+	//---------------------------------------------------------------------------------------------
 
 	final protected static char[] hexArray = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 	public static String bytesToHex(byte[] bytes) {
