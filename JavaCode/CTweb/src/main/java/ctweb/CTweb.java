@@ -605,7 +605,8 @@ public class CTweb {
     					sbase = sbaseParts[2];
     					for(int i=3; i<sbaseParts.length; i++) {
     						if(sbaseParts[i].equals("*")) break;
-    						sbase += ("/"+sbaseParts[i]);
+//    						sbase += ("/"+sbaseParts[i]);
+    						sbase += (File.separator+sbaseParts[i]);		// for Windows MJM 8/22/18
     					}
     				}
     				if(debug) System.err.println("got wildcard source, pathInfo: "+pathInfo+", sbase: "+sbase+", cbase: "+cbase);
