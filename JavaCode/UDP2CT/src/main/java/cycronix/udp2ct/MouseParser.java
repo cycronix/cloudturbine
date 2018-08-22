@@ -131,7 +131,7 @@ public class MouseParser implements UnityPlayer {
 	//
 	public String createUnityString(UDP2CT udp2ctI) {
 		double time_sec = time_msec / 1000.0;
-		return udp2ctI.createUnityString(time_sec,xpos,0.0f,ypos,0.0f,0.0f,0.0f);
+		return udp2ctI.createUnityString(time_sec,xpos,udp2ctI.getAltOffset(),ypos,0.0f,0.0f,0.0f);
 	}
 
 }
