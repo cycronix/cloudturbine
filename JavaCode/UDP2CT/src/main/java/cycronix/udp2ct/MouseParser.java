@@ -77,7 +77,11 @@ public class MouseParser implements UnityPlayer {
 			//
 			byte[] header = new byte[5];
 			for (int i = 0; i < header.length; i++) header[i] = packetBB.get();
-			System.err.println("Mouse position packet: bytes: " + packetBytes.length + ", t: " + time_msecI);
+			if (bPrintDebug) {
+				System.err.println("Mouse position packet: bytes: " + packetBytes.length + ", t: " + time_msecI);
+			} else {
+				System.err.print(" M");
+			}
 			//
 			// Initialize CSV string
 			//
