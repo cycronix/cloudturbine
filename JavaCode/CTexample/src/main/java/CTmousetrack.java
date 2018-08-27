@@ -181,7 +181,9 @@ public class CTmousetrack {
 
 		System.err.println("CTmousetrack parameters:");
 		System.err.println("\toutput mode = " + writeMode.name());
-		if (writeMode != CTWriteMode.UDP) {
+		if (writeMode == CTWriteMode.UDP) {
+			System.err.println("\twrite to " + udpHost + ":" + udpPort);
+		} else {
 			System.err.println("\tsource = " + srcName);
 			System.err.println("\ttrim time = " + trimTime + " sec");
 		}

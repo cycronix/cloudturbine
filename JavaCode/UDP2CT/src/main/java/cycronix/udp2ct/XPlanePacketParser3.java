@@ -97,7 +97,11 @@ public class XPlanePacketParser3 implements UnityPlayer {
 			//
 			byte[] header = new byte[5];
 			for (int i = 0; i < header.length; i++) header[i] = packetBB.get();
-			System.err.println("XPlane packet: bytes: " + packetBytes.length + ", t: " + time_msecI);
+			if (bPrintDebug) {
+				System.err.println("XPlane packet: bytes: " + packetBytes.length + ", t: " + time_msecI);
+			} else {
+				System.err.print(" X");
+			}
 			//
 			// Initialize CSV string
 			//

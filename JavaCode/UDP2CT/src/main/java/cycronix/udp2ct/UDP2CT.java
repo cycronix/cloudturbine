@@ -468,7 +468,7 @@ public class UDP2CT {
 						}
 						else 					time += dt;				// auto pace
 						if(time < flushTime) {
-							System.err.println("------------autoFlush skootch time: "+time+" -> "+flushTime);
+							System.err.println("\n------------autoFlush skootch time: "+time+" -> "+flushTime);
 							time = flushTime;		// no backwards-going times
 						}
 						
@@ -496,7 +496,7 @@ public class UDP2CT {
 									pp = new MouseParser(ctsensorw,time,data,bSavePacketDataToCT,udp_debug);
 									break;
 								default:
-									System.err.println("Unknown UDP packet type, header = " + header);
+									System.err.println("\nUnknown UDP packet type, header = " + header);
 									break;
 							}
 							if (pp != null) {
@@ -506,7 +506,11 @@ public class UDP2CT {
 								}
 							}
 							if((time - flushTime) > autoFlushMillis) {
-								System.err.println("---Flush at time " + time);
+								if (debug || udp_debug) {
+									System.err.println("---Flush at time " + time);
+								} else {
+									System.err.print(" F");
+								}
 								flushTime = time;
 								ctgamew.flush();
 								if (bSavePacketDataToCT) {
