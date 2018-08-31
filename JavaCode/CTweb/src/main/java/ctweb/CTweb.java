@@ -616,7 +616,9 @@ public class CTweb {
     				double oldTime=0, newTime=0, lagTime=0, sTime=0, eTime=0;
     				for(String sname : sourceList) {
     					if(sbase==null || sname.startsWith(sbase)) {		// get it
-    						ArrayList<String> clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
+    						ArrayList<String> clist = new ArrayList<String>();
+    						if(cbase != null) 	clist.add(cbase);
+    						else 				clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
     						for(String chan : clist) {
     							if(cbase==null || chan.equals(cbase)) {
     								CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
