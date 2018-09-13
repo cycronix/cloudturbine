@@ -41,8 +41,9 @@ import java.util.TimeZone;
 
 public class MouseParser implements UnityPlayer {
 
-	private String CSV = "";
+	private UDP2CT udp2ct = null;
 	private CTwriter ctw = null;
+	private String CSV = "";
     private double time_msec = 0;
 	private boolean bSavePacketDataToCT = false;
     private boolean bPrintDebug = false;
@@ -53,8 +54,9 @@ public class MouseParser implements UnityPlayer {
 
 	//---------------------------------------------------------------------------------------------
 	// constructor
-	public MouseParser(CTwriter ctwI, double time_msecI, byte[] packetBytes, boolean bSavePacketDataToCTI, boolean bPrintDebugI) throws Exception {
+	public MouseParser(UDP2CT udp2ctI, CTwriter ctwI, double time_msecI, byte[] packetBytes, boolean bSavePacketDataToCTI, boolean bPrintDebugI) throws Exception {
 
+		udp2ct = udp2ctI;
 		ctw = ctwI;
 		bSavePacketDataToCT = bSavePacketDataToCTI;
 		time_msec = time_msecI;
@@ -133,9 +135,9 @@ public class MouseParser implements UnityPlayer {
 	//
 	// This method implements the required method defined in interface UnityPlayer.
 	//
-	public String createUnityString(UDP2CT udp2ctI) {
+	public String createUnityString() {
 		double time_sec = time_msec / 1000.0;
-		return udp2ctI.createUnityString(time_sec,xpos,udp2ctI.getAltOffset(),ypos,0.0f,0.0f,0.0f);
+		return udp2ct.createUnityString(time_sec,xpos,udp2ct.getAltOffset(),ypos,0.0f,0.0f,0.0f);
 	}
 
 }

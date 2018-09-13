@@ -52,8 +52,9 @@ public class XPlanePacketParser3 implements UnityPlayer {
 
 	private static final String XPLANE_PARAMS_FILENAME = "XPlaneParams.txt";	// config file of code,params
     private static Hashtable<Integer,String[]> htable = null;
-    private String CSV = "";
+	private UDP2CT udp2ct = null;
     private CTwriter ctw = null;
+	private String CSV = "";
     private double time_msec = 0;
     private boolean bSavePacketDataToCT = false;
     private boolean bPrintDebug = false;
@@ -68,13 +69,14 @@ public class XPlanePacketParser3 implements UnityPlayer {
 
 	//---------------------------------------------------------------------------------------------
 	// constructor
-	public XPlanePacketParser3(CTwriter ctwI, double time_msecI, byte[] packetBytes, boolean bSavePacketDataToCTI, boolean bPrintDebugI) throws Exception {
+	public XPlanePacketParser3(UDP2CT udp2ctI, CTwriter ctwI, double time_msecI, byte[] packetBytes, boolean bSavePacketDataToCTI, boolean bPrintDebugI) throws Exception {
 
 		if (htable == null) {
 			System.err.println("Read X-Plane channel configuration file, \"" + XPLANE_PARAMS_FILENAME + "\"");
 			htable = new HashParams().htable;
 		}
 
+		udp2ct = udp2ctI;
 		ctw = ctwI;
 		bSavePacketDataToCT = bSavePacketDataToCTI;
 		time_msec = time_msecI;
@@ -190,7 +192,7 @@ public class XPlanePacketParser3 implements UnityPlayer {
 	// delta_x = R*cos(lat0deg*pi/180)*(lon1deg-lon0deg)*pi/180
 	// distance traveled = sqrt(delta_x^2 + delta_y^2)
 	//
-	public String createUnityString(UDP2CT udp2ctI) {
+	public String createUnityString() {
 		double time_sec = time_msec / 1000.0;
 		// Make sure we have good data to make a string
 		if ((lat_deg == -999.0f) || (lon_deg == -999.0f) || (alt_ftmsl == -999.0f) || (pitch_deg == -999.0f) || (roll_deg == -999.0f) || (hding_true == -999.0f)) {
@@ -221,7 +223,13 @@ public class XPlanePacketParser3 implements UnityPlayer {
 		//
 		// Scale the position to fit nicely within the CTrollaball field of play
 		double scalingFactor = 25.0;
-		String unityStr = udp2ctI.createUnityString(time_sec, (float)(scalingFactor*delta_x_km),(float)(scalingFactor*alt_km + udp2ctI.getAltOffset()),(float)(scalingFactor*delta_y_km),(float)(-1.0*pitch_deg),(float)hding_true,(float)(-1.0*roll_deg));
+		String unityStr = udp2ct.createUnityString(time_sec,
+				                                   (float)(scalingFactor*delta_x_km),
+				                                   (float)(scalingFactor*alt_km + udp2ct.getAltOffset()),
+				                                   (float)(scalingFactor*delta_y_km),
+				                                   (float)(-1.0*pitch_deg),
+				                                   (float)hding_true,
+				                                   (float)(-1.0*roll_deg));
 
 		return unityStr;
 	}

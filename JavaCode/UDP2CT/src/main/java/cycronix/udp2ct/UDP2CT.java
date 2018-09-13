@@ -20,7 +20,7 @@ UDP2CT
 
 Capture UDP packets, parse and saves the data to CT files.
 Writes data to 2 output sources:
-1. GamePlay/<model_color>: contains the "CTstates.txt" channel with text data for use in CT/Unity
+1. GamePlay/<model_color>: contains the "CTstates.txt" or "CTstates.json" channel with text data for use in CT/Unity
 2. [OPTIONAL] Sensors/<model_color>: contains a variety of channels parsed from the received UDP packets
 
 The details of parsing UDP packets and creating the CTstates channel is handled by specific
@@ -36,12 +36,13 @@ John Wilson, Erigo Technologies
 
 package cycronix.udp2ct;
 
+import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
-
 import org.apache.commons.cli.*;
+
 import cycronix.ctlib.*;
 
 public class UDP2CT {
@@ -62,7 +63,8 @@ public class UDP2CT {
 	String modelType = "Biplane";        // Model type for CT/Unity; must be one of: Primplane, Ball, Biplane
 	String outLoc = new String("." + File.separator + "CTdata");    // Location of the base output data folder; only used when writing out CT data to a local folder
 	String sessionName = "";             // Optional session name to be prefixed to the source name
-	boolean bSavePacketDataToCT = true;                                     // Save parsed and processed data from the UDP packet to the Sensors output source?
+	boolean bSavePacketDataToCT = true;  // Save parsed and processed data from the UDP packet to the Sensors output source?
+	boolean bJson = false;               // Write game output as JSON structure
 
 	// Specify the CT output connection
 	enum CTWriteMode { LOCAL, FTP, HTTP, HTTPS }   // Modes for writing out CT data
@@ -121,6 +123,7 @@ public class UDP2CT {
 		options.addOption(Option.builder("w").argName("write mode").hasArg().desc("Type of CT write connection; one of " + possibleWriteModes + "; default = " + writeMode.name() + ".").build());
 		options.addOption(Option.builder("host").argName("host[:port]").hasArg().desc("Host:port when writing to CT via FTP, HTTP, HTTPS.").build());
 		options.addOption(Option.builder("u").argName("username,password").hasArg().desc("Comma-delimited username and password when writing to CT via FTP or HTTPS.").build());
+		options.addOption("j", "json_out", false, "Write game output as JSON structure.");
 		options.addOption("xs", "no_sensors_out", false, "Don't save UDP packet details to the \"Sensors\" source.");
 		options.addOption("xu", "udp_debug", false, "Enable UDP packet parsing debug output.");
 		options.addOption("x", "debug", false, "Enable CloudTurbine debug output.");
@@ -177,6 +180,8 @@ public class UDP2CT {
 		}
 
 		bSavePacketDataToCT = !line.hasOption("no_sensors_out");
+
+		bJson = line.hasOption("json_out");
 
 		udp_debug = line.hasOption("udp_debug");
 
@@ -302,8 +307,8 @@ public class UDP2CT {
 
 		//
 		// setup 2 instances of CTwriter:
-		// 1. ctgamew:   this source will only contain the "CTstates.txt" output channel, used by the CT/Unity game;
-		//               since this source is a text channel, we don't want this source to be packed
+		// 1. ctgamew:   this source will only contain the "CTstates.txt" or "CTstates.json" output channel, used by
+		//               the CT/Unity game; since this source is a text channel, we don't want this source to be packed
 		// 2. ctsensorw: output source for data unpacked from the captured UDP packetes; it is up to the parser class
 		//               being employed as to what channels are written to this source
 		//
@@ -312,14 +317,19 @@ public class UDP2CT {
 		// If sessionName isn't blank, it will end in a file separator
 		String srcName = sessionName + "GamePlay" + File.separator + modelColor;
 		System.err.println("Game source: " + srcName);
-		ctgamew = createCTwriter(this,srcName,false);
+		if (bJson) {
+			System.err.println("    write out JSON data");
+		} else {
+			System.err.println("    write out CSV data");
+		}
+		ctgamew = createCTwriter(srcName,false);
 		if (!bSavePacketDataToCT) {
 			System.err.println("Sensor data will not be written out");
 		} else {
 			// If sessionName isn't blank, it will end in a file separator
 			srcName = sessionName + "Sensors" + File.separator + modelColor;
 			System.err.println("Sensor data source: " + srcName);
-			ctsensorw = createCTwriter(this, srcName, packMode);
+			ctsensorw = createCTwriter(srcName, packMode);
 		}
 
 		//
@@ -335,43 +345,43 @@ public class UDP2CT {
 	}
 
 	//--------------------------------------------------------------------------------------------------------
-	// Static method to create CTwriter object
-	private static CTwriter createCTwriter(UDP2CT uu, String srcName, boolean bPack) {
+	// Create CTwriter object
+	private CTwriter createCTwriter(String srcName, boolean bPack) {
 		CTwriter ctw = null;
 		try {
-			CTinfo.setDebug(uu.debug);
-			if (uu.writeMode == CTWriteMode.LOCAL) {
-				ctw = new CTwriter(uu.outLoc + srcName,uu.trimTime);
-				System.err.println("    data will be written to local folder \"" + uu.outLoc + "\"");
-			} else if (uu.writeMode == CTWriteMode.FTP) {
+			CTinfo.setDebug(debug);
+			if (writeMode == CTWriteMode.LOCAL) {
+				ctw = new CTwriter(outLoc + srcName,trimTime);
+				System.err.println("    data will be written to local folder \"" + outLoc + "\"");
+			} else if (writeMode == CTWriteMode.FTP) {
 				CTftp ctftp = new CTftp(srcName);
 				try {
-					ctftp.login(uu.serverHost, uu.serverUser, uu.serverPassword);
+					ctftp.login(serverHost, serverUser, serverPassword);
 				} catch (Exception e) {
-					throw new IOException( new String("Error logging into FTP server \"" + uu.serverHost + "\":\n" + e.getMessage()) );
+					throw new IOException( new String("Error logging into FTP server \"" + serverHost + "\":\n" + e.getMessage()) );
 				}
 				ctw = ctftp; // upcast to CTWriter
-				System.err.println("    data will be written to FTP server at " + uu.serverHost);
-			} else if (uu.writeMode == CTWriteMode.HTTP) {
+				System.err.println("    data will be written to FTP server at " + serverHost);
+			} else if (writeMode == CTWriteMode.HTTP) {
 				// Don't send username/pw in HTTP mode since they will be unencrypted
-				CThttp cthttp = new CThttp(srcName,"http://"+uu.serverHost);
+				CThttp cthttp = new CThttp(srcName,"http://"+serverHost);
 				ctw = cthttp; // upcast to CTWriter
-				System.err.println("    data will be written to HTTP server at " + uu.serverHost);
-			} else if (uu.writeMode == CTWriteMode.HTTPS) {
-				CThttp cthttp = new CThttp(srcName,"https://"+uu.serverHost);
+				System.err.println("    data will be written to HTTP server at " + serverHost);
+			} else if (writeMode == CTWriteMode.HTTPS) {
+				CThttp cthttp = new CThttp(srcName,"https://"+serverHost);
 				// Username/pw are optional for HTTPS mode; only use them if username is not empty
-				if (!uu.serverUser.isEmpty()) {
+				if (!serverUser.isEmpty()) {
 					try {
-						cthttp.login(uu.serverUser, uu.serverPassword);
+						cthttp.login(serverUser, serverPassword);
 					} catch (Exception e) {
-						throw new IOException( new String("Error logging into HTTP server \"" + uu.serverHost + "\":\n" + e.getMessage()) );
+						throw new IOException( new String("Error logging into HTTP server \"" + serverHost + "\":\n" + e.getMessage()) );
 					}
 				}
 				ctw = cthttp; // upcast to CTWriter
-				System.err.println("    data will be written to HTTPS server at " + uu.serverHost);
+				System.err.println("    data will be written to HTTPS server at " + serverHost);
 			}
-			ctw.setBlockMode(bPack,uu.zipMode);
-			ctw.autoSegment(uu.blocksPerSegment);
+			ctw.setBlockMode(bPack,zipMode);
+			ctw.autoSegment(blocksPerSegment);
 			// ctw.autoFlush(xp.autoFlush);		// auto flush to zip once per interval (sec) of data
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -490,19 +500,23 @@ public class UDP2CT {
 							UnityPlayer pp = null;
 							switch (header) {
 								case "DATA*":
-									pp = new XPlanePacketParser3(ctsensorw,time,data,bSavePacketDataToCT,udp_debug);
+									pp = new XPlanePacketParser3(udp2ct,ctsensorw,time,data,bSavePacketDataToCT,udp_debug);
 									break;
 								case "MOUSE":
-									pp = new MouseParser(ctsensorw,time,data,bSavePacketDataToCT,udp_debug);
+									pp = new MouseParser(udp2ct,ctsensorw,time,data,bSavePacketDataToCT,udp_debug);
 									break;
 								default:
 									System.err.println("\nUnknown UDP packet type, header = " + header);
 									break;
 							}
 							if (pp != null) {
-								String unityStr = pp.createUnityString(udp2ct);
+								String unityStr = pp.createUnityString();
 								if (!unityStr.isEmpty()) {
-									ctgamew.putData("CTstates.txt", unityStr);
+									String chanName = "CTstates.txt";
+									if (udp2ct.bJson) {
+										chanName = "CTstates.json";
+									}
+									ctgamew.putData(chanName, unityStr);
 								}
 							}
 							if((time - flushTime) > autoFlushMillis) {
@@ -531,7 +545,15 @@ public class UDP2CT {
     // Create the String for participating in CTrollaball game
     //
 	public String createUnityString(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI) {
-		String unityStr = "#Live:" +
+		String unityStr = null;
+		if (bJson) {
+			unityStr = "";
+			PlayerWorldState playerState = new PlayerWorldState(timeI,xposI,altI,yposI,pitch_degI,hding_degI,roll_degI,modelColor,modelType);
+			Gson gson = new Gson();
+			unityStr = gson.toJson(playerState);
+		} else {
+			unityStr =
+				"#Live:" +
 				String.format("%.5f", timeI) +
 				":" +
 				modelColor +
@@ -552,6 +574,7 @@ public class UDP2CT {
 				"," +
 				String.format("%.4f", roll_degI) +
 				")\n";
+		}
 		return unityStr;
 	}
 

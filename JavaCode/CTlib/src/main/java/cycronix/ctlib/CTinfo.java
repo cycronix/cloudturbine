@@ -120,7 +120,8 @@ public class CTinfo {
 		else if	(fName.endsWith(".pcm")) fType = 'j';		// was 'B'
 		else if	(fName.endsWith(".mp3")) fType = 'B';
 		else if	(fName.endsWith(".pcm")) fType = 'j';		// FFMPEG s16sle audio
-		else if	(fName.endsWith(".txt")) fType = 's';	
+		else if	(fName.endsWith(".txt")) fType = 's';
+		else if	(fName.endsWith(".json")) fType = 's';
 		else if	(fName.endsWith(".f32")) fType = 'f';
 		else if	(fName.endsWith(".f64")) fType = 'F';
 		else if	(fName.endsWith(".i16")) fType = 'j';		// 's' is string for compat with WebTurbine
