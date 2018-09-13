@@ -26,5 +26,5 @@ limitations under the License.
 package cycronix.udp2ct;
 
 public interface UnityPlayer {
-    String createUnityString(UDP2CT udp2ctI);
+    String createUnityString();
 }

@@ -46,4 +46,5 @@ dependencies {
 	// Specify that we use CTlib.jar
     compile name: 'CTlib'
     compile group: 'commons-cli', name: 'commons-cli', version: '1.3.1'
+    compile 'com.google.code.gson:gson:2.8.5'
 }
