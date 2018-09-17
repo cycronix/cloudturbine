@@ -351,7 +351,8 @@ public class CTdata {
 						CTinfo.debugPrint("CTdata prev add, time: "+timelist.get(i-1));
 						ctd.add(timelist.get(i-1), datalist.get(i-1));		// index "i-1" is at or one before start
 					}
-					else {
+					else if(start >= timelist.get(i)) {		// MJM 9/17/18:  bug fix: no get oldest if d=0 && t<oldest
+//					else {
 						CTinfo.debugPrint("CTdata duration=0 add, time: "+timelist.get(i));
 						ctd.add(timelist.get(i), datalist.get(i));			// grab current if none prior or exact match
 					}

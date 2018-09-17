@@ -623,7 +623,7 @@ public class CTweb {
     							if(cbase==null || chan.equals(cbase)) {
     								CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
     								
-    								if(tdata != null) {  	// MJM 8/1/18
+    								if(tdata != null  && tdata.size()>0) {  	// MJM 8/1/18, 9/17/18
     									String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
     									if(dlist != null) {
     										for(String d : dlist) sbresp.append(d+"\n");
@@ -642,7 +642,13 @@ public class CTweb {
     						}
     					}
     				}
-
+    				
+//					System.err.println("sbresp: "+sbresp.toString());
+    				if(sbresp.length() == 0) {  // MJM 9/17/18:  return SC_NOT_FOUND if no match
+						formResponse(response, null);		// add CORS header even for error response
+        				response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        				return;
+    				}
 					formHeader(response, sTime, eTime, oldTime, newTime, lagTime);  
     				formResponse(response, sbresp);
     				synchronized(this) {						// make sure cache response matches corresponding fullRequest
