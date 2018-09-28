@@ -50,7 +50,7 @@ public class UDP2CT {
 	// params common to all sockets:
 	String multiCast=null;			     // multicast address
 	boolean zipMode=true;                // ZIP data?
-	boolean packMode=false;              // turn on pack mode?
+	boolean packMode=true;               // turn on pack mode?
 	boolean debug=false;                 // turn on debug?
 	boolean udp_debug=false;             // turn on UDP packet parsing debug?
 	double autoFlush=1.;			     // flush interval (sec)
@@ -64,7 +64,7 @@ public class UDP2CT {
 	String outLoc = new String("." + File.separator + "CTdata");    // Location of the base output data folder; only used when writing out CT data to a local folder
 	String sessionName = "";             // Optional session name to be prefixed to the source name
 	boolean bSavePacketDataToCT = true;  // Save parsed and processed data from the UDP packet to the Sensors output source?
-	boolean bJson = false;               // Write game output as JSON structure
+	boolean bJson = true;                // Write game output as JSON structure
 
 	// Specify the CT output connection
 	enum CTWriteMode { LOCAL, FTP, HTTP, HTTPS }   // Modes for writing out CT data
@@ -108,7 +108,6 @@ public class UDP2CT {
 		// 1. Setup command line options
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message.");
-		options.addOption("pack", false, "Pack blocks of data in the Sensors output source?  default = " + Boolean.toString(packMode) + ".");
 		options.addOption(Option.builder("o").argName("base output dir").hasArg().desc("Base output directory when writing data to local folder (i.e., CTdata location); default = \"" + outLoc + "\".").build());
 		options.addOption(Option.builder("s").argName("session name").hasArg().desc("Optional session name; if specified, this name is prefixed to the source path.").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
@@ -123,7 +122,8 @@ public class UDP2CT {
 		options.addOption(Option.builder("w").argName("write mode").hasArg().desc("Type of CT write connection; one of " + possibleWriteModes + "; default = " + writeMode.name() + ".").build());
 		options.addOption(Option.builder("host").argName("host[:port]").hasArg().desc("Host:port when writing to CT via FTP, HTTP, HTTPS.").build());
 		options.addOption(Option.builder("u").argName("username,password").hasArg().desc("Comma-delimited username and password when writing to CT via FTP or HTTPS.").build());
-		options.addOption("j", "json_out", false, "Write game output as JSON structure.");
+		options.addOption("csv", false, "Write game output as CSV data; the default (without this command line flag) is to write out JSON data.");
+		options.addOption("xpack", false, "Don't pack blocks of data in the Sensors output source; the default (without this command line flag) is to pack this source.");
 		options.addOption("xs", "no_sensors_out", false, "Don't save UDP packet details to the \"Sensors\" source.");
 		options.addOption("xu", "udp_debug", false, "Enable UDP packet parsing debug output.");
 		options.addOption("x", "debug", false, "Enable CloudTurbine debug output.");
@@ -175,13 +175,11 @@ public class UDP2CT {
 
 		blocksPerSegment = Long.parseLong(line.getOptionValue("bps",Long.toString(blocksPerSegment)));
 
-		if (line.hasOption("pack")) {
-			packMode = true;
-		}
+		packMode = !line.hasOption("xpack");
 
 		bSavePacketDataToCT = !line.hasOption("no_sensors_out");
 
-		bJson = line.hasOption("json_out");
+		bJson = !line.hasOption("csv");
 
 		udp_debug = line.hasOption("udp_debug");
 
@@ -322,6 +320,10 @@ public class UDP2CT {
 		} else {
 			System.err.println("    write out CSV data");
 		}
+		// NB, 2018-09-27: force bPack false for the GamePlay source;
+		//                 this source will only contain a String channel,
+		//                 and as of right now CT *will* pack String
+		//                 channels (but we don't want this channel packed)
 		ctgamew = createCTwriter(srcName,false);
 		if (!bSavePacketDataToCT) {
 			System.err.println("Sensor data will not be written out");
@@ -512,9 +514,9 @@ public class UDP2CT {
 							if (pp != null) {
 								String unityStr = pp.createUnityString();
 								if (!unityStr.isEmpty()) {
-									String chanName = "CTstates.txt";
+									String chanName = "CTstates.txt";  // write out CSV data
 									if (udp2ct.bJson) {
-										chanName = "CTstates.json";
+										chanName = "CTstates.json";    // write out JSON data
 									}
 									ctgamew.putData(chanName, unityStr);
 								}
