@@ -338,13 +338,16 @@ public class CTdata {
 				if(time < start && i<(nframe-1)) continue;			// check last frame for duration=0 case
 
 				if(duration == 0) {						// single-point case, just return first one BEFORE start time 
-					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode);
-					if(tmode.equals("next") && i<(nframe-1)) {
+					CTinfo.debugPrint("duration 0, time: "+time+", start: "+start+", tmode: "+tmode+", i: "+i+", nframe: "+nframe);
+//					if(tmode.equals("next") && i<(nframe-1)) {
+					if(tmode.equals("next")) {
 						while((i<(nframe-1)) && time==timelist.get(i+1)) {
 							i++;		// roll past dupe times...
 						}
-						CTinfo.debugPrint("CTdata next add, time: "+timelist.get(i+1)+", t+2: "+(i<(nframe-2)?timelist.get(i+2):null));
-						ctd.add(timelist.get(i+1), datalist.get(i+1));		// index "i" is current point
+						CTinfo.debugPrint("CTdata next add, time: "+timelist.get(i));
+//						ctd.add(timelist.get(i+1), datalist.get(i+1));		// index "i" is current point
+						if(time <= timelist.get(i) && i<(nframe-1)) i++;	// skootch to next
+						ctd.add(timelist.get(i), datalist.get(i));		// index "i" is current point
 					}
 //					else if((i>0) && ((start!=time) || tmode.equals("prev")))
 					else if((i>0) && (tmode.equals("prev"))) {
