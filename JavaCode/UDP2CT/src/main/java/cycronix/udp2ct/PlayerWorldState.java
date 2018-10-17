@@ -33,14 +33,14 @@ import java.util.List;
 
 public class PlayerWorldState {
 
+    private String player;
+    private double time = 0F;
     private String mode = "Live";
-    private double time;
-    private String name;
     private List<PlayerComponentState> objects;
 
     public PlayerWorldState(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI,String modelColorI,String modelTypeI) {
+        player = modelColorI;
         time = timeI;
-        name = modelColorI;
         objects = new ArrayList<PlayerComponentState>();
         objects.add(new PlayerComponentState(modelColorI, modelTypeI, true, xposI, altI, yposI, pitch_degI, hding_degI, roll_degI, ""));
         if (false) {
