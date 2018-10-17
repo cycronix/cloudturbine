@@ -22,27 +22,42 @@ A class representing one component of a game player's world.
 
 John Wilson, Erigo Technologies
 
-version: 2018-09-05
+version: 2018-10-17
 
 */
 
 package cycronix.udp2ct;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class PlayerComponentState {
 
     private String id;
-    private String prefab;
-    private boolean state;
+    private String model;
+    private boolean state = true;
     private List<Double> pos;
     private List<Double> rot;
-    private String custom;
 
-    public PlayerComponentState(String idI, String prefabI, boolean stateI, double xI, double altI, double yI, double pitchI, double headingI, double rollI, String urlI) {
+    // Can initialize scale to be the 3-element array Arrays.asList(0.0, 0.0, 0.0),
+    // which should be interpreted to mean "no change to the native scale";
+    // however, scale is an optional field, so leaving it out will be interpreted
+    // the same way and it doesn't "puff" out the JSON packet with unnecessary fields.
+    private List<Double> scale;
+
+    // link is an optional field
+    private String link;
+
+    // Can initialize color to be the 4-element array Arrays.asList(0.0, 0.0, 0.0, 0.0),
+    // which should be interpreted to mean "use the native object color";
+    // however, color is an optional field, so leaving it out will be interpreted
+    // the same way and it doesn't "puff" out the JSON packet with unnecessary fields.
+    private List<Double> color;
+
+    public PlayerComponentState(String idI, String modelI, boolean stateI, double xI, double altI, double yI, double pitchI, double headingI, double rollI, String urlI) {
         id = idI;
-        prefab = prefabI;
+        model = modelI;
         state = stateI;
         pos = new ArrayList<Double>();
         pos.add(xI);
@@ -52,7 +67,7 @@ public class PlayerComponentState {
         rot.add(pitchI);
         rot.add(headingI);
         rot.add(rollI);
-        custom = urlI;
+        link = urlI;
     }
 
 }
