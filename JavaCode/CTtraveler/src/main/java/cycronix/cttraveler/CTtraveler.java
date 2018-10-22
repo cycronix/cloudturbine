@@ -327,9 +327,12 @@ public class CTtraveler {
 			xPosList.set(0,x_pt);
 			yPosList.set(0,y_pt);
 
-			// Calculate plane heading based on the current and the average of the 2 previous heading values
-			double deltaX = x_pt - ((xPosList.get(1) + xPosList.get(2)) / 2.0);
-			double deltaY = y_pt - ((yPosList.get(1) + yPosList.get(2)) / 2.0);
+			// Calculate plane heading based on the current relative to Nback previous heading values
+			int Nback = 5;  // mjm
+			double deltaX = x_pt - xPosList.get(Nback);
+			double deltaY = y_pt - yPosList.get(Nback);
+//			double deltaX = x_pt - ((xPosList.get(1) + xPosList.get(2)) / 2.0);
+//			double deltaY = y_pt - ((yPosList.get(1) + yPosList.get(2)) / 2.0);
 			double heading = 90.0 - Math.toDegrees(Math.atan2(deltaY,deltaX));
 			if ( (Math.abs(deltaX) < 0.05) && (Math.abs(deltaY) < 0.05) ) {
 				heading = headingList.get(0);
