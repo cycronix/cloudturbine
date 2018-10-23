@@ -1,2 +1,2 @@
 // The following sub-projects are not built by default: CTjms, FilePump, FileWatch; we don't want to build/distribute FileWatch because it uses an LGPL library, JFreeChart
-include 'CT2CSV','CTadmin','CTarchive','CTaudio','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTserial','CTstream','CTsync','CTtext','CTtraveler','CTudp','CTweb','UDP2CT', 'CTtraveler'
+include 'CT2CSV','CTadmin','CTarchive','CTaudio','CTblocktest','CTexample','CTlib','CTlogger','CTmetrics','CTpack','CTplugin','CTserial','CTstream','CTsync','CTtext','CTtraveler','CTudp','CTweb','UDP2CT'
