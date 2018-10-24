@@ -22,7 +22,7 @@ A class representing one component of a game player's world.
 
 John Wilson, Erigo Technologies
 
-version: 2018-10-17
+version: 2018-10-24
 
 */
 
@@ -36,7 +36,8 @@ public class PlayerComponentState {
 
     private String id;
     private String model;
-    private boolean state = true;
+    // state will always be true; not including this field will default it to true
+    // private boolean state = true;
     private List<Double> pos;
     private List<Double> rot;
 
@@ -46,8 +47,8 @@ public class PlayerComponentState {
     // the same way and it doesn't "puff" out the JSON packet with unnecessary fields.
     private List<Double> scale;
 
-    // link is an optional field
-    private String link;
+    // link is an optional field which we don't use
+    // private String link;
 
     // Can initialize color to be the 4-element array Arrays.asList(0.0, 0.0, 0.0, 0.0),
     // which should be interpreted to mean "use the native object color";
@@ -58,16 +59,30 @@ public class PlayerComponentState {
     public PlayerComponentState(String idI, String modelI, boolean stateI, double xI, double altI, double yI, double pitchI, double headingI, double rollI, String urlI) {
         id = idI;
         model = modelI;
-        state = stateI;
+        // state will always be true; not including this field will default it to true
+        // state = stateI;
         pos = new ArrayList<Double>();
-        pos.add(xI);
-        pos.add(altI);
-        pos.add(yI);
+        pos.add(LimitPrecision(xI));
+        pos.add(LimitPrecision(altI));
+        pos.add(LimitPrecision(yI));
         rot = new ArrayList<Double>();
-        rot.add(pitchI);
-        rot.add(headingI);
-        rot.add(rollI);
-        link = urlI;
+        rot.add(LimitPrecision(pitchI));
+        rot.add(LimitPrecision(headingI));
+        rot.add(LimitPrecision(rollI));
+        // link is an optional field which we don't use
+        // link = urlI;
+    }
+
+    /// <summary>
+    /// Limit the precision of a given floating point value.
+    /// </summary>
+    /// <param name="valI">Input floating point value.</param>
+    /// <returns>The double with the desired number of decimal places of precision.</returns>
+    public static double LimitPrecision(double valI)
+    {
+        // Desired number of decimal places of precision.
+        int prec = 5;
+        return ((long)(valI * Math.pow(10.0, prec))) / Math.pow(10.0, prec);
     }
 
 }
