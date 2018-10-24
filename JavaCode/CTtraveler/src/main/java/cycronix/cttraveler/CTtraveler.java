@@ -48,7 +48,7 @@ import cycronix.ctlib.*;
 
 public class CTtraveler {
 
-	static final float PLANE_ALT = 2.5f; // static plane altitude
+	static final float PLANE_ALT = 5.0f; // static plane altitude
 
 	boolean zipMode=true;                // ZIP data?
 	boolean debug=false;                 // turn on debug?
