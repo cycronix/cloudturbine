@@ -36,7 +36,8 @@ public class PlayerComponentState {
 
     private String id;
     private String model;
-    private boolean state = true;
+    // "state" not required (default in CTrollaball is true)
+    // private boolean state = true;
     private List<Double> pos;
     private List<Double> rot;
 
@@ -47,7 +48,7 @@ public class PlayerComponentState {
     private List<Double> scale;
 
     // link is an optional field
-    private String link;
+    // private String link;
 
     // Can initialize color to be the 4-element array Arrays.asList(0.0, 0.0, 0.0, 0.0),
     // which should be interpreted to mean "use the native object color";
@@ -65,16 +66,18 @@ public class PlayerComponentState {
     public PlayerComponentState(String idI, String modelColorI, String modelI, boolean stateI, double xI, double altI, double yI, double pitchI, double headingI, double rollI, String urlI, double transparencyI, List<Double> scaleI) {
         id = idI;
         model = modelI;
-        state = stateI;
+        // Just assume default state, true
+        // state = stateI;
         pos = new ArrayList<Double>();
-        pos.add(xI);
-        pos.add(altI);
-        pos.add(yI);
+        pos.add(PlayerWorldState.LimitPrecision(xI));
+        pos.add(PlayerWorldState.LimitPrecision(altI));
+        pos.add(PlayerWorldState.LimitPrecision(yI));
         rot = new ArrayList<Double>();
-        rot.add(pitchI);
-        rot.add(headingI);
-        rot.add(rollI);
-        link = urlI;
+        rot.add(PlayerWorldState.LimitPrecision(pitchI));
+        rot.add(PlayerWorldState.LimitPrecision(headingI));
+        rot.add(PlayerWorldState.LimitPrecision(rollI));
+        // we don't currently use link/URL
+        // link = urlI;
         if (scaleI != null) {
             scale = scaleI;
         }
