@@ -20,7 +20,7 @@ UDP2CT
 
 Capture UDP packets, parse and saves the data to CT files.
 Writes data to 2 output sources:
-1. GamePlay/<model_color>: contains the "CTstates.txt" or "CTstates.json" channel with text data for use in CT/Unity
+1. GamePlay/<model_color>: contains the "CTstates.json" channel with JSON data for use in CT/Unity
 2. [OPTIONAL] Sensors/<model_color>: contains a variety of channels parsed from the received UDP packets
 
 The details of parsing UDP packets and creating the CTstates channel is handled by specific
@@ -64,7 +64,6 @@ public class UDP2CT {
 	String outLoc = new String("." + File.separator + "CTdata");    // Location of the base output data folder; only used when writing out CT data to a local folder
 	String sessionName = "";             // Optional session name to be prefixed to the source name
 	boolean bSavePacketDataToCT = true;  // Save parsed and processed data from the UDP packet to the Sensors output source?
-	boolean bJson = true;                // Write game output as JSON structure
 
 	// Specify the CT output connection
 	enum CTWriteMode { LOCAL, FTP, HTTP, HTTPS }   // Modes for writing out CT data
@@ -122,7 +121,6 @@ public class UDP2CT {
 		options.addOption(Option.builder("w").argName("write mode").hasArg().desc("Type of CT write connection; one of " + possibleWriteModes + "; default = " + writeMode.name() + ".").build());
 		options.addOption(Option.builder("host").argName("host[:port]").hasArg().desc("Host:port when writing to CT via FTP, HTTP, HTTPS.").build());
 		options.addOption(Option.builder("u").argName("username,password").hasArg().desc("Comma-delimited username and password when writing to CT via FTP or HTTPS.").build());
-		options.addOption("csv", false, "Write game output as CSV data; the default (without this command line flag) is to write out JSON data.");
 		options.addOption("xpack", false, "Don't pack blocks of data in the Sensors output source; the default (without this command line flag) is to pack this source.");
 		options.addOption("xs", "no_sensors_out", false, "Don't save UDP packet details to the \"Sensors\" source.");
 		options.addOption("xu", "udp_debug", false, "Enable UDP packet parsing debug output.");
@@ -178,8 +176,6 @@ public class UDP2CT {
 		packMode = !line.hasOption("xpack");
 
 		bSavePacketDataToCT = !line.hasOption("no_sensors_out");
-
-		bJson = !line.hasOption("csv");
 
 		udp_debug = line.hasOption("udp_debug");
 
@@ -305,7 +301,7 @@ public class UDP2CT {
 
 		//
 		// setup 2 instances of CTwriter:
-		// 1. ctgamew:   this source will only contain the "CTstates.txt" or "CTstates.json" output channel, used by
+		// 1. ctgamew:   this source will only contain the "CTstates.json" output channel, used by
 		//               the CT/Unity game; since this source is a text channel, we don't want this source to be packed
 		// 2. ctsensorw: output source for data unpacked from the captured UDP packetes; it is up to the parser class
 		//               being employed as to what channels are written to this source
@@ -315,11 +311,6 @@ public class UDP2CT {
 		// If sessionName isn't blank, it will end in a file separator
 		String srcName = sessionName + "GamePlay" + File.separator + modelColor;
 		System.err.println("Game source: " + srcName);
-		if (bJson) {
-			System.err.println("    write out JSON data");
-		} else {
-			System.err.println("    write out CSV data");
-		}
 		// NB, 2018-09-27: force bPack false for the GamePlay source;
 		//                 this source will only contain a String channel,
 		//                 and as of right now CT *will* pack String
@@ -514,10 +505,7 @@ public class UDP2CT {
 							if (pp != null) {
 								String unityStr = pp.createUnityString();
 								if (!unityStr.isEmpty()) {
-									String chanName = "CTstates.txt";  // write out CSV data
-									if (udp2ct.bJson) {
-										chanName = "CTstates.json";    // write out JSON data
-									}
+									String chanName = "CTstates.json";    // write out JSON data
 									ctgamew.putData(chanName, unityStr);
 								}
 							}
@@ -544,16 +532,15 @@ public class UDP2CT {
 	} // end private class UDPread
 
     //
-    // Create the String for participating in CTrollaball game
+    // Create the JSON String for participating in CTrollaball game
     //
 	public String createUnityString(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI) {
-		String unityStr = null;
-		if (bJson) {
-			unityStr = "";
-			PlayerWorldState playerState = new PlayerWorldState(timeI,xposI,altI,yposI,pitch_degI,hding_degI,roll_degI,modelColor,modelType);
-			Gson gson = new Gson();
-			unityStr = gson.toJson(playerState);
-		} else {
+		PlayerWorldState playerState = new PlayerWorldState(timeI,xposI,altI,yposI,pitch_degI,hding_degI,roll_degI,modelColor,modelType);
+		Gson gson = new Gson();
+		String unityStr = gson.toJson(playerState);
+
+		// Here's the original (now outdated) CSV format
+		/*
 			unityStr =
 				"#Live:" +
 				String.format("%.5f", timeI) +
@@ -576,7 +563,8 @@ public class UDP2CT {
 				"," +
 				String.format("%.4f", roll_degI) +
 				")\n";
-		}
+		*/
+
 		return unityStr;
 	}
 
