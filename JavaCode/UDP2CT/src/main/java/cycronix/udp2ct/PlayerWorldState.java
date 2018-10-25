@@ -38,21 +38,17 @@ public class PlayerWorldState {
     private String mode = "Live";
     private List<PlayerComponentState> objects;
 
-    public PlayerWorldState(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI,String modelColorI,String modelTypeI) {
-        player = modelColorI;
+    public PlayerWorldState(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI,String playerNameI,String modelColorI,String modelTypeI) {
+        player = playerNameI;
         time = timeI;
         objects = new ArrayList<PlayerComponentState>();
-        objects.add(new PlayerComponentState(modelColorI, modelTypeI, true, xposI, altI, yposI, pitch_degI, hding_degI, roll_degI, ""));
-        if (false) {
-            // Pickups, chart, video objects
-            objects.add(new PlayerComponentState(modelColorI + ".Pickup0", "Pickup", true, 9.1000, 1.4000, -8.5000, 334.0730, 24.0876, 224.0097, ""));
-            objects.add(new PlayerComponentState(modelColorI + ".Pickup1", "Pickup", true, 1.6000, 2.9000, 4.2000, 334.0730, 24.0876, 224.0097, ""));
-            objects.add(new PlayerComponentState(modelColorI + ".Pickup2", "Pickup", true, -3.3000, 4.1000, -4.3000, 334.0730, 24.0876, 224.0097, ""));
-            objects.add(new PlayerComponentState(modelColorI + ".Pickup3", "Pickup", true, -4.3000, 3.4000, 1.0000, 334.0730, 24.0876, 224.0097, ""));
-            objects.add(new PlayerComponentState(modelColorI + ".Pickup4", "Pickup", true, 8.9000, 1.9000, -4.3000, 334.0730, 24.0876, 224.0097, ""));
-            objects.add(new PlayerComponentState(modelColorI + "/CTchart", "CTchart", true, -1.2000, 2.0000, 0.0000, 0.0000, 180.0000, 0.0000, new String("http://localhost:8000/CT/CTmousetrack/x?f=d&t=" + Double.toString(timeI) + "&d=1,http://localhost:8000/CT/CTmousetrack/y?f=d&t=" + Double.toString(timeI) + "&d=1")));
-            objects.add(new PlayerComponentState(modelColorI + "/CTvideo", "CTvideo", true, 1.2000, 2.0000, 0.0000, 0.0000, 180.0000, 0.0000, new String("http://localhost:8000/CT/CTstream/webcam.jpg?f=d&t=" + Double.toString(timeI))));
-        }
+        objects.add(new PlayerComponentState(player, modelColorI, modelTypeI, true, xposI, altI, yposI, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
+
+        // Examples of pickup, chart, video objects
+        // objects.add(new PlayerComponentState(modelColorI + ".Pickup0", "Pickup", true, 9.1000, 1.4000, -8.5000, 334.0730, 24.0876, 224.0097, ""));
+        // objects.add(new PlayerComponentState(modelColorI + "/CTchart", "CTchart", true, -1.2000, 2.0000, 0.0000, 0.0000, 180.0000, 0.0000, new String("http://localhost:8000/CT/CTmousetrack/x?f=d&t=" + Double.toString(timeI) + "&d=1,http://localhost:8000/CT/CTmousetrack/y?f=d&t=" + Double.toString(timeI) + "&d=1")));
+        // objects.add(new PlayerComponentState(modelColorI + "/CTvideo", "CTvideo", true, 1.2000, 2.0000, 0.0000, 0.0000, 180.0000, 0.0000, new String("http://localhost:8000/CT/CTstream/webcam.jpg?f=d&t=" + Double.toString(timeI))));
+
     }
 
 }
