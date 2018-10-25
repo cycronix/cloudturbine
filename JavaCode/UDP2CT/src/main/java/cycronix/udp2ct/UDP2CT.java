@@ -59,6 +59,7 @@ public class UDP2CT {
 	long blocksPerSegment = 0;           // number of blocks per segment; 0 = no segment layer
 	CTwriter ctgamew = null;             // CloudTurbine writer connection for CT/Unity game output source
 	CTwriter ctsensorw = null;           // CloudTurbine writer connection for variety of output sensor channels
+	String playerName = null;            // Player name, used in the CT source path and also in the JSON structure; defaults to modelColor if not specified
 	String modelColor = "Blue";          // Color of the model in CT/Unity; must be one of: Red, Blue, Green, Yellow
 	String modelType = "Biplane";        // Model type for CT/Unity; must be one of: Primplane, Ball, Biplane
 	String outLoc = new String("." + File.separator + "CTdata");    // Location of the base output data folder; only used when writing out CT data to a local folder
@@ -108,7 +109,8 @@ public class UDP2CT {
 		Options options = new Options();
 		options.addOption("h", "help", false, "Print this message.");
 		options.addOption(Option.builder("o").argName("base output dir").hasArg().desc("Base output directory when writing data to local folder (i.e., CTdata location); default = \"" + outLoc + "\".").build());
-		options.addOption(Option.builder("s").argName("session name").hasArg().desc("Optional session name; if specified, this name is prefixed to the source path.").build());
+		options.addOption(Option.builder("session").argName("session name").hasArg().desc("Optional session name; if specified, this name is prefixed to the source path.").build());
+		options.addOption(Option.builder("source").argName("CT source name").hasArg().desc("This field doubles as the CloudTurbine source name and the CT/Unity player ID; if not specified, defaults to the model color.").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
 		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on; default = " + Integer.toString(defaultPort) + ".").build());
 		options.addOption(Option.builder("d").argName("delta-Time").hasArg().desc("Fixed delta-time (msec) between frames; specify 0 to use arrival-times; default = " + Double.toString(defaultDT) + ".").build());
@@ -152,7 +154,7 @@ public class UDP2CT {
 			outLoc = outLoc + "CTdata" + File.separator;
 		}
 
-		sessionName = line.getOptionValue("s",sessionName);
+		sessionName = line.getOptionValue("session",sessionName);
 		if (!sessionName.isEmpty()) {
 			if (!sessionName.endsWith("\\") && !sessionName.endsWith("/")) {
 				sessionName = sessionName + File.separator;
@@ -299,6 +301,11 @@ public class UDP2CT {
 			System.exit(0);
 		}
 
+		// Set playerName (source name)
+		// Need to set this after setting model color, becasue if the user hasn't
+		// set the source name then we default to what they specified for modelColor.
+		playerName = line.getOptionValue("source",modelColor);
+
 		//
 		// setup 2 instances of CTwriter:
 		// 1. ctgamew:   this source will only contain the "CTstates.json" output channel, used by
@@ -309,7 +316,7 @@ public class UDP2CT {
 		autoFlushMillis = (long)(autoFlush*1000.);
 		System.err.println("Model: " + modelType);
 		// If sessionName isn't blank, it will end in a file separator
-		String srcName = sessionName + "GamePlay" + File.separator + modelColor;
+		String srcName = sessionName + "GamePlay" + File.separator + playerName;
 		System.err.println("Game source: " + srcName);
 		// NB, 2018-09-27: force bPack false for the GamePlay source;
 		//                 this source will only contain a String channel,
@@ -320,7 +327,7 @@ public class UDP2CT {
 			System.err.println("Sensor data will not be written out");
 		} else {
 			// If sessionName isn't blank, it will end in a file separator
-			srcName = sessionName + "Sensors" + File.separator + modelColor;
+			srcName = sessionName + "Sensors" + File.separator + playerName;
 			System.err.println("Sensor data source: " + srcName);
 			ctsensorw = createCTwriter(srcName, packMode);
 		}
@@ -535,7 +542,8 @@ public class UDP2CT {
     // Create the JSON String for participating in CTrollaball game
     //
 	public String createUnityString(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI) {
-		PlayerWorldState playerState = new PlayerWorldState(timeI,xposI,altI,yposI,pitch_degI,hding_degI,roll_degI,modelColor,modelType);
+
+		PlayerWorldState playerState = new PlayerWorldState(timeI,xposI,altI,yposI,pitch_degI,hding_degI,roll_degI,playerName,modelColor,modelType);
 		Gson gson = new Gson();
 		String unityStr = gson.toJson(playerState);
 
@@ -545,7 +553,7 @@ public class UDP2CT {
 				"#Live:" +
 				String.format("%.5f", timeI) +
 				":" +
-				modelColor +
+				playerName +
 				"\n" +
 				modelColor +
 				";" +

@@ -36,8 +36,8 @@ public class PlayerComponentState {
 
     private String id;
     private String model;
-    // state will always be true; not including this field will default it to true
-    // private boolean state = true;
+    // not including state will default it to true in CT/Unity
+    // private boolean state;
     private List<Double> pos;
     private List<Double> rot;
 
@@ -47,8 +47,8 @@ public class PlayerComponentState {
     // the same way and it doesn't "puff" out the JSON packet with unnecessary fields.
     private List<Double> scale;
 
-    // link is an optional field which we don't use
-    // private String link;
+    // URL link
+    private String link;
 
     // Can initialize color to be the 4-element array Arrays.asList(0.0, 0.0, 0.0, 0.0),
     // which should be interpreted to mean "use the native object color";
@@ -56,10 +56,10 @@ public class PlayerComponentState {
     // the same way and it doesn't "puff" out the JSON packet with unnecessary fields.
     private List<Double> color;
 
-    public PlayerComponentState(String idI, String modelI, boolean stateI, double xI, double altI, double yI, double pitchI, double headingI, double rollI, String urlI) {
+    public PlayerComponentState(String idI, String modelColorI, String modelI, boolean stateI, double xI, double altI, double yI, double pitchI, double headingI, double rollI, String urlI, double transparencyI, List<Double> scaleI) {
         id = idI;
         model = modelI;
-        // state will always be true; not including this field will default it to true
+        // not including state will default it to true in CT/Unity
         // state = stateI;
         pos = new ArrayList<Double>();
         pos.add(LimitPrecision(xI));
@@ -69,8 +69,22 @@ public class PlayerComponentState {
         rot.add(LimitPrecision(pitchI));
         rot.add(LimitPrecision(headingI));
         rot.add(LimitPrecision(rollI));
-        // link is an optional field which we don't use
-        // link = urlI;
+        if ( (urlI != null) && (!urlI.isEmpty()) ) {
+            link = urlI;
+        }
+        if (scaleI != null) {
+            scale = scaleI;
+        }
+        // Set model color
+        if (modelColorI.equals("Red")) {
+            color = Arrays.asList(1.0, 0.0, 0.0, transparencyI);
+        } else if (modelColorI.equals("Green")) {
+            color = Arrays.asList(0.0, 1.0, 0.0, transparencyI);
+        } else if (modelColorI.equals("Blue")) {
+            color = Arrays.asList(0.0, 0.0, 1.0, transparencyI);
+        } else if (modelColorI.equals("Yellow")) {
+            color = Arrays.asList(1.0, 1.0, 0.0, transparencyI);
+        }
     }
 
     /// <summary>
