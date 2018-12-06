@@ -991,10 +991,11 @@ public class CTweb {
     		}
     		String file = parse[parse.length-1];
     		
-    		if(!Character.isDigit(file.charAt(0))) {
-    			System.err.println("doPut source/chan illegal time-format: "+request.getPathInfo());
-    			return;
-    		}
+    		// following NG: doesn't work for non-zipped end-files
+//    		if(!Character.isDigit(file.charAt(0))) {
+//    			System.err.println("doPut source/chan illegal time-format: "+request.getPathInfo());
+//    			return;
+//    		}
 
     		// security limit check on number of sources
 //    		String source = parse[1];
