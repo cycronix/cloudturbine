@@ -176,10 +176,12 @@ class CTcache {
 	public void buildIndices(String sName) {
 		System.err.println("Indexing source: "+sName+"...");
 
-		long startTime = System.nanoTime();		
+//		long startTime = System.nanoTime();		
 		sourceName = sName;		
 		
-		CTFile[] listOfFolders = new CTFile(rootFolder).listFiles();
+//		CTFile[] listOfFolders = new CTFile(rootFolder).listFiles();
+		CTFile[] listOfFolders = new CTFile(rootFolder + File.separator + sourceName).listFiles(); 	// mjm 1/26/19: limit to source
+
 		buildTimeFolders(listOfFolders, 0);			// this builds fileListByChanA
 		
 //		System.err.println("fileListByChanA.size: "+fileListByChanA.size());
@@ -188,6 +190,7 @@ class CTcache {
 		// convert arraylist to old-style array[].  Investigate carrying the arraylist() throughout.  (memory penalty?)
 		fileListByChan.clear();  		// fresh list
 		for(String c:fileListByChanA.keySet()) {
+//			System.err.println("key: "+c);
 			ArrayList<TimeFolder> tfs = fileListByChanA.get(c);
 			int tsize = tfs.size();
 			TimeFolder[] TF = new TimeFolder[tsize];
@@ -197,7 +200,7 @@ class CTcache {
 		}
 		fileListByChanA.clear(); 	// converted.
 		
-		System.err.println("Indexing done, channels: "+fileListByChan.size()+", time: "+(((int)((System.nanoTime()-startTime)/1000000.))/1000.)+" (s)");
+//		System.err.println("Indexing done, channels: "+fileListByChan.size()+", time: "+(((int)((System.nanoTime()-startTime)/1000000.))/1000.)+" (s)");
 //		fileListByChanA = null;
 	}
 
