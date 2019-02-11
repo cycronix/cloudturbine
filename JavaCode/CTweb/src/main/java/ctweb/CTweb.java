@@ -82,6 +82,7 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.security.Constraint;
@@ -293,6 +294,12 @@ public class CTweb {
         shandler.addServletWithMapping(sholder, "/*");
         setupAuthentication(server,shandler);				// set handler with optional authentication
 
+        GzipHandler gzipHandler = new GzipHandler();
+        gzipHandler.setMinGzipSize(1024);
+ //       gzipHandler.setCompressionLevel(5);
+        server.setHandler(gzipHandler);
+        gzipHandler.setHandler(shandler);
+        
         String msg;
         if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
         else				 msg = ", HTTP port: "+port;
