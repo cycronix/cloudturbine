@@ -82,14 +82,16 @@ public class PlayerComponentState {
             scale = scaleI;
         }
         // Set model color
-        if (modelColorI.equals("Red")) {
-            color = Arrays.asList(1.0, 0.0, 0.0, transparencyI);
-        } else if (modelColorI.equals("Green")) {
-            color = Arrays.asList(0.0, 1.0, 0.0, transparencyI);
-        } else if (modelColorI.equals("Blue")) {
-            color = Arrays.asList(0.0, 0.0, 1.0, transparencyI);
-        } else if (modelColorI.equals("Yellow")) {
-            color = Arrays.asList(1.0, 1.0, 0.0, transparencyI);
+        if (modelColorI != null) {
+            if (modelColorI.equals("Red")) {
+                color = Arrays.asList(1.0, 0.0, 0.0, transparencyI);
+            } else if (modelColorI.equals("Green")) {
+                color = Arrays.asList(0.0, 1.0, 0.0, transparencyI);
+            } else if (modelColorI.equals("Blue")) {
+                color = Arrays.asList(0.0, 0.0, 1.0, transparencyI);
+            } else if (modelColorI.equals("Yellow")) {
+                color = Arrays.asList(1.0, 1.0, 0.0, transparencyI);
+            }
         }
     }
 

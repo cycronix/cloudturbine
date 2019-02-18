@@ -341,8 +341,9 @@ public class CTtraveler {
 			headingList.set(0,heading);
 
 			// Specify the Jeep location/heading; note that it will lag behind the plane's location (use the oldest data in the lists)
-			double jeep_x = xPosList.get(xPosList.size()-1);
-			double jeep_y = yPosList.get(xPosList.size()-1);
+			// The jeep is positioned relative to the plane's current location (x_pt,y_pt)
+			double jeep_x = xPosList.get(xPosList.size()-1) - x_pt;
+			double jeep_y = yPosList.get(xPosList.size()-1) - y_pt;
 			double jeep_hdg = headingList.get(xPosList.size()-1);
 
 			// Create the JSON-formatted Unity packet
