@@ -46,7 +46,7 @@ public class PlayerWorldState {
         //
         // Earth model as a backdrop
         //
-        objects.add(new PlayerComponentState("Earth1", null, "Earth1", true, 50, -1, -40, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(400.0, 1.0, 400.0)));
+        // objects.add(new PlayerComponentState("Earth1", null, "Earth1", true, 50, -1, -40, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(400.0, 1.0, 400.0)));
         //
         // Empty base object; plane, jeep, etc. will be relative to this
         //
@@ -54,11 +54,11 @@ public class PlayerWorldState {
         //
         // Plane
         //
-        objects.add(new PlayerComponentState("Base" + "/Plane", modelColorI, modelTypeI, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, Arrays.asList(0.25, 0.25, 0.25)));
+        objects.add(new PlayerComponentState("Base" + "/Plane", modelColorI, modelTypeI, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
         //
         // Jeep position and heading
         //
-        objects.add(new PlayerComponentState("Base" + "/Jeep", modelColorI, "Jeep", true, jeep_xposI, 0.0, jeep_yposI, 0.0, jeep_hding_degI, 0.0, "", 1.0, Arrays.asList(0.1, 0.1, 0.1)));
+        objects.add(new PlayerComponentState("Base" + "/Jeep", modelColorI, "Jeep", true, jeep_xposI, 0.0, jeep_yposI, 0.0, jeep_hding_degI, 0.0, "", 1.0, null));
         //
         // Add scan cylinders along 3 trajectories
         //

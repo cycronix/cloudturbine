@@ -48,15 +48,11 @@ import cycronix.ctlib.*;
 
 public class CTtraveler {
 
-	static final float PLANE_ALT = 5.0f; // static plane altitude
-
 	boolean zipMode=true;                // ZIP data?
 	boolean debug=false;                 // turn on debug?
 	double autoFlush=0.1;			     // flush interval (sec)
-	long autoFlushMillis;                // flush interval (msec)
 	double trimTime=0.;				     // trimtime (sec)
 	long blocksPerSegment = 0;           // number of blocks per segment; 0 = no segment layer
-	CTwriter ctw = null;                 // CloudTurbine writer connection for CT/Unity game output source
 	String playerName = "Traveler";      // Player name (used as part of the CT source name)
 	String modelColor = "Blue";          // Color of the model in CT/Unity; must be one of: Red, Blue, Green, Yellow
 	String modelType = "Biplane";        // Model type for CT/Unity; must be one of: Primplane, Ball, Biplane
@@ -228,53 +224,106 @@ public class CTtraveler {
 		}
 
 		//
-		// Create CTwriter
+		// Create a temporary CTwriter to write out the static World object
 		//
-		autoFlushMillis = (long)(autoFlush*1000.);
-		System.err.println("Model: " + modelType);
-		// If sessionName isn't blank, it will end in a file separator
-		String srcName = sessionName + "GamePlay" + File.separator + playerName;
+		CTwriter ctw_world = null;
+		System.err.println("Create static World");
+		String srcName = sessionName + "GamePlay" + File.separator + "World";
 		System.err.println("Game source: " + srcName);
 		System.err.println("    write out JSON data");
 		try {
-			CTinfo.setDebug(debug);
-			if (writeMode == CTWriteMode.LOCAL) {
-				ctw = new CTwriter(outLoc + srcName,trimTime);
-				System.err.println("    data will be written to local folder \"" + outLoc + "\"");
-			} else if (writeMode == CTWriteMode.FTP) {
-				CTftp ctftp = new CTftp(srcName);
-				try {
-					ctftp.login(serverHost, serverUser, serverPassword);
-				} catch (Exception e) {
-					throw new IOException( new String("Error logging into FTP server \"" + serverHost + "\":\n" + e.getMessage()) );
-				}
-				ctw = ctftp; // upcast to CTWriter
-				System.err.println("    data will be written to FTP server at " + serverHost);
-			} else if (writeMode == CTWriteMode.HTTP) {
-				// Don't send username/pw in HTTP mode since they will be unencrypted
-				CThttp cthttp = new CThttp(srcName,"http://"+serverHost);
-				ctw = cthttp; // upcast to CTWriter
-				System.err.println("    data will be written to HTTP server at " + serverHost);
-			} else if (writeMode == CTWriteMode.HTTPS) {
-				CThttp cthttp = new CThttp(srcName,"https://"+serverHost);
-				// Username/pw are optional for HTTPS mode; only use them if username is not empty
-				if (!serverUser.isEmpty()) {
-					try {
-						cthttp.login(serverUser, serverPassword);
-					} catch (Exception e) {
-						throw new IOException( new String("Error logging into HTTP server \"" + serverHost + "\":\n" + e.getMessage()) );
-					}
-				}
-				ctw = cthttp; // upcast to CTWriter
-				System.err.println("    data will be written to HTTPS server at " + serverHost);
-			}
-			ctw.setBlockMode(false,zipMode);
-			ctw.autoSegment(blocksPerSegment);
-			ctw.autoFlush(autoFlushMillis);
+			ctw_world = create_CT_source(srcName,false,false);
+			// No segment layer
+			ctw_world.autoSegment(0);
 		} catch(Exception e) {
 			e.printStackTrace();
 			System.exit(0);
 		}
+		String worldStr = "{\"player\":\"World\",\"objects\":[{\"id\":\"Earth1\",\"model\":\"Earth1\",\"state\":true,\"pos\":[50,-1,-40],\"scale\":[400,1,400]}]}";
+		ctw_world.setTime();
+		try {
+			ctw_world.putData("CTstates.json", worldStr);
+			ctw_world.flush();
+		} catch (Exception e) {
+			System.err.println("Exception putting World data to CT:\n" + e);
+		}
+		ctw_world.close();
+
+		//
+		// Main CTwriter for the Plane/Jeep/Cylinders/etc.
+		//
+		CTwriter ctw = null;
+		System.err.println("Model: " + modelType);
+		// If sessionName isn't blank, it will end in a file separator
+		srcName = sessionName + "GamePlay" + File.separator + playerName;
+		System.err.println("Game source: " + srcName);
+		System.err.println("    write out JSON data");
+		try {
+			ctw = create_CT_source(srcName,true,zipMode);
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.exit(0);
+		}
+
+		generateMouseDrivenData(ctw, dt);
+		
+	}
+
+	//
+	// Create CTwriter
+	//
+	private CTwriter create_CT_source(String srcName, boolean bAutoFlushI, boolean bZipI) throws Exception {
+		CTwriter ctw = null;
+		long autoFlushMillis = (long)(autoFlush*1000.); // flush interval (msec)
+		CTinfo.setDebug(debug);
+		if (writeMode == CTWriteMode.LOCAL) {
+			ctw = new CTwriter(outLoc + srcName,trimTime);
+			System.err.println("    data will be written to local folder \"" + outLoc + "\"");
+		} else if (writeMode == CTWriteMode.FTP) {
+			CTftp ctftp = new CTftp(srcName);
+			try {
+				ctftp.login(serverHost, serverUser, serverPassword);
+			} catch (Exception e) {
+				throw new IOException( new String("Error logging into FTP server \"" + serverHost + "\":\n" + e.getMessage()) );
+			}
+			ctw = ctftp; // upcast to CTWriter
+			System.err.println("    data will be written to FTP server at " + serverHost);
+		} else if (writeMode == CTWriteMode.HTTP) {
+			// Don't send username/pw in HTTP mode since they will be unencrypted
+			CThttp cthttp = new CThttp(srcName,"http://"+serverHost);
+			ctw = cthttp; // upcast to CTWriter
+			System.err.println("    data will be written to HTTP server at " + serverHost);
+		} else if (writeMode == CTWriteMode.HTTPS) {
+			CThttp cthttp = new CThttp(srcName,"https://"+serverHost);
+			// Username/pw are optional for HTTPS mode; only use them if username is not empty
+			if (!serverUser.isEmpty()) {
+				try {
+					cthttp.login(serverUser, serverPassword);
+				} catch (Exception e) {
+					throw new IOException( new String("Error logging into HTTP server \"" + serverHost + "\":\n" + e.getMessage()) );
+				}
+			}
+			ctw = cthttp; // upcast to CTWriter
+			System.err.println("    data will be written to HTTPS server at " + serverHost);
+		}
+		ctw.setBlockMode(false,bZipI);
+		ctw.autoSegment(blocksPerSegment);
+		if (bAutoFlushI) {
+			ctw.autoFlush(autoFlushMillis);
+		}
+
+		return ctw;
+	}
+
+	//
+	// Generate simulated data based on the current mouse position on the desktop.
+	//
+	// ctwI = CTwriter object for writing out JSON
+	// dtI = time (msec) between frames
+	//
+	private void generateMouseDrivenData(CTwriter ctwI, long dtI) {
+
+		float PLANE_ALT = 5.0f; // static plane altitude
 
 		// screen dims
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -285,7 +334,7 @@ public class CTtraveler {
 		if (height < width) {
 			PIXEL_SCALE = height;
 		}
-		
+
 		// Adjust sampInterval to keep the desired sample period
 		long msec_adjust = 0;
 
@@ -353,9 +402,9 @@ public class CTtraveler {
 			String unityStr = gson.toJson(playerState);
 
 			// Write to CT (note that we use auto-flush so there's no call to flush here)
-			ctw.setTime(time_msec);
+			ctwI.setTime(time_msec);
 			try {
-				ctw.putData("CTstates.json", unityStr);
+				ctwI.putData("CTstates.json", unityStr);
 			} catch (Exception e) {
 				System.err.println("Exception putting data to CT:\n" + e);
 				continue;
@@ -363,19 +412,18 @@ public class CTtraveler {
 			System.err.print(".");
 
 			// Automatically adjust sleep time (to try and maintain the desired delta-T)
-			if (dt > 0) {
-				if ((dt + msec_adjust) > 0) {
-					try { Thread.sleep(dt + msec_adjust); } catch(Exception e) {};
+			if (dtI > 0) {
+				if ((dtI + msec_adjust) > 0) {
+					try { Thread.sleep(dtI + msec_adjust); } catch(Exception e) {};
 				}
 				long now_time_msec = System.currentTimeMillis();
-				if ( (now_time_msec - time_msec) > (dt + 10) ) {
+				if ( (now_time_msec - time_msec) > (dtI + 10) ) {
 					msec_adjust = msec_adjust - 1;
-				} else if ( (now_time_msec - time_msec) < (dt-10) ) {
+				} else if ( (now_time_msec - time_msec) < (dtI-10) ) {
 					msec_adjust = msec_adjust + 1;
 				}
 			}
 		}
-		
 	}
 
 } //end class CTtraveler
