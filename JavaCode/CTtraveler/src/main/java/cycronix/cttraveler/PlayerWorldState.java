@@ -44,15 +44,21 @@ public class PlayerWorldState {
         time = timeI;
         objects = new ArrayList<PlayerComponentState>();
         //
+        // Earth model as a backdrop
+        //
+        // objects.add(new PlayerComponentState("Earth1", null, "Earth1", true, 50, -1, -40, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(400.0, 1.0, 400.0)));
+        //
+        // Empty base object; plane, jeep, etc. will be relative to this
+        //
+        objects.add(new PlayerComponentState("Base", modelColorI, "Base", true, xposI, 0.0, yposI, 0.0, 0.0, 0.0, "", 1.0, null));
+        //
         // Plane
         //
-        objects.add(new PlayerComponentState(player, modelColorI, modelTypeI, true, xposI, altI, yposI, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
+        objects.add(new PlayerComponentState("Base" + "/Plane", modelColorI, modelTypeI, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
         //
         // Jeep position and heading
         //
-        // double jeep_xpos = xposI - 3 * Math.sin(Math.toRadians(hding_degI));
-        // double jeep_ypos = yposI - 3 * Math.cos(Math.toRadians(hding_degI));
-        objects.add(new PlayerComponentState(player + ".Jeep", modelColorI, "Jeep", true, jeep_xposI, 0.0, jeep_yposI, 0.0, jeep_hding_degI, 0.0, "", 1.0, null));
+        objects.add(new PlayerComponentState("Base" + "/Jeep", modelColorI, "Jeep", true, jeep_xposI, 0.0, jeep_yposI, 0.0, jeep_hding_degI, 0.0, "", 1.0, null));
         //
         // Add scan cylinders along 3 trajectories
         //
@@ -83,8 +89,8 @@ public class PlayerWorldState {
             //
             // Scan cylinders along a straight forward trajectory
             //
-            cyl_xpos = xposI + i * Math.sin(Math.toRadians(hding_degI));
-            cyl_ypos = yposI + i * Math.cos(Math.toRadians(hding_degI));
+            cyl_xpos = i * Math.sin(Math.toRadians(hding_degI));
+            cyl_ypos = i * Math.cos(Math.toRadians(hding_degI));
             cyl_height = 0.07*(20.0+cyl_xpos+cyl_ypos);
             // Show the middle trajectory line rising up in altitude
             double middle_traj_alt = altI * Math.exp(0.05*(i-1));         // altI+Math.exp(0.1*i)/Math.exp(0.1);
@@ -92,36 +98,36 @@ public class PlayerWorldState {
             if (i < 10) {
                 lineAStr = lineAStr + ";";
             }
-            objects.add(new PlayerComponentState(player + ".A" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
+            objects.add(new PlayerComponentState("Base" + "/A" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
             //
             // Scan cylinders along a trajectory bearing to the right
             //
-            cyl_xpos = xposI + i * Math.sin(Math.toRadians(hding_degI + ((i*2.0) + 45.0)));
-            cyl_ypos = yposI + i * Math.cos(Math.toRadians(hding_degI + ((i*2.0) + 45.0)));
+            cyl_xpos = i * Math.sin(Math.toRadians(hding_degI + ((i*2.0) + 45.0)));
+            cyl_ypos = i * Math.cos(Math.toRadians(hding_degI + ((i*2.0) + 45.0)));
             cyl_height = 0.07*(20.0+cyl_xpos+cyl_ypos);
             lineBStr = lineBStr + String.format("(%.2f,%.2f,%.2f)",cyl_xpos,altI,cyl_ypos);
             if (i < 10) {
                 lineBStr = lineBStr + ";";
             }
-            objects.add(new PlayerComponentState(player + ".B" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
+            objects.add(new PlayerComponentState("Base" + "/B" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
             //
             // Scan cylinders along a trajectory bearing to the left
             //
-            cyl_xpos = xposI + i * Math.sin(Math.toRadians(hding_degI - ((i*2.0) + 45.0)));
-            cyl_ypos = yposI + i * Math.cos(Math.toRadians(hding_degI - ((i*2.0) + 45.0)));
+            cyl_xpos = i * Math.sin(Math.toRadians(hding_degI - ((i*2.0) + 45.0)));
+            cyl_ypos = i * Math.cos(Math.toRadians(hding_degI - ((i*2.0) + 45.0)));
             cyl_height = 0.07*(20.0+cyl_xpos+cyl_ypos);
             lineCStr = lineCStr + String.format("(%.2f,%.2f,%.2f)",cyl_xpos,altI,cyl_ypos);
             if (i < 10) {
                 lineCStr = lineCStr + ";";
             }
-            objects.add(new PlayerComponentState(player + ".C" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
+            objects.add(new PlayerComponentState("Base" + "/C" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
         }
         //
         // Add lines displaying the 3 trajectories
         //
-        objects.add(new PlayerComponentState(player + ".LineA", "Red", "Line", true, xposI, 0, yposI, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(1.0, 1.0, 1.0), lineAStr));
-        objects.add(new PlayerComponentState(player + ".LineB", "Red", "Line", true, xposI, 0, yposI, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(1.0, 1.0, 1.0), lineBStr));
-        objects.add(new PlayerComponentState(player + ".LineC", "Red", "Line", true, xposI, 0, yposI, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(1.0, 1.0, 1.0), lineCStr));
+        objects.add(new PlayerComponentState("Base" + "/LineA", "Red", "Line", true, 0.0, 0, 0.0, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(1.0, 1.0, 1.0), lineAStr));
+        objects.add(new PlayerComponentState("Base" + "/LineB", "Red", "Line", true, 0.0, 0, 0.0, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(1.0, 1.0, 1.0), lineBStr));
+        objects.add(new PlayerComponentState("Base" + "/LineC", "Red", "Line", true, 0.0, 0, 0.0, 0.0, 0.0, 0.0, "", 1.0, Arrays.asList(1.0, 1.0, 1.0), lineCStr));
     }
 
     /// <summary>
@@ -132,7 +138,7 @@ public class PlayerWorldState {
     public static double LimitPrecision(double valI)
     {
         // Desired number of decimal places of precision.
-        int prec = 5;
+        int prec = 3;
         return ((long)(valI * Math.pow(10.0, prec))) / Math.pow(10.0, prec);
     }
 
