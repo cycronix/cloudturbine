@@ -224,38 +224,12 @@ public class CTtraveler {
 		}
 
 		//
-		// Create a temporary CTwriter to write out the static World object
-		//
-		CTwriter ctw_world = null;
-		System.err.println("Create static World");
-		String srcName = sessionName + "GamePlay" + File.separator + "World";
-		System.err.println("Game source: " + srcName);
-		System.err.println("    write out JSON data");
-		try {
-			ctw_world = create_CT_source(srcName,false,false);
-			// No segment layer
-			ctw_world.autoSegment(0);
-		} catch(Exception e) {
-			e.printStackTrace();
-			System.exit(0);
-		}
-		String worldStr = "{\"player\":\"World\",\"objects\":[{\"id\":\"Earth1\",\"model\":\"Earth1\",\"state\":true,\"pos\":[50,-1,-40],\"scale\":[400,1,400]}]}";
-		ctw_world.setTime();
-		try {
-			ctw_world.putData("CTstates.json", worldStr);
-			ctw_world.flush();
-		} catch (Exception e) {
-			System.err.println("Exception putting World data to CT:\n" + e);
-		}
-		ctw_world.close();
-
-		//
 		// Main CTwriter for the Plane/Jeep/Cylinders/etc.
 		//
 		CTwriter ctw = null;
 		System.err.println("Model: " + modelType);
 		// If sessionName isn't blank, it will end in a file separator
-		srcName = sessionName + "GamePlay" + File.separator + playerName;
+		String srcName = sessionName + "GamePlay" + File.separator + playerName;
 		System.err.println("Game source: " + srcName);
 		System.err.println("    write out JSON data");
 		try {
