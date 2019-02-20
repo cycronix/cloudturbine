@@ -98,7 +98,7 @@ public class PlayerWorldState {
             if (i < 10) {
                 lineAStr = lineAStr + ";";
             }
-            objects.add(new PlayerComponentState("Base" + "/A" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
+            objects.add(new PlayerComponentState("Base" + "/A" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, 0.0, 0.0, 0.0, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
             //
             // Scan cylinders along a trajectory bearing to the right
             //
@@ -109,7 +109,7 @@ public class PlayerWorldState {
             if (i < 10) {
                 lineBStr = lineBStr + ";";
             }
-            objects.add(new PlayerComponentState("Base" + "/B" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
+            objects.add(new PlayerComponentState("Base" + "/B" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, 0.0, 0.0, 0.0, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
             //
             // Scan cylinders along a trajectory bearing to the left
             //
@@ -120,7 +120,7 @@ public class PlayerWorldState {
             if (i < 10) {
                 lineCStr = lineCStr + ";";
             }
-            objects.add(new PlayerComponentState("Base" + "/C" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, pitch_degI, hding_degI, roll_degI, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
+            objects.add(new PlayerComponentState("Base" + "/C" + Integer.toString(i), cylinderColor, "Cylinder", true, cyl_xpos, cyl_height, cyl_ypos, 0.0, 0.0, 0.0, "", 0.4, Arrays.asList(LimitPrecision(i*0.3), LimitPrecision(cyl_height), LimitPrecision(i*0.3))));
         }
         //
         // Add lines displaying the 3 trajectories
