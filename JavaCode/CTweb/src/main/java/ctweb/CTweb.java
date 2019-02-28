@@ -297,9 +297,9 @@ public class CTweb {
         GzipHandler gzipHandler = new GzipHandler();
         gzipHandler.setMinGzipSize(1024);
  //       gzipHandler.setCompressionLevel(5);
+        gzipHandler.setHandler(server.getHandler());
         server.setHandler(gzipHandler);
-        gzipHandler.setHandler(shandler);
-        
+
         String msg;
         if(sslport > 0) msg = ", HTTP port: "+port+", HTTPS port: "+sslport;
         else				 msg = ", HTTP port: "+port;
