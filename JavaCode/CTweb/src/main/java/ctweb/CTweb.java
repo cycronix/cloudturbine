@@ -617,19 +617,28 @@ public class CTweb {
     					}
     				}
     				if(debug) System.err.println("got wildcard source, pathInfo: "+pathInfo+", sbase: "+sbase+", cbase: "+cbase);
-    				sourceList = ctreader.listSources();
-
+//    				sourceList = ctreader.listSources();
+    				File listFile[] = new File(rootFolder+File.separator+sbase).listFiles();  	// quick and dirty folder list
+    				
     				// simply append all matching sources/chans as single response:
     				double oldTime=0, newTime=0, lagTime=0, sTime=0, eTime=0;
-    				for(String sname : sourceList) {
-    					if(sbase==null || sname.startsWith(sbase)) {		// get it
+ //   				for(String sname : sourceList) {
+    				for(File f:listFile) {
+    					String sname = f.getName();
+						if(sname.startsWith(".")) continue;  		// skip hidden files
+						sname = sbase + File.separator + sname;
+						if(true) {
+//    					if(sbase==null || sname.startsWith(sbase)) {		// get it
     						ArrayList<String> clist = new ArrayList<String>();
     						if(cbase != null) 	clist.add(cbase);
     						else 				clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
+//    						System.err.println("sbase: "+sbase+", sname: "+sname+", cbase: "+cbase+", clist.size: "+clist.size());
+
     						for(String chan : clist) {
     							if(cbase==null || chan.equals(cbase)) {
     								CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
-    								
+//        							System.err.println("chan: "+chan+", tdata: "+tdata);
+
     								if(tdata != null  && tdata.size()>0) {  	// MJM 8/1/18, 9/17/18
     									String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
     									if(dlist != null) {
