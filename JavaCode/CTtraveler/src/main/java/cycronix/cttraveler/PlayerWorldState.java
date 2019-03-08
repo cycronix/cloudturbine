@@ -39,7 +39,7 @@ public class PlayerWorldState {
     private String mode = "Live";
     private List<PlayerComponentState> objects;
 
-    public PlayerWorldState(double timeI,double xposI,double altI,double yposI,double pitch_degI,double hding_degI,double roll_degI,String playerNameI,String modelColorI,String modelTypeI,double jeep_xposI,double jeep_yposI,double jeep_hding_degI) {
+    public PlayerWorldState(double timeI,double xposI,double altI,double yposI,double pitch_degI,double hding_degI,double roll_degI,String playerNameI,String modelTypeI,double jeep_xposI,double jeep_yposI,double jeep_hding_degI) {
         player = playerNameI;
         time = timeI;
         objects = new ArrayList<PlayerComponentState>();
@@ -50,15 +50,15 @@ public class PlayerWorldState {
         //
         // Empty base object; plane, jeep, etc. will be relative to this
         //
-        objects.add(new PlayerComponentState("Base", modelColorI, "Base", true, xposI, 0.0, yposI, 0.0, 0.0, 0.0, "", 1.0, null));
+        objects.add(new PlayerComponentState("Base", null, "Base", true, xposI, 0.0, yposI, 0.0, 0.0, 0.0, "", 1.0, null));
         //
         // Plane
         //
-        objects.add(new PlayerComponentState("Base" + "/Plane", modelColorI, modelTypeI, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
+        objects.add(new PlayerComponentState("Base" + "/Plane", null, modelTypeI, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
         //
         // Jeep position and heading
         //
-        objects.add(new PlayerComponentState("Base" + "/Jeep", modelColorI, "Jeep", true, jeep_xposI, 0.0, jeep_yposI, 0.0, jeep_hding_degI, 0.0, "", 1.0, null));
+        objects.add(new PlayerComponentState("Base" + "/Jeep", null, "Jeep", true, jeep_xposI, 0.0, jeep_yposI, 0.0, jeep_hding_degI, 0.0, "", 1.0, null));
         //
         // Add scan cylinders along 3 trajectories
         //
