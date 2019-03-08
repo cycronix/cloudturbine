@@ -52,6 +52,7 @@ public class CTudp {
 	static int numSock = 0;
 	CTwriter ctw;
 	double exceptionVal = 0.0;      // When splitting up a given CSV string and an expected double val is bogus, use this value in its place
+	boolean bSplitOnWhiteSpace = false;  // Split the incoming string on white space rather than commas
 	
 	//--------------------------------------------------------------------------------------------------------
 	public static void main(String[] arg) {
@@ -100,6 +101,7 @@ public class CTudp {
 		options.addOption(Option.builder("udpserver").argName("IP,port,period_msec").hasArg().desc("Talk to a UDP server; send a periodic keep-alive message to the given IP:port at the specified period and receive packets from this server; not to be used with the \"-p\" option.").build());
 		options.addOption(Option.builder("testserver").argName("port,period_msec").hasArg().desc("Start a UDP server on the local machine to serve CSV strings at the specified period with the format specified by the \"-csplit\" option (if no \"-csplit\" option has been specified, a simple text message is output). The test server waits for a message from the client before starting packet flow. This feature can be used along with the \"-udpserver\" option for local/loopback testing (NOTE: make sure the server ports match).").build());
 		options.addOption(Option.builder("bps").argName("blocks_per_seg").hasArg().desc("Number of blocks per segment; specify 0 for no segments; default = " + Long.toString(blocksPerSegment) + ".").build());
+		options.addOption("w", false, "Split the captured string on white space rather than commas.");
 		options.addOption("x", "debug", false, "Debug mode.");
 
 		// 2. Parse command line options
@@ -171,6 +173,8 @@ public class CTudp {
 		if (line.hasOption("pack")) {
 			packMode = true;
 		}
+
+		bSplitOnWhiteSpace = line.hasOption("w");
 
 		debug = line.hasOption("debug");
 
@@ -413,7 +417,12 @@ public class CTudp {
 									// Split the incoming csv string up and save each channel
 									// (this is the "-csplit" option)
 									String csvStr = new String(data);
-									String[] chanDataStr = csvStr.split(",");
+									String[] chanDataStr = null;
+									if (bSplitOnWhiteSpace) {
+										chanDataStr = csvStr.split("\\s+");
+									} else {
+										chanDataStr = csvStr.split(",");
+									}
 									if (chanDataStr.length != csvChanNames.length) {
 										System.err.println("Received string with incorrect number of csv entries (" + chanDataStr.length + "), was expecting " + csvChanNames.length);
 									} else {

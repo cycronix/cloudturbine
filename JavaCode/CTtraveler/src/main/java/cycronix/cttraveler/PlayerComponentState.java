@@ -72,10 +72,14 @@ public class PlayerComponentState {
         pos.add(PlayerWorldState.LimitPrecision(xI));
         pos.add(PlayerWorldState.LimitPrecision(altI));
         pos.add(PlayerWorldState.LimitPrecision(yI));
-        rot = new ArrayList<Double>();
-        rot.add(PlayerWorldState.LimitPrecision(pitchI));
-        rot.add(PlayerWorldState.LimitPrecision(headingI));
-        rot.add(PlayerWorldState.LimitPrecision(rollI));
+        if ( (Math.abs(pitchI) < 0.001) && (Math.abs(headingI) < 0.001) && (Math.abs(rollI) < 0.001) ) {
+            rot = null;
+        } else {
+            rot = new ArrayList<Double>();
+            rot.add(PlayerWorldState.LimitPrecision(pitchI));
+            rot.add(PlayerWorldState.LimitPrecision(headingI));
+            rot.add(PlayerWorldState.LimitPrecision(rollI));
+        }
         // we don't currently use link/URL
         // link = urlI;
         if (scaleI != null) {

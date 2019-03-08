@@ -63,8 +63,8 @@ public class CTtraveler {
 	enum CTWriteMode { LOCAL, FTP, HTTP, HTTPS }   // Modes for writing out CT data
 	CTWriteMode writeMode = CTWriteMode.HTTP;      // The selected mode for writing out CT data
 	public String serverHost = "";				   // Server (FTP or HTTP/S) host:port
-	public String serverUser = "";				   // Server (FTP or HTTPS) username
-	public String serverPassword = "";			   // Server (FTP or HTTPS) password
+	public String serverUser = "";				   // Server (FTP or HTTP/S) username
+	public String serverPassword = "";			   // Server (FTP or HTTP/S) password
 
 	enum ModelColor { Red, Blue, Green, Yellow }
 	enum ModelType { Primplane, Ball, Biplane }
@@ -103,7 +103,7 @@ public class CTtraveler {
 		options.addOption(Option.builder("mt").argName("model type").hasArg().desc("Type of the Unity model; must be one of: Primplane, Ball, Biplane; default = " + modelType + ".").build());
 		options.addOption(Option.builder("w").argName("write mode").hasArg().desc("Type of CT write connection; one of " + possibleWriteModes + "; default = " + writeMode.name() + ".").build());
 		options.addOption(Option.builder("host").argName("host[:port]").hasArg().desc("Host:port when writing to CT via FTP, HTTP, HTTPS.").build());
-		options.addOption(Option.builder("u").argName("username,password").hasArg().desc("Comma-delimited username and password when writing to CT via FTP or HTTPS.").build());
+		options.addOption(Option.builder("u").argName("username,password").hasArg().desc("Comma-delimited username and password when writing to CT via FTP, HTTP or HTTPS.").build());
 		options.addOption("x", "debug", false, "Enable CloudTurbine debug output.");
 
 		// 2. Parse command line options
@@ -119,7 +119,7 @@ public class CTtraveler {
 		if (line.hasOption("help")) {			// Display help message and quit
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.setWidth(120);
-			formatter.printHelp( "UDP2CT", options );
+			formatter.printHelp( "CTtraveler", options );
 			return;
 		}
 
@@ -172,25 +172,30 @@ public class CTtraveler {
 
 		if (writeMode != CTWriteMode.LOCAL) {
 			// User must have specified the host
-			// If FTP or HTTPS, they may also specify username/password
-			serverHost = line.getOptionValue("host",serverHost);
+			serverHost = line.getOptionValue("host", serverHost);
 			if (serverHost.isEmpty()) {
 				System.err.println("When using write mode \"" + writeModeStr + "\", you must specify the server host.");
 				System.exit(0);
 			}
-			if ((writeMode == CTWriteMode.FTP) || (writeMode == CTWriteMode.HTTPS)) {
-				String userpassStr = line.getOptionValue("u","");
-				if (!userpassStr.isEmpty()) {
-					// This string should be comma-delimited username and password
-					String[] userpassCSV = userpassStr.split(",");
-					if (userpassCSV.length != 2) {
-						System.err.println("When specifying a username and password for write mode \"" + writeModeStr + "\", separate the username and password by a comma.");
-						System.exit(0);
-					}
-					serverUser = userpassCSV[0];
-					serverPassword = userpassCSV[1];
-				}
+		}
+
+		String userpassStr = line.getOptionValue("u","");
+		if (!userpassStr.isEmpty()) {
+			if (writeMode == CTWriteMode.LOCAL) {
+				System.err.println("Username and password are not used when writing local CT files.");
+				System.exit(0);
 			}
+			// This string should be comma-delimited username and password
+			String[] userpassCSV = userpassStr.split(",");
+			if (userpassCSV.length != 2) {
+				System.err.println("When specifying a username and password, separate the username and password by a comma.");
+				System.exit(0);
+			}
+			serverUser = userpassCSV[0];
+			serverPassword = userpassCSV[1];
+		}
+		if ( (writeMode == CTWriteMode.HTTP) && (!serverUser.isEmpty()) ) {
+			System.err.println("Please note that the username and password are not encrypted when writing CT files via HTTP.");
 		}
 
 		// CT/Unity model parameters
@@ -262,23 +267,19 @@ public class CTtraveler {
 			}
 			ctw = ctftp; // upcast to CTWriter
 			System.err.println("    data will be written to FTP server at " + serverHost);
-		} else if (writeMode == CTWriteMode.HTTP) {
-			// Don't send username/pw in HTTP mode since they will be unencrypted
-			CThttp cthttp = new CThttp(srcName,"http://"+serverHost);
-			ctw = cthttp; // upcast to CTWriter
-			System.err.println("    data will be written to HTTP server at " + serverHost);
-		} else if (writeMode == CTWriteMode.HTTPS) {
-			CThttp cthttp = new CThttp(srcName,"https://"+serverHost);
-			// Username/pw are optional for HTTPS mode; only use them if username is not empty
+		} else if ( (writeMode == CTWriteMode.HTTP) || (writeMode == CTWriteMode.HTTPS) ) {
+			String protocolStr = writeMode.name().toLowerCase();
+			CThttp cthttp = new CThttp(srcName,protocolStr + "://"+serverHost);
 			if (!serverUser.isEmpty()) {
 				try {
 					cthttp.login(serverUser, serverPassword);
+					// System.err.println("Username and password have been set.");
 				} catch (Exception e) {
-					throw new IOException( new String("Error logging into HTTP server \"" + serverHost + "\":\n" + e.getMessage()) );
+					throw new IOException( new String("Error logging into " + writeMode.name() + " server \"" + serverHost + "\":\n" + e.getMessage()) );
 				}
 			}
 			ctw = cthttp; // upcast to CTWriter
-			System.err.println("    data will be written to HTTPS server at " + serverHost);
+			System.err.println("    data will be written to " + writeMode.name() + " server at " + serverHost);
 		}
 		ctw.setBlockMode(false,bZipI);
 		ctw.autoSegment(blocksPerSegment);
@@ -371,7 +372,7 @@ public class CTtraveler {
 
 			// Create the JSON-formatted Unity packet
 			double time_sec = time_msec / 1000.0;
-			PlayerWorldState playerState = new PlayerWorldState(time_sec,x_pt,PLANE_ALT,y_pt,0.0,heading,0.0,playerName,modelColor,modelType,jeep_x,jeep_y,jeep_hdg);
+			PlayerWorldState playerState = new PlayerWorldState(time_sec,x_pt,PLANE_ALT,y_pt,0.0,heading,0.0,playerName,modelType,jeep_x,jeep_y,jeep_hdg);
 			Gson gson = new Gson();
 			String unityStr = gson.toJson(playerState);
 
