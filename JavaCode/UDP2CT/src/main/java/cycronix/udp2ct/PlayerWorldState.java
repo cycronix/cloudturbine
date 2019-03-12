@@ -22,7 +22,7 @@ A class representing the objects that make up a game player's world.
 
 John Wilson, Erigo Technologies
 
-version: 2018-09-05
+version: 2019-03-08
 
 */
 
@@ -42,13 +42,35 @@ public class PlayerWorldState {
         player = playerNameI;
         time = timeI;
         objects = new ArrayList<PlayerComponentState>();
-        objects.add(new PlayerComponentState(player, modelColorI, modelTypeI, true, xposI, altI, yposI, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
+
+        // objects.add(new PlayerComponentState(player, modelColorI, modelTypeI, true, xposI, altI, yposI, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
+
+        //
+        // Empty base object; the player object will be relative to this
+        //
+        objects.add(new PlayerComponentState("Base", null, "Base", true, xposI, 0.0, yposI, 0.0, 0.0, 0.0, "", 1.0, null));
+        //
+        // Player object
+        //
+        objects.add(new PlayerComponentState("Base" + "/" + player, modelColorI, modelTypeI, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
 
         // Examples of pickup, chart, video objects
         // objects.add(new PlayerComponentState(modelColorI + ".Pickup0", "Pickup", true, 9.1000, 1.4000, -8.5000, 334.0730, 24.0876, 224.0097, ""));
         // objects.add(new PlayerComponentState(modelColorI + "/CTchart", "CTchart", true, -1.2000, 2.0000, 0.0000, 0.0000, 180.0000, 0.0000, new String("http://localhost:8000/CT/CTmousetrack/x?f=d&t=" + Double.toString(timeI) + "&d=1,http://localhost:8000/CT/CTmousetrack/y?f=d&t=" + Double.toString(timeI) + "&d=1")));
         // objects.add(new PlayerComponentState(modelColorI + "/CTvideo", "CTvideo", true, 1.2000, 2.0000, 0.0000, 0.0000, 180.0000, 0.0000, new String("http://localhost:8000/CT/CTstream/webcam.jpg?f=d&t=" + Double.toString(timeI))));
 
+    }
+
+    /// <summary>
+    /// Limit the precision of a given floating point value.
+    /// </summary>
+    /// <param name="valI">Input floating point value.</param>
+    /// <returns>The double with the desired number of decimal places of precision.</returns>
+    public static double LimitPrecision(double valI)
+    {
+        // Desired number of decimal places of precision.
+        int prec = 3;
+        return ((long)(valI * Math.pow(10.0, prec))) / Math.pow(10.0, prec);
     }
 
 }
