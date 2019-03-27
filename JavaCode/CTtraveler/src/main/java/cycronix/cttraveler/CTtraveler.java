@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Erigo Technologies
+Copyright 2019 Erigo Technologies
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ This application is based on UDP2CT.java and CTmousetrack.java, originally devel
 
 John Wilson, Erigo Technologies
 
-version: 2018-10-19
+version: 2019-03-26
 
 */
 
@@ -39,6 +39,7 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -229,7 +230,7 @@ public class CTtraveler {
 		}
 
 		//
-		// Main CTwriter for the Plane/Jeep/Cylinders/etc.
+		// Create CTwriter (for writing data to CT format)
 		//
 		CTwriter ctw = null;
 		System.err.println("Model: " + modelType);
@@ -244,7 +245,42 @@ public class CTtraveler {
 			System.exit(0);
 		}
 
-		generateMouseDrivenData(ctw, dt);
+		// Setup the data generator
+		JsonGenerator jsonGenerator = new MouseDataGenerator(playerName,modelType);
+
+		// Adjust sampInterval to keep the desired sample period
+		long msec_adjust = 0;
+		while (true) {
+			long time_msec = System.currentTimeMillis();
+
+			// Generate updated data
+			String unityStr = jsonGenerator.generateJson(time_msec);
+
+			if ( (unityStr != null) && (!unityStr.isEmpty()) ) {
+				// Write to CT (note that we use auto-flush so there's no call to flush here)
+				ctw.setTime(time_msec);
+				try {
+					ctw.putData("CTstates.json", unityStr);
+				} catch (Exception e) {
+					System.err.println("Exception putting data to CT:\n" + e);
+					continue;
+				}
+				System.err.print("m");
+			}
+
+			// Automatically adjust sleep time (to try and maintain the desired delta-T)
+			if (dt > 0) {
+				if ((dt + msec_adjust) > 0) {
+					try { Thread.sleep(dt + msec_adjust); } catch(Exception e) {};
+				}
+				long now_time_msec = System.currentTimeMillis();
+				if ( (now_time_msec - time_msec) > (dt + 10) ) {
+					msec_adjust = msec_adjust - 1;
+				} else if ( (now_time_msec - time_msec) < (dt-10) ) {
+					msec_adjust = msec_adjust + 1;
+				}
+			}
+		}
 		
 	}
 
@@ -288,117 +324,6 @@ public class CTtraveler {
 		}
 
 		return ctw;
-	}
-
-	//
-	// Generate simulated data based on the current mouse position on the desktop.
-	//
-	// ctwI = CTwriter object for writing out JSON
-	// dtI = time (msec) between frames
-	//
-	private void generateMouseDrivenData(CTwriter ctwI, long dtI) {
-
-		float PLANE_ALT = 5.0f; // static plane altitude
-
-		// screen dims
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		double width = screenSize.getWidth();
-		double height = screenSize.getHeight();
-		// Scale both width and height by the same factor
-		double PIXEL_SCALE = width;
-		if (height < width) {
-			PIXEL_SCALE = height;
-		}
-
-		// Adjust sampInterval to keep the desired sample period
-		long msec_adjust = 0;
-
-		// Create buffers of the plane's location and heading; used as follows:
-		// 1. set the Jeep location (which lags behind the plane)
-		// 2. a couple elements from the historic heading buffer are used to add some damping to the plane's heading
-		//   (so the heading isn't quite so jerky)
-		List<Double> xPosList = new ArrayList<>();
-		List<Double> yPosList = new ArrayList<>();
-		List<Double> headingList = new ArrayList<>();
-		for (int i = 0; i < 20; ++i) {
-			xPosList.add(0.0);
-			yPosList.add(0.0);
-			headingList.add(0.0);
-		}
-
-		while (true) {
-			// Rotate the position lists; we will replace the oldest element
-			// (which will have been moved to index=0 location after this rotate operation)
-			Collections.rotate(xPosList,1);
-			Collections.rotate(yPosList,1);
-
-			// Calculate the new plane x,y position based on mouse position
-			long time_msec = System.currentTimeMillis();
-			Point mousePos = MouseInfo.getPointerInfo().getLocation();
-			// Normalize x,y position and flip Y position (so bottom=0)
-			double x_pt = mousePos.getX() / PIXEL_SCALE;
-			double y_pt = (height - mousePos.getY()) / PIXEL_SCALE;
-			// Expand location so that and x or y position 0 maps to -1*GAME_FIELD_EXTENT
-			// and and x or y position 1 maps to +1*GAME_FIELD_EXTENT
-			double GAME_FIELD_EXTENT = 9.75f;
-			x_pt = x_pt * 2.0f*GAME_FIELD_EXTENT - GAME_FIELD_EXTENT;
-			if (x_pt < (-1f * GAME_FIELD_EXTENT)) {
-				// On dual-monitor systems, pos will end up going -1 to +1
-				// cut off -1 to 0 so that it stays at -1*GAME_FIELD_EXTENT
-				x_pt = -1f * GAME_FIELD_EXTENT;
-			}
-			y_pt = y_pt * 2.0f*GAME_FIELD_EXTENT - GAME_FIELD_EXTENT;
-			xPosList.set(0,x_pt);
-			yPosList.set(0,y_pt);
-
-			// Calculate plane heading based on the current relative to Nback previous heading values
-			int Nback = 5;  // mjm
-			double deltaX = x_pt - xPosList.get(Nback);
-			double deltaY = y_pt - yPosList.get(Nback);
-//			double deltaX = x_pt - ((xPosList.get(1) + xPosList.get(2)) / 2.0);
-//			double deltaY = y_pt - ((yPosList.get(1) + yPosList.get(2)) / 2.0);
-			double heading = 90.0 - Math.toDegrees(Math.atan2(deltaY,deltaX));
-			if ( (Math.abs(deltaX) < 0.05) && (Math.abs(deltaY) < 0.05) ) {
-				heading = headingList.get(0);
-			}
-			Collections.rotate(headingList,1);
-			headingList.set(0,heading);
-
-			// Specify the Jeep location/heading; note that it will lag behind the plane's location (use the oldest data in the lists)
-			// The jeep is positioned relative to the plane's current location (x_pt,y_pt)
-			double jeep_x = xPosList.get(xPosList.size()-1) - x_pt;
-			double jeep_y = yPosList.get(xPosList.size()-1) - y_pt;
-			double jeep_hdg = headingList.get(xPosList.size()-1);
-
-			// Create the JSON-formatted Unity packet
-			double time_sec = time_msec / 1000.0;
-			PlayerWorldState playerState = new PlayerWorldState(time_sec,x_pt,PLANE_ALT,y_pt,0.0,heading,0.0,playerName,modelType,jeep_x,jeep_y,jeep_hdg);
-			Gson gson = new Gson();
-			String unityStr = gson.toJson(playerState);
-
-			// Write to CT (note that we use auto-flush so there's no call to flush here)
-			ctwI.setTime(time_msec);
-			try {
-				ctwI.putData("CTstates.json", unityStr);
-			} catch (Exception e) {
-				System.err.println("Exception putting data to CT:\n" + e);
-				continue;
-			}
-			System.err.print(".");
-
-			// Automatically adjust sleep time (to try and maintain the desired delta-T)
-			if (dtI > 0) {
-				if ((dtI + msec_adjust) > 0) {
-					try { Thread.sleep(dtI + msec_adjust); } catch(Exception e) {};
-				}
-				long now_time_msec = System.currentTimeMillis();
-				if ( (now_time_msec - time_msec) > (dtI + 10) ) {
-					msec_adjust = msec_adjust - 1;
-				} else if ( (now_time_msec - time_msec) < (dtI-10) ) {
-					msec_adjust = msec_adjust + 1;
-				}
-			}
-		}
 	}
 
 } //end class CTtraveler
