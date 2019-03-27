@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Erigo Technologies
+Copyright 2019 Erigo Technologies
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@ A class representing one component of a game player's world.
 
 John Wilson, Erigo Technologies
 
-version: 2018-10-17
+version: 2019-03-27
 
 */
 
-package cycronix.cttraveler;
+package erigo.ctjsonlib;
 
 import java.util.ArrayList;
 import java.util.Arrays;

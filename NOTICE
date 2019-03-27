@@ -366,6 +366,12 @@ License header shown below (copied from http://central.maven.org/maven2/javax/se
 
 -----------------------------------------------------------------------------
 
+Library: Google Gson (https://github.com/google/gson)
+Used by CloudTurbine projects: CTjsonlib
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+-----------------------------------------------------------------------------
+
 Project: CTjms
 Portions of CTjms.java are based on or copied from the "App.java" demo program
 provided at http://activemq.apache.org/hello-world.html
