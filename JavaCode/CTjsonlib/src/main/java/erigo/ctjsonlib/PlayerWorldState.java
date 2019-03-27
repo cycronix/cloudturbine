@@ -22,11 +22,11 @@ A class representing the objects that make up a game player's world.
 
 John Wilson, Erigo Technologies
 
-version: 2019-03-25
+version: 2019-03-27
 
 */
 
-package cycronix.cttraveler;
+package erigo.ctjsonlib;;
 
 import com.google.gson.Gson;
 

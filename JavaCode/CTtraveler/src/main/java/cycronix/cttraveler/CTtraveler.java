@@ -25,23 +25,14 @@ This application is based on UDP2CT.java and CTmousetrack.java, originally devel
 
 John Wilson, Erigo Technologies
 
-version: 2019-03-26
+version: 2019-03-27
 
 */
 
 package cycronix.cttraveler;
 
-import java.awt.Dimension;
-import java.awt.MouseInfo;
-import java.awt.Point;
-import java.awt.Toolkit;
-import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.commons.cli.*;
 
@@ -265,7 +256,7 @@ public class CTtraveler {
 					System.err.println("Exception putting data to CT:\n" + e);
 					continue;
 				}
-				System.err.print("m");
+				System.err.print(".");
 			}
 
 			// Automatically adjust sleep time (to try and maintain the desired delta-T)

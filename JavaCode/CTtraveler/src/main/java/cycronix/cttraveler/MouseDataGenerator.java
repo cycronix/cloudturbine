@@ -22,13 +22,13 @@ Generate JSON data for CTrollaball based on user mouse position.
 
 John Wilson, Erigo Technologies
 
-version: 2019-03-26
+version: 2019-03-27
 
 */
 
 package cycronix.cttraveler;
 
-import cycronix.ctlib.CTwriter;
+import erigo.ctjsonlib.*;
 
 import java.awt.*;
 import java.util.ArrayList;
