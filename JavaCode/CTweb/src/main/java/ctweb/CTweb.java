@@ -623,43 +623,44 @@ public class CTweb {
     				// simply append all matching sources/chans as single response:
     				double oldTime=0, newTime=0, lagTime=0, sTime=0, eTime=0;
  //   				for(String sname : sourceList) {
-    				for(File f:listFile) {
-    					String sname = f.getName();
-						if(sname.startsWith(".")) continue;  		// skip hidden files
-						sname = sbase + File.separator + sname;
-						if(true) {
-//    					if(sbase==null || sname.startsWith(sbase)) {		// get it
-    						ArrayList<String> clist = new ArrayList<String>();
-    						if(cbase != null) 	clist.add(cbase);
-    						else 				clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
-//    						System.err.println("sbase: "+sbase+", sname: "+sname+", cbase: "+cbase+", clist.size: "+clist.size());
+    				if(listFile != null) { 	// no-file check
+    					for(File f:listFile) {
+    						String sname = f.getName();
+    						if(sname.startsWith(".")) continue;  		// skip hidden files
+    						sname = sbase + File.separator + sname;
+    						if(true) {
+    							//    					if(sbase==null || sname.startsWith(sbase)) {		// get it
+    							ArrayList<String> clist = new ArrayList<String>();
+    							if(cbase != null) 	clist.add(cbase);
+    							else 				clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
+    							//    						System.err.println("sbase: "+sbase+", sname: "+sname+", cbase: "+cbase+", clist.size: "+clist.size());
 
-    						for(String chan : clist) {
-    							if(cbase==null || chan.equals(cbase)) {
-    								CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
-//        							System.err.println("chan: "+chan+", tdata: "+tdata);
+    							for(String chan : clist) {
+    								if(cbase==null || chan.equals(cbase)) {
+    									CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
+    									//        							System.err.println("chan: "+chan+", tdata: "+tdata);
 
-    								if(tdata != null  && tdata.size()>0) {  	// MJM 8/1/18, 9/17/18
-    									String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
-    									if(dlist != null) {
-    										for(String d : dlist) sbresp.append(d+"\n");
+    									if(tdata != null  && tdata.size()>0) {  	// MJM 8/1/18, 9/17/18
+    										String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
+    										if(dlist != null) {
+    											for(String d : dlist) sbresp.append(d+"\n");
+    										}
+
+    										// gather header info:
+    										double[] tlimits = ctreader.timeLimits(sname, chan);
+    										if(oldTime > tlimits[0]) oldTime = tlimits[0];
+    										if(newTime==0 || newTime < tlimits[1]) newTime = tlimits[1];
+    										lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
+    										double time[] = tdata.getTime();
+    										if(sTime==0 || time[0] > sTime) sTime = time[0];			// freshest
+    										if(eTime==0 || time[time.length-1] > eTime) eTime = time[time.length-1];
     									}
-
-    									// gather header info:
-    									double[] tlimits = ctreader.timeLimits(sname, chan);
-    									if(oldTime > tlimits[0]) oldTime = tlimits[0];
-    									if(newTime==0 || newTime < tlimits[1]) newTime = tlimits[1];
-    									lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
-    									double time[] = tdata.getTime();
-    									if(sTime==0 || time[0] > sTime) sTime = time[0];			// freshest
-    									if(eTime==0 || time[time.length-1] > eTime) eTime = time[time.length-1];
     								}
     							}
     						}
     					}
     				}
-    				
-//					System.err.println("sbresp: "+sbresp.toString());
+
     				if(sbresp.length() == 0) {  // MJM 9/17/18:  return SC_NOT_FOUND if no match
 						formResponse(response, null);		// add CORS header even for error response
         				response.sendError(HttpServletResponse.SC_NOT_FOUND);
