@@ -26,7 +26,7 @@ version: 2019-03-27
 
 */
 
-package erigo.ctjsonlib;;
+package erigo.ctjsonlib;
 
 import com.google.gson.Gson;
 
