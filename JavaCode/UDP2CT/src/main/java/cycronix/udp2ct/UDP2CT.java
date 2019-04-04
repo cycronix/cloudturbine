@@ -1,5 +1,5 @@
 /*
-Copyright 2017-2018 Cycronix
+Copyright 2017-2019 Cycronix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ Writes data to 2 output sources:
 1. GamePlay/<model_color>: contains the "CTstates.json" channel with JSON data for use in CT/Unity
 2. [OPTIONAL] Sensors/<model_color>: contains a variety of channels parsed from the received UDP packets
 
-The details of parsing UDP packets and creating the CTstates channel is handled by specific
-helper classes.  Currently, the only helper class is XPlanePacketParser3, which parses XPlane-
-specific UDP classes.
+The details of parsing UDP packets is handled by helper classes.  Two helper classes are currently implemented:
+MouseParser: parses UDP packets containing mouse position data, sent from CTexample/CTmousetrack demo program running in UDP output mode
+XPlanePacketParser3: parses UDP packets from XPlane
 
 The original version of this application was based on CTudp.java, developed by Cycronix.
 
@@ -36,7 +36,8 @@ John Wilson, Erigo Technologies
 
 package cycronix.udp2ct;
 
-import com.google.gson.Gson;
+import erigo.ctjsonlib.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.*;
@@ -540,40 +541,27 @@ public class UDP2CT {
 
     //
     // Create the JSON String for participating in CTrollaball game
+	//
+	// Uses classes in the CTjsonlib library to produce the JSON string:
+	//     PlayerWorldState and PlayerComponentState
     //
 	public String createUnityString(double timeI,float xposI,float altI,float yposI,float pitch_degI,float hding_degI,float roll_degI) {
 
-		PlayerWorldState playerState = new PlayerWorldState(timeI,xposI,altI,yposI,pitch_degI,hding_degI,roll_degI,playerName,modelColor,modelType);
-		Gson gson = new Gson();
-		String unityStr = gson.toJson(playerState);
+		List<PlayerComponentState> objects = new ArrayList<PlayerComponentState>();
 
-		// Here's the original (now outdated) CSV format
-		/*
-			unityStr =
-				"#Live:" +
-				String.format("%.5f", timeI) +
-				":" +
-				playerName +
-				"\n" +
-				modelColor +
-				";" +
-				modelType +
-				";1;(" +
-				String.format("%.4f", xposI) +
-				"," +
-				String.format("%.4f", altI) +
-				"," +
-				String.format("%.4f", yposI) +
-				");(" +
-				String.format("%.4f", pitch_degI) +
-				"," +
-				String.format("%.4f", hding_degI) +
-				"," +
-				String.format("%.4f", roll_degI) +
-				")\n";
-		*/
+		//
+		// Empty base object; the player object will be relative to this
+		//
+		objects.add(new PlayerComponentState("Base", null, "Base", true, xposI, 0.0, yposI, 0.0, 0.0, 0.0, "", 1.0, null));
+		//
+		// Player object
+		//
+		objects.add(new PlayerComponentState("Base" + "/" + playerName, modelColor, modelType, true, 0.0, altI, 0.0, pitch_degI, hding_degI, roll_degI, "", 1.0, null));
 
-		return unityStr;
+		PlayerWorldState playerState = new PlayerWorldState(timeI,playerName,objects);
+
+		return playerState.toJson();
+
 	}
 
 	//
