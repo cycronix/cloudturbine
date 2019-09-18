@@ -51,8 +51,11 @@ repositories {
         // dirs "$rootProject.projectDir/CTweb/build/libs"
     }
     mavenCentral()
+    // The following repository is required to fetch a dependency for 'core-video-capture'
+    // (specifically, to fetch the required version of the com.nativelibs4java library "bridj")
+    // See http://openimaj.org/openimaj-hardware/core-video-capture/dependencies.html for dependency info for the OpenIMAJ library
 	maven {
-    	url "http://maven.openimaj.org"  
+    	url "http://maven.openimaj.org"
     }
 }
 
@@ -69,12 +72,25 @@ dependencies {
     // compile name: 'CTweb'
 
     compile group: 'commons-cli', name: 'commons-cli', version: '1.3.1'
+
     // compile group: 'com.github.sarxos', name: 'webcam-capture', version: '0.3.11+'
     // compile group: 'org.slf4j', name: 'slf4j-nop', version: '1.8+'
-    compile group: 'org.openimaj', name: 'core-video-capture', version: '1.3.1'
+
+    // 2019-09-17  JPW  update 'core-video-capture' library version from '1.3.1' to '1.3.8'
+    // Here's the original line:
+    // compile group: 'org.openimaj', name: 'core-video-capture', version: '1.3.1'
+    // Here's the new dependency specification:
+    //   NOTE: need the "exclude" line shown below (at least when working under Gradle 4.4);
+    //         without this exclude, the build results in an error over a POM file vs. JAR file confusion
+    //         See the following URLs for more info:
+    //         https://stackoverflow.com/questions/32361545/gradle-trying-to-unzip-a-pom-typed-dependency
+    //         https://discuss.gradle.org/t/how-do-i-exclude-specific-transitive-dependencies-of-something-i-depend-on/17991
+    //         https://github.com/gradle/gradle/issues/8582
+    compile(group: 'org.openimaj', name: 'core-video-capture', version: '1.3.8') {
+        exclude group: 'com.github.fommil.netlib', module: 'all'
+    }
+
     // JFreeChart was used for preview windows of data streams (such as audio);
     // problem is, it is covered by LGPL.  No longer include this feature.
     // compile group: 'org.jfree', name: 'jfreechart', version: '1.0.19'
 }
-
-
