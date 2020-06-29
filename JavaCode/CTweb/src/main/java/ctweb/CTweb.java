@@ -45,6 +45,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Transparency;
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -130,8 +131,10 @@ public class CTweb {
 	
     private static String lastResponseString=null;			// track cache-response logic
     private static String lastRequest =null;
+    private static String lastHeaderFolders = null;
+    
     private static long lastRequestTime = 0;
-    private static HttpServletResponse lastResponse = null;
+ //   private static HttpServletResponse lastResponse = null;
     
 	//---------------------------------------------------------------------------------	
 
@@ -591,10 +594,13 @@ public class CTweb {
     	    		// check if cache response works:
     				String fullrequest = request.getRequestURL()+"?"+request.getQueryString();
     	    		long thisTime = System.currentTimeMillis();
-    	    		if ( ((thisTime - lastRequestTime) < cacheDur) && fullrequest.equals(lastRequest) && lastResponse!=null) {
+    	    		if ( ((thisTime - lastRequestTime) < cacheDur) && fullrequest.equals(lastRequest) /* && lastResponse!=null */) {
     	    			if(debug) System.err.println("Cached response for request: "+fullrequest);
+    	    			response.addHeader("folders", lastHeaderFolders); 	// Note: we are losing other header fields in cached response...
+    	    																// TODO: send full cached response header.
     	    			response.getWriter().println(lastResponseString);
-    	    			response = lastResponse;
+  //  	    			response = lastResponse;	// lastResponse is not deep clone of prior response.
+  //      				System.err.println("Cached response for request: "+fullrequest+", header.folder: "+response.getHeader("folders")+", lhf: "+lastHeaderFolders);
     	    			return;
     	    		}
 //    	    		lastRequest = fullrequest;
@@ -624,6 +630,7 @@ public class CTweb {
     				double oldTime=0, newTime=0, lagTime=0, sTime=0, eTime=0;
  //   				for(String sname : sourceList) {
     				if(listFile != null) { 	// no-file check
+    					String folders = "";
     					for(File f:listFile) {
     						String sname = f.getName();
     						if(sname.startsWith(".")) continue;  		// skip hidden files
@@ -633,12 +640,10 @@ public class CTweb {
     							ArrayList<String> clist = new ArrayList<String>();
     							if(cbase != null) 	clist.add(cbase);
     							else 				clist = ctreader.listChans(rootFolder+File.separator+sname,fastSearch);
-    							//    						System.err.println("sbase: "+sbase+", sname: "+sname+", cbase: "+cbase+", clist.size: "+clist.size());
 
     							for(String chan : clist) {
     								if(cbase==null || chan.equals(cbase)) {
     									CTdata tdata = ctreader.getData(sname,chan,start,duration,reference);
-    									//        							System.err.println("chan: "+chan+", tdata: "+tdata);
 
     									if(tdata != null  && tdata.size()>0) {  	// MJM 8/1/18, 9/17/18
     										String[] dlist = tdata.getDataAsString(CTinfo.fileType(chan,'s'));
@@ -654,11 +659,18 @@ public class CTweb {
     										double time[] = tdata.getTime();
     										if(sTime==0 || time[0] > sTime) sTime = time[0];			// freshest
     										if(eTime==0 || time[time.length-1] > eTime) eTime = time[time.length-1];
+    										
+    										// add file-list to header:
+//    										System.err.println("Folder: "+f.getName());
+    										if(folders.length() > 0) folders += ",";
+    										folders += f.getName();
     									}
     								}
     							}
     						}
     					}
+    					response.addHeader("folders", folders); 	// custom wildcard '*' info
+    					lastHeaderFolders = folders;
     				}
 
     				if(sbresp.length() == 0) {  // MJM 9/17/18:  return SC_NOT_FOUND if no match
@@ -669,9 +681,10 @@ public class CTweb {
 					formHeader(response, sTime, eTime, oldTime, newTime, lagTime);  
     				formResponse(response, sbresp);
     				synchronized(this) {						// make sure cache response matches corresponding fullRequest
-    					lastResponse = response;
+  //  					lastResponse = response;				// this doesn't actually keep a copy of internal fields...
     					lastResponseString = sbresp.toString();
     					lastRequest = fullrequest;
+   // 					System.err.println("response.headerfolder: "+response.getHeader("folders")+", lrhf: "+lastResponse.getHeader("folders"));
     				}
     				return;
     			}
@@ -1030,22 +1043,23 @@ public class CTweb {
     	    File targetFile = new File(folder + File.separator + file);
     		if(debug) System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
 
-    		OutputStream out = null;
+    		BufferedOutputStream out = null;
+    		int bufsize = 8 * 1048576;				// keep write-chunks big (put/get collision can get partial buffer)
     		try {
     			targetFile.getParentFile().mkdirs(); // Will create parent directories if not exists
     			targetFile.createNewFile();
-    			out = new FileOutputStream(targetFile,false);
+    			out = new BufferedOutputStream(new FileOutputStream(targetFile,false),bufsize);
     		} catch(Exception e) {
     			System.err.println("CTweb doPut, cannot create target file: "+targetFile+", exception: "+e);
     			return;
     		}
-    		//    		ByteArrayOutputStream out = new ByteArrayOutputStream();	// limit to rootFolder/CTdata
     		// read/write response
-    		byte[] buffer = new byte[65536];
+    		byte[] buffer = new byte[bufsize];
     		int length;
     		while ((length = in.read(buffer)) > 0) {
     			out.write(buffer, 0, length);
     		}
+    		out.flush();
     		in.close();
     		out.close();
 
@@ -1098,7 +1112,7 @@ public class CTweb {
 		resp.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
 		resp.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
 
-		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime");
+		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime,folders");
 		if(sbresp == null) return;
 		try {
 			resp.getWriter().println(sbresp.toString());
