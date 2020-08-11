@@ -52,6 +52,7 @@ public class CTudp {
 	static int numSock = 0;
 	CTwriter ctw;
 	double exceptionVal = 0.0;      // When splitting up a given CSV string and an expected double val is bogus, use this value in its place
+	String regExpStr = ",";         // The regular expression to split up the string; default is to split on commas; can specify an alternate string using the "-r" command line argument
 	boolean bSplitOnWhiteSpace = false;  // Split the incoming string on white space rather than commas
 	
 	//--------------------------------------------------------------------------------------------------------
@@ -101,6 +102,7 @@ public class CTudp {
 		options.addOption(Option.builder("udpserver").argName("IP,port,period_msec").hasArg().desc("Talk to a UDP server; send a periodic keep-alive message to the given IP:port at the specified period and receive packets from this server; not to be used with the \"-p\" option.").build());
 		options.addOption(Option.builder("testserver").argName("port,period_msec").hasArg().desc("Start a UDP server on the local machine to serve CSV strings at the specified period with the format specified by the \"-csplit\" option (if no \"-csplit\" option has been specified, a simple text message is output). The test server waits for a message from the client before starting packet flow. This feature can be used along with the \"-udpserver\" option for local/loopback testing (NOTE: make sure the server ports match).").build());
 		options.addOption(Option.builder("bps").argName("blocks_per_seg").hasArg().desc("Number of blocks per segment; specify 0 for no segments; default = " + Long.toString(blocksPerSegment) + ".").build());
+		options.addOption(Option.builder("r").argName("reg_expr").hasArg().desc("Split the captured string using this regular expression rather than commas.").build());
 		options.addOption("w", false, "Split the captured string on white space rather than commas.");
 		options.addOption("x", "debug", false, "Debug mode.");
 
@@ -173,6 +175,14 @@ public class CTudp {
 		if (line.hasOption("pack")) {
 			packMode = true;
 		}
+
+		// Can't have both "r" and "w" command line arguments
+		if ( line.hasOption("r") && line.hasOption("w") ) {
+			System.err.println("Specify either \"-r\" (split string using the given regular expression) or \"-w\" (split string on white space), not both.");
+			System.exit(0);
+		}
+
+		regExpStr = line.getOptionValue("r",regExpStr);
 
 		bSplitOnWhiteSpace = line.hasOption("w");
 
@@ -264,7 +274,8 @@ public class CTudp {
 			}
 		}
 		if (csvChanNames != null) {
-			System.err.println("\nIncoming csv strings will be split into the following channels:");
+			System.err.println("\nIncoming csv strings will be split using the regular expression \"" + regExpStr + "\"");
+			System.err.println("Incoming csv strings will be split into the following channels:");
 			for(int i=0; i<(csvChanNames.length-1); ++i) {
 				System.err.print(csvChanNames[i] + ",");
 			}
@@ -421,7 +432,7 @@ public class CTudp {
 									if (bSplitOnWhiteSpace) {
 										chanDataStr = csvStr.split("\\s+");
 									} else {
-										chanDataStr = csvStr.split(",");
+										chanDataStr = csvStr.split(regExpStr);
 									}
 									if (chanDataStr.length != csvChanNames.length) {
 										System.err.println("Received string with incorrect number of csv entries (" + chanDataStr.length + "), was expecting " + csvChanNames.length);
@@ -433,6 +444,8 @@ public class CTudp {
 											// - if chan name ends in .f32, put data as float
 											// - if chan name doesn't have a suffix or it ends in .txt or it ends in .csv, put data as string
 											String dataStr = chanDataStr[i];
+											// If you want to display the parsed data string for each channel:
+											// System.err.println(String.format("%02d", i+1) + " [" + String.format("%30s", csvChanNames[i]) + "] " + dataStr);
 											if ( (!csvChanNames[i].endsWith(".f64")) && (!csvChanNames[i].endsWith(".f32")) ) {
 												// Put data as String, let CT sort out the data type depending on what the channel name extension is
 												ctw.putData(csvChanNames[i], dataStr);
