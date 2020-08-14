@@ -131,7 +131,7 @@ public class CTweb {
 	
     private static String lastResponseString=null;			// track cache-response logic
     private static String lastRequest =null;
-    private static String lastHeaderFolders = null;
+ //   private static String lastHeaderFolders = null;
     
     private static long lastRequestTime = 0;
  //   private static HttpServletResponse lastResponse = null;
@@ -596,7 +596,7 @@ public class CTweb {
     	    		long thisTime = System.currentTimeMillis();
     	    		if ( ((thisTime - lastRequestTime) < cacheDur) && fullrequest.equals(lastRequest) /* && lastResponse!=null */) {
     	    			if(debug) System.err.println("Cached response for request: "+fullrequest);
-    	    			response.addHeader("folders", lastHeaderFolders); 	// Note: we are losing other header fields in cached response...
+//    	    			response.addHeader("folders", lastHeaderFolders); 	// Note: we are losing other header fields in cached response...
     	    																// TODO: send full cached response header.
     	    			response.getWriter().println(lastResponseString);
   //  	    			response = lastResponse;	// lastResponse is not deep clone of prior response.
@@ -630,7 +630,7 @@ public class CTweb {
     				double oldTime=0, newTime=0, lagTime=0, sTime=0, eTime=0;
  //   				for(String sname : sourceList) {
     				if(listFile != null) { 	// no-file check
-    					String folders = "";
+ //   					String folders = "";
     					for(File f:listFile) {
     						String sname = f.getName();
     						if(sname.startsWith(".")) continue;  		// skip hidden files
@@ -662,15 +662,15 @@ public class CTweb {
     										
     										// add file-list to header:
 //    										System.err.println("Folder: "+f.getName());
-    										if(folders.length() > 0) folders += ",";
-    										folders += f.getName();
+//    										if(folders.length() > 0) folders += ",";
+//    										folders += f.getName();
     									}
     								}
     							}
     						}
     					}
-    					response.addHeader("folders", folders); 	// custom wildcard '*' info
-    					lastHeaderFolders = folders;
+//    					response.addHeader("folders", folders); 	// custom wildcard '*' info
+//    					lastHeaderFolders = folders;
     				}
 
     				if(sbresp.length() == 0) {  // MJM 9/17/18:  return SC_NOT_FOUND if no match
@@ -1112,7 +1112,8 @@ public class CTweb {
 		resp.addHeader("Access-Control-Allow-Origin", "*");            // CORS enable
 		resp.addHeader("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");   // CORS enable
 
-		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime,folders");
+//		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime,folders");
+		resp.addHeader("Access-Control-Expose-Headers", "oldest,newest,duration,time,lagtime");
 		if(sbresp == null) return;
 		try {
 			resp.getWriter().println(sbresp.toString());

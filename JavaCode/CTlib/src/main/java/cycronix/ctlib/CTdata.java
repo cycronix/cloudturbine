@@ -274,6 +274,8 @@ public class CTdata {
 		// step through elements of timelist, datalist Arrays
 
 		// optimize special case for single-point frames:
+		/* 		// mjm 8/14/2020: this code produces bad results for some cases, e.g. r=newest&d>0.  possible FP round off problem with end?
+	
 		if(duration>0 && tmode.equals("absolute") && datalist!=null && nframe>0 && datalist.get(0)!=null && (datalist.get(0).length==wordSize)) {
 			boolean canopt = true;				// this is not robust when some but not all frames are single-point!!!
 			for(byte[] d:datalist) if(d.length != wordSize) { canopt = false; break; }
@@ -299,6 +301,7 @@ public class CTdata {
 				}
 			}
 		}
+		*/
 		
 		for(int i=0; i<nframe; i++) {					// multiple frames per arraylist element
 			double time = timelist.get(i);

@@ -152,7 +152,7 @@ class CTcache {
 //		System.err.println("CacheKey: "+cacheKey);
 		CTFile thisCTFile = CTFileCache.get(cacheKey);
 		if(thisCTFile == null) {
-			CTinfo.debugPrint("MISS CTFileCache myPath: "+myPath+", myzip: "+myZipFile+", cacheSize: "+CTFileCache.size());
+//			CTinfo.debugPrint("MISS CTFileCache myPath: "+myPath+", myzip: "+myZipFile+", cacheSize: "+CTFileCache.size());
 			if(myZipFile==null || myPath.equals(myZipFile)) 
 				thisCTFile = new CTFile(myPath);					// a new file is opened here!
 			else {
@@ -161,7 +161,7 @@ class CTcache {
 			CTFileCache.put(cacheKey, thisCTFile);
 		}
 		else {
-			CTinfo.debugPrint("HIT cachedCTFile, myPath: "+myPath+", myZipFile: "+myZipFile+", cacheSize: "+CTFileCache.size());
+//			CTinfo.debugPrint("HIT cachedCTFile, myPath: "+myPath+", myZipFile: "+myZipFile+", cacheSize: "+CTFileCache.size());
 		}
 		return thisCTFile;
 	}

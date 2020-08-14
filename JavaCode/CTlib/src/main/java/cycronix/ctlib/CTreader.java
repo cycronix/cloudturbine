@@ -788,7 +788,7 @@ public class CTreader {
 				cm.add(fileName, new CTdata(file.fileTime(), data, file));			// squirrel away CTfile ref for timerange info??
 				if(data != null) hasdata+=data.length;
 //				long dlen = data!=null?data.length:0;
-				CTinfo.debugPrint("Put file: "+file.getPath()+", from zipFile: "+file.getMyZipFile()+", ftime: "+file.fileTime());
+				CTinfo.debugPrint("getFile: "+file.getPath()+", from zipFile: "+file.getMyZipFile()+", ftime: "+file.fileTime());
 			}
 		} 
 		return hasdata;
