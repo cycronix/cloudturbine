@@ -92,7 +92,7 @@ public class CTudp {
 		options.addOption("pack", false, "Blocks of data should be packed?  default = " + Boolean.toString(packMode) + ".");
 		options.addOption(Option.builder("s").argName("source name").hasArg().desc("Name of source to write packets to; default = \"" + srcName + "\".").build());
 		options.addOption(Option.builder("c").argName("channel name").hasArg().desc("Name of channel to write packets to; default = \"" + defaultChanName + "\".").build());
-		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .f32 (32-bit floating point), .f64 (64-bit floating point).").build());
+		options.addOption(Option.builder("csplit").argName("channel name(s)").hasArg().desc("Comma-separated list of channel names; split an incoming CSV string into a series of channels with the given names; supported channel name suffixes and their associated data types: .txt (string), .csv or no suffix (numeric), .i32 (32-bit integer), .f32 (32-bit floating point), .f64 (64-bit floating point).").build());
 		options.addOption(Option.builder("e").argName("exception val").hasArg().desc("If a CSV string is being parsed (using the -csplit option) and there is an error saving a string component as a floating point value, use this \"exception value\" in its place; default = " + Double.toString(exceptionVal) + ".").build());
 		options.addOption(Option.builder("m").argName("multicast address").hasArg().desc("Multicast UDP address (224.0.0.1 to 239.255.255.255).").build());
 		options.addOption(Option.builder("p").argName("UDP port").hasArg().desc("Port number to listen for UDP packets on; default = " + Integer.toString(defaultPort) + ".").build());
@@ -139,9 +139,9 @@ public class CTudp {
 			// Make sure that the channel names either have no suffix or will end in .txt, .csv, .f32, .f64
 			for(int i=0; i<csvChanNames.length; ++i) {
 				int dotIdx = csvChanNames[i].lastIndexOf('.');
-				if ( (dotIdx > -1) && (!csvChanNames[i].endsWith(".txt")) && (!csvChanNames[i].endsWith(".csv")) && (!csvChanNames[i].endsWith(".f32")) && (!csvChanNames[i].endsWith(".f64")) ) {
+				if ( (dotIdx > -1) && (!csvChanNames[i].endsWith(".txt")) && (!csvChanNames[i].endsWith(".csv")) && (!csvChanNames[i].endsWith(".i32")) && (!csvChanNames[i].endsWith(".f32")) && (!csvChanNames[i].endsWith(".f64")) ) {
 					System.err.println("Error: illegal channel name specified in the \"-csplit\" list: " + csvChanNames[i]);
-					System.err.println("\tAccepted channel names: channels with no suffix or with .txt, .csv, .f32 or .f64 suffixes.");
+					System.err.println("\tAccepted channel names: channels with no suffix or with .txt, .csv, .i32, .f32 or .f64 suffixes.");
 					System.exit(0);
 				}
 			}
@@ -274,7 +274,11 @@ public class CTudp {
 			}
 		}
 		if (csvChanNames != null) {
-			System.err.println("\nIncoming csv strings will be split using the regular expression \"" + regExpStr + "\"");
+			if (bSplitOnWhiteSpace) {
+				System.err.println("\nIncoming csv strings will be split on white space");
+			} else {
+				System.err.println("\nIncoming csv strings will be split using the regular expression \"" + regExpStr + "\"");
+			}
 			System.err.println("Incoming csv strings will be split into the following channels:");
 			for(int i=0; i<(csvChanNames.length-1); ++i) {
 				System.err.print(csvChanNames[i] + ",");
@@ -446,7 +450,8 @@ public class CTudp {
 											String dataStr = chanDataStr[i];
 											// If you want to display the parsed data string for each channel:
 											// System.err.println(String.format("%02d", i+1) + " [" + String.format("%30s", csvChanNames[i]) + "] " + dataStr);
-											if ( (!csvChanNames[i].endsWith(".f64")) && (!csvChanNames[i].endsWith(".f32")) ) {
+											// JPW 2020-09-22: Add support for ".i32" channels
+											if ( (!csvChanNames[i].endsWith(".f64")) && (!csvChanNames[i].endsWith(".f32")) && (!csvChanNames[i].endsWith(".i32")) ) {
 												// Put data as String, let CT sort out the data type depending on what the channel name extension is
 												ctw.putData(csvChanNames[i], dataStr);
 											} else if (csvChanNames[i].endsWith(".f32")) {
@@ -466,6 +471,15 @@ public class CTudp {
 												} catch (NumberFormatException nfe) {
 													// Error parsing the data as double, put the default exceptionVal instead
 													ctw.putData(csvChanNames[i], exceptionVal);
+												}
+											} else if (csvChanNames[i].endsWith(".i32")) {
+												// Put data as 32-bit integer
+												try {
+													int dataNumInt = Integer.parseInt(dataStr);
+													ctw.putData(csvChanNames[i], dataNumInt);
+												} catch (NumberFormatException nfe) {
+													// Error parsing the data as int, put the default exceptionVal instead
+													ctw.putData(csvChanNames[i], (int)exceptionVal);
 												}
 											}
 										}
