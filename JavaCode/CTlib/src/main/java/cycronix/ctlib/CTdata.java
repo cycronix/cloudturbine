@@ -367,8 +367,9 @@ public class CTdata {
 
 				if(time < start && i<(nframe-1)) continue;			// check last frame for duration=0 case
 				if(time > end) break;
+				if(time < start && duration>0) continue;	// mjm 9/28/2020: no point for interval past end of data
 				
-//				CTinfo.debugPrint("CTdata frame add, time: "+time);
+				CTinfo.debugPrint("CTdata frame add, time: "+time);
 				ctd.add(time, datalist.get(i));			// add current frame
 			}
 			else {			//  multi-point blocks
