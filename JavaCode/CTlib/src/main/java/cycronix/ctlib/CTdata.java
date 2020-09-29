@@ -243,7 +243,7 @@ public class CTdata {
 		int nframe = datalist.size();
 
 		boolean deduceIncTime=true;		// obsolete?  still used for audio.pcm, but audio plays, scrolling is glumpy...	
-		if(deduceIncTime) {
+		if(deduceIncTime && duration > 0.) {
 			// deduce incremental point times within packed binary frame as average over frame time(s)
 			incTime = incTimeI;			// use by default
 			if(wordSize>1 && incTimeI == 0. && nframe > 1) {	// old-fashioned way to preserve old multi-block PCM CTdata?
