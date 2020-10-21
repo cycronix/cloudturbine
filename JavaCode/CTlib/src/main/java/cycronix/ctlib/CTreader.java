@@ -644,11 +644,14 @@ public class CTreader {
 		if(source == null) 	sourceFolder = rootFolder;
 		else				sourceFolder = rootFolder+File.separator+source;
 
-		// if multi-chan request, get first chan, match other chans to its time-interval
-		//		if(rmode.equals("newest")) {
-		boolean firstChan = true;
-		double refTime=0, refDuration=0;
+//		boolean firstChan = true;
+//		double refTime=0, refDuration=0;
 		for(String chan : ctmap.keySet()) {
+			addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode); 	// simply loop through all chans
+
+			// if multi-chan request, get first chan, match other chans to its time-interval
+			// following logic dicey: if firstChan is single point, then adjusted duration=0, can change finite-duration to at-or-before logic
+			/*
 			if(firstChan) {
 				addChanToDataMap(ctmap, sourceFolder, chan, getftime, duration, rmode);
 				if(ctmap.size()==1) return ctmap;
@@ -666,6 +669,7 @@ public class CTreader {
 			else {
 				addChanToDataMap(ctmap, sourceFolder, chan, refTime, refDuration, "absolute");
 			}
+			*/
 		}
 		
 		return ctmap;
