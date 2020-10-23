@@ -616,7 +616,8 @@ class CTFile extends File {
 			} catch(Exception ex) { 
 				// MJM 8/2/18:  following null causes windows CTweb to fail fetch...
 //				zipMap = null;				// benign: partial zip-file as it is being written, ignore
-				CTinfo.debugPrint("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
+//				CTinfo.debugPrint("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
+				System.err.println("ZipMap Exception on zipfile: "+zipfile+", exception: "+ex.getMessage()); 
 				//			ex.printStackTrace(); 
 			}
 
