@@ -21,6 +21,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.zip.ZipFile;
@@ -169,69 +170,275 @@ class CTcache {
 	//--------------------------------------------------------------------------------------------------------
 	// buildIndices:  custom walkFileTree but skipping over subfolders
 	
-	static private HashMap<String,ArrayList<TimeFolder>> fileListByChanA = new HashMap<String,ArrayList<TimeFolder>>();	// temp builder map, compact to fileListByChan... ?		
+	static 
+	private HashMap<String,ArrayList<TimeFolder>> fileListByChanA = new HashMap<String,ArrayList<TimeFolder>>();	// temp builder map, compact to fileListByChan... (ArrayList -> Array[])	
 	protected HashMap<String,TimeFolder[]> fileListByChan = new HashMap<String,TimeFolder[]>();				
 //	static HashMap<String,CTFile[]> fileListByChan = new HashMap<String,CTFile[]>();				
 	
-	public void buildIndices(String sName) {
-		System.err.println("Indexing source: "+sName+"...");
-
-//		long startTime = System.nanoTime();		
+	// update indices past newest-known Index-time
+	synchronized
+	public void updateIndices(String sName) {
+		buildIndices(sName, sourceNewTime(sName));
+	}
+	
+	//--------------------------------------------------------------------------------------------------------
+	// Build global fileListByChan
+	
+	synchronized  	 // don't let multi-threaded CTreaders collide
+	public void buildIndices(String sName, double endTime) {
+		if(endTime == 0) System.err.println("Indexing source: "+sName+"...");  		// notify full rebuild
+//		else System.err.println("Updating Indices for source: "+sName+"...");
+		
 		sourceName = sName;		
-		
-//		CTFile[] listOfFolders = new CTFile(rootFolder).listFiles();
-		CTFile[] listOfFolders = new CTFile(rootFolder + File.separator + sourceName).listFiles(); 	// mjm 1/26/19: limit to source
+		CTFile ctsource = new CTFile(rootFolder + File.separator + sourceName);
+		CTFile[] listOfFolders = ctsource.listFiles(); 	// mjm 1/26/19: limit to source
 
-		buildTimeFolders(listOfFolders, 0);			// this builds fileListByChanA
-		
-//		System.err.println("fileListByChanA.size: "+fileListByChanA.size());
-		// sort here?
-		
+		buildTimeFolders(listOfFolders, endTime, 0);			// this builds fileListByChanA
+//		trimIndices(sName, oldTime(ctsource));					// check & trim for missing old files
+
+//		System.err.println("fileListByChanA.size: "+fileListByChanA.size()+", fileListByChan.size: "+fileListByChan.size());
+		if(fileListByChanA.size() == 0) return; 		// notta
+				
 		// convert arraylist to old-style array[].  Investigate carrying the arraylist() throughout.  (memory penalty?)
-		fileListByChan.clear();  		// fresh list
-		for(String c:fileListByChanA.keySet()) {
-//			System.err.println("key: "+c);
-			ArrayList<TimeFolder> tfs = fileListByChanA.get(c);
+//		for(String c:fileListByChan.keySet()) System.err.println("<flbc.key: "+c);
+
+		Iterator<Map.Entry< String, ArrayList<TimeFolder>>> itr = fileListByChanA.entrySet().iterator(); 
+		while(itr.hasNext())   	// loop through channel-entries
+		{ 
+			Map.Entry<String, ArrayList<TimeFolder>> entry = itr.next(); 
+			String c = entry.getKey();
+			ArrayList<TimeFolder> tfs = entry.getValue();
+			
+//		for(String c:fileListByChanA.keySet()) {
+//			ArrayList<TimeFolder> tfs = fileListByChanA.get(c);
+			if(tfs == null || tfs.size()==0) continue;
+			Collections.sort(tfs); 				// sort here (if reverse-search for new time-files)
 			int tsize = tfs.size();
-			TimeFolder[] TF = new TimeFolder[tsize];
-			for(int i=0; i<tsize; i++) TF[i] = tfs.get(i);
-			fileListByChan.put(c, TF);
-			fileListByChanA.put(c, null);					// free old memory as we construct new list
+			
+			if(endTime == 0) {
+				TimeFolder[] TF = new TimeFolder[tsize];
+				for(int i=0; i<tsize; i++) TF[i] = tfs.get(i);
+				fileListByChan.put(c, TF);
+//				fileListByChanA.put(c, null);					// free old memory as we construct new list
+			}
+			else {
+				TimeFolder[] tfc = fileListByChan.get(c);
+				//				if(tfc == null || tfc.length==0) continue;
+				int tsize2 = 0;
+				if(tfc != null && tfc.length>0) tsize2 = tfc.length;
+				TimeFolder[] TF = new TimeFolder[tsize+tsize2];
+				for(int i=0; i<tsize2; i++) TF[i] = tfc[i];
+				for(int i=0, j=tsize2; i<tsize; i++, j++) TF[j] = tfs.get(i); 		// append
+				fileListByChan.put(c, TF);
+//				fileListByChanA.put(c, null);					// free old memory as we construct new list
+			}
 		}
 		fileListByChanA.clear(); 	// converted.
 		
-//		System.err.println("Indexing done, channels: "+fileListByChan.size()+", time: "+(((int)((System.nanoTime()-startTime)/1000000.))/1000.)+" (s)");
-//		fileListByChanA = null;
+		trimIndices(sName, oldTime(ctsource));					// check & trim for missing old files
+
+//		for(String c:fileListByChan.keySet()) System.err.println(">flbc.key: "+c);
 	}
 
-	private boolean buildTimeFolders(CTFile[] listOfFolders, int recursionLevel) {
+	//--------------------------------------------------------------------------------------------------------
+	// build index of channel/timefolders.  only check for new-arrivals if endTime>0
+	
+	private boolean buildTimeFolders(CTFile[] listOfFolders, double endTime, int recursionLevel) {
 		if(listOfFolders == null) return false;				// fire-wall
 
-		for(int i=0; i<listOfFolders.length; i++) {			// fwd search thru sorted folder list
+		for(int i=listOfFolders.length-1; i>=0; i--) {			// reverse search thru sorted folder list
 			CTFile folder = listOfFolders[i];
 
 			if(folder.isDirectory()) {
 				CTFile[] listOfFiles = folder.listFiles();
-				if(!buildTimeFolders(listOfFiles, recursionLevel+1)) return false;	// pop recursion stack
+				if(!buildTimeFolders(listOfFiles, endTime, recursionLevel+1)) return false;	// pop recursion stack
 			}
 			else {
+				// check for new-arrivals here; i.e. if(ftime<=oldEndTime), pop to exit 
+//				double ftime = folder.fileTime();  	// check ftime at leaf node
+				double ftime = folder.baseTime();  	// check ftime at leaf node
+
+//				System.err.println(folder.getName()+": ftime: "+ftime+", vs endTime: "+endTime);
+				if(ftime <= endTime) return false;
+				
 				String fname = folder.getName();
 				//				if(!ctmap.checkName(fname)) continue;			// cache every channel here vs skip?
-				double ftime = folder.fileTime();
 				String chankey = chan2key(sourceName + File.separator + fname);
-//				System.err.println("rootFolder: "+rootFolder+", fname: "+fname+", chankey: "+chankey);
 				ArrayList<TimeFolder>tf = fileListByChanA.get(chankey);
+
 				if(tf == null) {
 					tf = new ArrayList<TimeFolder>();
 					fileListByChanA.put(chankey, tf);			// got one!
+//					System.err.println("NEW chanKey: "+chankey);
 				}
-				tf.add(new TimeFolder(folder,ftime));
-//				System.err.println("add chanKey: "+chankey+", isize: "+fileListByChanA.get(chankey).size());
+				
+//				if(chankey.contains("thumb")) System.err.println("ADD chanKey: "+chankey+", tf: "+((tf==null)?(0):(tf.size())));
+//				tf.add(new TimeFolder(folder,ftime));
+				fileListByChanA.get(chankey).add(new TimeFolder(folder,ftime));
 			}
 		}
+		
 		return true;					// all done, success
 	}
 
+	//--------------------------------------------------------------------------------------------------------
+	// trim entries from Index that are older than oldest existing source file
+	
+	 private void trimIndices(String source, double oldestFileTime) {
+		Iterator<Map.Entry<String, TimeFolder[]>> itr = fileListByChan.entrySet().iterator(); 
+        
+//		System.err.println("trimIndices: "+source+", oldestTime: "+oldestFileTime);
+		// ex: key: JiffyCam/cam0/thumb.jpg, source: JiffyCam/cam0 (here source lacks rootFolder prefix)
+		while(itr.hasNext())   	// loop through channel-entries
+		{ 
+			Map.Entry<String, TimeFolder[]> entry = itr.next(); 
+			String key = entry.getKey();
+			if(key.startsWith(source)) {						// filter to target source
+				TimeFolder[] tf = entry.getValue();
+//				if(tf == null || tf.length==0) continue; 	// ??
+				double t = tf[0].folderTime;
+				if(t < oldestFileTime) {
+					int ichk;
+					for(ichk=1; ichk<tf.length; ichk++) {
+						if(tf[ichk].getTime() >= oldestFileTime) break;
+					}
+					if(ichk == tf.length) { 	// all gone
+						itr.remove();
+//						System.err.println("POOF: "+key);
+					}
+					else {
+//						System.err.println("trimming old files, source: "+source+", ntrim: "+ichk);
+						TimeFolder[] tmpList = new TimeFolder[tf.length - ichk];
+						for(int j=ichk,k=0; j<tf.length; j++,k++) tmpList[k] = tf[j];	// salvage old cache > updated oldestTime
+						tf = tmpList;
+						fileListByChan.put(key, tf);
+					}
+				}
+			}
+		} 
+	}
+	
+	//--------------------------------------------------------------------------------------------------------
+	// return most recent time any channel per source
+	
+	double sourceNewTime(String source) {
+		double endTime = 0;
+		
+		Iterator<Map.Entry<String, TimeFolder[]>> itr = fileListByChan.entrySet().iterator(); 
+        
+		// ex: key: JiffyCam/cam0/thumb.jpg, source: CTdata/JiffyCam/cam2
+		String src = source.replace(rootFolder + File.separator, "");
+//		System.err.println("sourceEndTime, source: "+source+", iter.len: "+fileListByChan.size());
+        while(itr.hasNext()) 
+        { 
+             Map.Entry<String, TimeFolder[]> entry = itr.next(); 
+             String key = entry.getKey();
+             if(key.startsWith(src)) {
+            	 TimeFolder[] tf = entry.getValue();
+            	 if(tf == null || tf.length==0) continue;  		// ??
+            	 double t = tf[tf.length-1].folderTime;
+            	 if(t > endTime) {
+ //           		 System.err.println("sourceEndTime, src: "+src+", key: "+key+", old endtime: "+endTime+", new endtime: "+t);
+            		 endTime = t;
+            	 }
+             }
+        } 
+			
+		return endTime;
+	}
+	
+	//--------------------------------------------------------------------------------------------------------
+	// return oldest time any channel per source from TimeFolder index
+	
+	double sourceOldTime(String source) {
+		double oldTime = 0;
+		
+		Iterator<Map.Entry<String, TimeFolder[]>> itr = fileListByChan.entrySet().iterator(); 
+        
+		// ex: key: JiffyCam/cam0/thumb.jpg, source: CTdata/JiffyCam/cam2
+		String src = source.replace(rootFolder + File.separator, "");
+//		System.err.println("sourceEndTime, source: "+source+", iter.len: "+fileListByChan.size());
+        while(itr.hasNext()) 
+        { 
+             Map.Entry<String, TimeFolder[]> entry = itr.next(); 
+             String key = entry.getKey();
+             if(key.startsWith(src)) {
+            	 TimeFolder[] tf = entry.getValue();
+            	 if(tf == null || tf.length==0) continue;  		// ??
+            	 double t = tf[0].folderTime;
+            	 if(oldTime==0 || t < oldTime) {
+ //           		 System.err.println("sourceOldTime, src: "+src+", key: "+key+", old endtime: "+oldTime+", new oldtime: "+t);
+            		 oldTime = t;
+            	 }
+             }
+        } 
+			
+		return oldTime;
+	}
+	
+	//--------------------------------------------------------------------------------------------------------
+	// fast oldTime:  crawl down first (oldest) folder branch to bottom file time
+	
+	private double oldTime(CTFile baseFolder) {
+//		System.err.println("oldTime baseFolder: "+baseFolder.getPath()+", isDir: "+baseFolder.isDirectory());
+		if(!baseFolder.isDirectory()) return baseFolder.fileTime();  
+
+		double ftime = 0.;		// default is now
+		CTFile[] files = baseFolder.listFiles();
+		if(files==null || files.length == 0) return baseFolder.fileTime();		// catch empty folder case
+//		System.err.println("baseFolder: "+baseFolder.getName()+", files.len: "+files.length);
+		
+		int idx = 0;
+		for(; idx<files.length; idx++) { // cycle past empty base folders
+			CTFile f = files[idx];
+			if(f == null) break;
+			if(!f.isDirectory()) break;			// not a folder
+			CTFile[] fl = f.listFiles();
+			if(fl== null || fl.length != 0) break;
+		}
+//		System.err.println("oldTime base: "+baseFolder.getName()+", idx: "+idx);
+		CTFile file = files[idx];
+
+		if(new File(file.getAbsolutePath()).isDirectory()) {
+//			System.err.println("recurse: "+file.getAbsolutePath());
+			ftime = oldTime(file);	// recurse if actual folder
+		}
+		else {
+//			System.err.println("oldTime fileTime: "+file.fileTime()+", baseTime: "+file.baseTime());
+			ftime = file.baseTime();
+		}
+		if(ftime > 0.) return ftime;
+
+//		System.err.println("oldTime got ftime: "+ftime);
+		return ftime;
+	}
+	
+	//--------------------------------------------------------------------------------------------------------
+	public ArrayList<String> listChans(String source) {
+		String src = source.replace(rootFolder + File.separator, "");
+
+		updateIndices(src);
+//		buildIndices(src, 0);  // full rebuild?
+
+		ArrayList<String> chanList = new ArrayList<String>();
+		
+		Iterator<Map.Entry<String, TimeFolder[]>> itr = fileListByChan.entrySet().iterator(); 
+        
+//		System.err.println("listChans, source: "+source+", src: "+src+", iter.len: "+fileListByChan.size());
+        while(itr.hasNext()) 
+        { 
+             Map.Entry<String, TimeFolder[]> entry = itr.next(); 
+             String key = entry.getKey();
+             if(key.startsWith(src)) {
+            	 String chan = key.replace(src+File.separator, "");		// strip leading source
+            	 chanList.add(chan);
+//            	 System.err.println("chan: "+chan);
+             }
+        } 
+        
+        return chanList;
+	}
+	
 //--------------------------------------------------------------------------------------------------------
 //convert chan path to reliable key
 	public String chan2key(String chan) {
@@ -246,7 +453,7 @@ class CTcache {
 	
 	//--------------------------------------------------------------------------------------------------------
 	// utility class to store time/folder pairs
-	// NOTE:  the size of this class has string influence on size of CTFileCache for large CTdata archives
+	// NOTE:  the size of this class has strong influence on size of CTFileCache for large CTdata archives
 
 	private String tmpdir = System.getProperty("java.io.tmpdir");			// for decode ref
 	
@@ -304,6 +511,7 @@ class CTcache {
 				return null;
 			}
 		}
+		
 		public double getTime() {
 			return folderTime;
 		}

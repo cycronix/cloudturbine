@@ -397,7 +397,10 @@ public class CTwriter {
 		if(initBaseTime) newSegment();
 	}
 */
-	static double prevSegmentTime = 0.;				// used to decide if dotrim worth calling
+	
+//	static double prevSegmentTime = 0.;				// used to decide if dotrim worth calling
+	double prevSegmentTime = 0.;				// used to decide if dotrim worth calling (STATIC collided multiple writers per app!)
+
 	/**
 	 * Write collected entries to block (compacted) file
 	 * @throws IOException on error
@@ -903,6 +906,7 @@ public class CTwriter {
 	}
 	
 	//  trim with brute-force walk file tree checking all files
+	synchronized
 	private boolean deleteOldTimes(File basefolder, double trimTime) throws IOException {
 		final double oldTime = trimTime;
 
@@ -928,6 +932,7 @@ public class CTwriter {
 
 				@Override
 				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+//					System.err.println("walkfiletree post dir: "+dir+", len: "+dir.toFile().listFiles().length);
 					if(dir.toFile().listFiles().length == 0) {		// only delete empty dirs
 						CTinfo.debugPrint(mydebug,"delete dir: "+dir);
 						try {
@@ -944,7 +949,7 @@ public class CTwriter {
 			throw new IOException("Exception on deleteOldTimes folder: "+basefolder);
 //			return false;
 		}
-
+		
 		return true;
 	}
 
@@ -971,15 +976,19 @@ public class CTwriter {
 			if(segmentFolders==null || segmentFolders.length==0) {
 //				System.err.println("delete empty segment: "+bFolder.toPath());
 				deleteOldTimes(bFolder, thisTrimTime);			// this gets hidden files?
-//				Files.delete(bFolder.toPath());
+//				Files.delete(bFolder.toPath()); 			// and delete empty baseFolder (accomplished with above?)
 			}
 			else {
 //				System.err.println("non-empty segment, seg0: "+segmentFolders[0].getPath());
 				if(CTinfo.isNumeric(segmentFolders[0].getName())) {		// drop into segment layer if present
-//					System.err.println("oldTimeTrim, checking segment layer: "+bFolder);
 					trimLayer(segmentFolders, thisTrimTime);
 				}
 				else	deleteOldTimes(bFolder, thisTrimTime);			// no segments, crawl this whole folder of blocks
+			}
+			
+			if(bFolder.listFiles().length == 0) {
+				Files.delete(bFolder.toPath());
+//				System.err.println(">segment sweep, empty base: "+bFolder.getName());
 			}
 		}	
 	}
@@ -990,8 +999,9 @@ public class CTwriter {
 		for(int i=0; i<nseg; i++) {
 			double sTime;
 			CTFile sFolder = folders[i<(nseg-1)?i+1:i];		// check one-past except full-check last in list
-			sTime = sFolder.fileTime();		
-//			System.err.println("trimLayer folder: "+sFolder.getPath()+", fileTime: "+sTime+", delta: "+(sTime - trimTime));
+			sTime = sFolder.fileTime();	
+			int nchild = folders[i].listFiles().length;
+//			System.err.println("trimLayer folder: "+folders[i].getPath()+", fileTime: "+sTime+", nchild: "+nchild);
 			if(sTime > 0.) {
 				if(sTime<trimTime) 	{
 					deleteOldTimes(folders[i], trimTime);

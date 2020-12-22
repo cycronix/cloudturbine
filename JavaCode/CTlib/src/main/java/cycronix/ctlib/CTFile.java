@@ -534,6 +534,7 @@ class CTFile extends File {
 				fis.close();
 			} catch(Exception e) {
 				System.err.println("oops file read failed: "+e);
+				data = null;  // no fooling
 			}
 			break;
 		}
@@ -720,7 +721,7 @@ class CTFile extends File {
   	 * @return double time in seconds
   	 */
   	double baseTime() {
-//  		System.err.println("baseTime, fname: "+getName()+", thisPath: "+getPath()+", getParent: "+getParent()+", wordSize: "+CTinfo.wordSize(getName()));
+ // 		System.err.println("baseTime, fname: "+getName()+", thisPath: "+getPath()+", getParent: "+getParent()+", wordSize: "+CTinfo.wordSize(getName()));
 
   		if(CTinfo.wordSize(getName())==1) return fileTime();			// intact (non-packed) data types (NG, need to recognize packed data)
   		  		
