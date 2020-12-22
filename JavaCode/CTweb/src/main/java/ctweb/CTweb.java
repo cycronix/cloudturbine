@@ -61,6 +61,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Properties;
 
 import javax.imageio.ImageIO;
@@ -119,12 +120,17 @@ public class CTweb {
 	private static int sslport = 8443;					// HTTPS port (0 means none)
 	private static String password=null;				// CTcrypto password
     private static int scaleImage=1;					// reduce image size by factor
-    private static boolean fastSearch=true;				// fast channel search, reduces startup time 
+    private static boolean fastSearch=false;			// fast channel search, reduces startup time 
     private static String CTwebPropsFile=null;			// redirect to other CTweb
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
     private static boolean preCache = false;			// pre-build index cache
 
-	private static ArrayList<String> CTwriters = new ArrayList<String>();	// list of CTwriters (one per source)			
+//	private static ArrayList<String> CTwriters = new ArrayList<String>();	// list of CTwriters (one per source)
+	private static HashMap<String, CTwriter> CTwriters = new HashMap<String,CTwriter>();	// list of CTwriters (one per source)	
+
+    HashMap<Integer, String> hmap = new HashMap<Integer, String>();
+
+    
 	private static int maxCTwriters = 0;				// crude way to limit out of control PUTs
 	private static double keepTime=0., lastTime=0.;		// CTwriter.dotrim() keep-duration for PUTs
 	private static CTwriter ctwriter = null;			// CTwriter for dotrim
@@ -839,6 +845,8 @@ public class CTweb {
     						// binary types returned as byteArrays (no time stamps sent!)
     						case 'b':	
     						case 'B':   
+    							if(debug) System.err.println("binary data response...");
+
     							byte[] bdata = tdata.getDataAsByteArray();		// get as single byte array vs chunks
 
 	   							// add header info about time limits
@@ -990,8 +998,18 @@ public class CTweb {
         //---------------------------------------------------------------------------------	
     	// doPut:  store CT data on server
     	
+    	static int BUFSIZ = 8 * 1048576;			// max single-buffer input file size
+//    	static int BUFSIZ = 65536;			
+    	static byte[] CTbuffer = new byte[BUFSIZ];  // keep write-chunks big (put/get collision can get partial buffer)
+    	
+       	@Override
+    	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+ //      		if(debug) System.err.println("doPost! "+request.getRequestURI());
+       		doPut(request, response);
+       	}
+       	
     	@Override
-    	protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    	synchronized protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     		if(maxCTwriters == 0) {
     			if(keepTime > 0.) maxCTwriters = 100;		// keepTime enables writers
     			else {
@@ -999,7 +1017,7 @@ public class CTweb {
     				return;
     			}
     		}
-    		
+			
     		ServletInputStream in = request.getInputStream();
 
 //    		String[] parse = request.getPathInfo().split(File.separator);
@@ -1012,76 +1030,122 @@ public class CTweb {
     		String folder = rootFolder;
     		String source = "";
     		for(int i=1; i<parse.length-1; i++) {
-    			folder += File.separator + parse[i];	// add multi-part source dirs
+    			String f = parse[i];
+    			Boolean checkTimeScale=true;  // check for timestamp of form 10x100, i.e. qty 10 of 100units = 1000
+    			if(checkTimeScale && Character.isDigit(f.charAt(0)) && f.contains("x") && Character.isDigit(f.charAt(f.length()-1))) {
+    				String[] ff = f.split("x");
+    				int scaledTime = Math.round(Float.parseFloat(ff[0]) * Float.parseFloat(ff[1]));
+    				folder += File.separator + scaledTime;
+    			}
+    			else folder += File.separator + parse[i];	// add multi-part source dirs
     		}
+    		Boolean embeddedTime = false;
     		for(int i=1; i<parse.length-1; i++) {
     			source += parse[i];
-    			if(Character.isDigit(parse[i+1].charAt(0))) break;		// check next for numeric (time folder)
+    			if(Character.isDigit(parse[i+1].charAt(0))) {
+    				embeddedTime = true;
+    				break;		// check next for numeric (time folder)
+    			}
     			source += File.separator;
     		}
     		String file = parse[parse.length-1];
-    		
-    		// following NG: doesn't work for non-zipped end-files
-//    		if(!Character.isDigit(file.charAt(0))) {
-//    			System.err.println("doPut source/chan illegal time-format: "+request.getPathInfo());
-//    			return;
-//    		}
 
     		// security limit check on number of sources
-//    		String source = parse[1];
-//    		System.err.println("source: "+source+", folder: "+folder);
-    		if(!CTwriters.contains(source)) {
+        	if(!CTwriters.containsKey(source)) {
     			if(CTwriters.size() >= maxCTwriters) {
 					System.err.println("CTweb, no more CTwriters! (max="+maxCTwriters+"), this: "+source);
     				return;
     			}
-    			CTwriters.add(source);
+ //   			CTwriters.add(source);
+    			CTwriter ctw = new CTwriter(rootFolder+File.separator+source, keepTime);
+    			ctw.setBlockMode(false,preCache);		// no pack, zip if precache set
+    			ctw.autoFlush(preCache?1000:0);			// autoflush if preCache
+    			ctw.autoSegment(1000);					// was 1000
+    			CTwriters.put(source, ctw);
     			if(debug) System.err.println("CTwriters.size: "+CTwriters.size()+", add: "+source);
     		}
 				
-    		// simply write file, presume pre-processed on client to correct CT folder/file structure
-    	    File targetFile = new File(folder + File.separator + file);
-    		if(debug) System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
+    		if(embeddedTime) {
+    			// simply write file, presume pre-processed on client to correct CT folder/file structure
+    			File targetFile = new File(folder + File.separator + file);
+    			if(debug) System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
 
-    		BufferedOutputStream out = null;
-    		int bufsize = 8 * 1048576;				// keep write-chunks big (put/get collision can get partial buffer)
-    		try {
-    			targetFile.getParentFile().mkdirs(); // Will create parent directories if not exists
-    			targetFile.createNewFile();
-    			out = new BufferedOutputStream(new FileOutputStream(targetFile,false),bufsize);
-    		} catch(Exception e) {
-    			System.err.println("CTweb doPut, cannot create target file: "+targetFile+", exception: "+e);
-    			return;
+    			BufferedOutputStream out = null;
+    			try {
+    				targetFile.getParentFile().mkdirs(); // Will create parent directories if not exists
+    				targetFile.createNewFile();
+    				out = new BufferedOutputStream(new FileOutputStream(targetFile,false),BUFSIZ);
+    			} catch(Exception e) {
+    				System.err.println("CTweb doPut, cannot create target file: "+targetFile+", exception: "+e);
+    				return;
+    			}
+    			// read/write response
+    			int length;
+    			while ((length = in.read(CTbuffer)) > 0) {
+    				out.write(CTbuffer, 0, length);
+    			}
+    			out.flush();
+    			in.close();
+    			out.close();
+    			
+        		// trim (loop) if spec
+        		if(keepTime > 0.) {
+    				double now = (double)(System.currentTimeMillis())/1000.;
+    				double checkDelta = 60.;						// default is 60s
+    				if(checkDelta >= keepTime) checkDelta = keepTime;
+    				if(now > checkDelta) {			// no thrash
+    					double oldTime = now - keepTime;
+    					String trimFolder = rootFolder+File.separator+source;
+    					if(debug) 
+    						System.err.println("dotrim, folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime+", file: "+file+", target: "+targetFile);
+    					try {
+    						new CTwriter(trimFolder).dotrim(oldTime, false);
+    					} catch(IOException ioe) {
+    						System.err.println("dotrim folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime+", file: "+file+", target: "+targetFile+", source: "+source);
+    					}
+    					lastTime = now;
+    				}
+        		}
     		}
-    		// read/write response
-    		byte[] buffer = new byte[bufsize];
-    		int length;
-    		while ((length = in.read(buffer)) > 0) {
-    			out.write(buffer, 0, length);
-    		}
-    		out.flush();
-    		in.close();
-    		out.close();
+    		else { 		// use CTwriter API to construct time-folder hierarchy...
+    			try {
+    				CTwriter ctw = CTwriters.get(source);
 
-    		// trim (loop) if spec
-    		if(keepTime > 0.) {
-				double now = (double)(System.currentTimeMillis())/1000.;
-				double checkDelta = 60.;						// default is 60s
-				if(checkDelta >= keepTime) checkDelta = keepTime;
-//				if(now > (lastTime + keepTime/2.)) {			// no thrash
-				if(now > checkDelta) {			// no thrash
-					double oldTime = now - keepTime;
-					String trimFolder = rootFolder+File.separator+source;
-					if(debug) 
-						System.err.println("dotrim, folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime+", file: "+file+", target: "+targetFile);
-					try {
-						new CTwriter(trimFolder).dotrim(oldTime, false);
-					} catch(IOException ioe) {
-						System.err.println("dotrim folder: "+trimFolder+", now: "+now+", oldTime: "+oldTime+", keepTime: "+keepTime+", file: "+file+", target: "+targetFile+", source: "+source);
-					}
-					lastTime = now;
-				}
-    		}	
+    				// see if time is specified as URL parameter ?t=1234
+        			String param = request.getParameter("t");
+        			if(param != null) {
+        				double stime = Double.parseDouble(param);
+        				if(stime > 0) ctw.setTime(stime);
+        			}
+        			else {		// params: ?b=1234567890123&dt=100&i=%d
+        				String base = request.getParameter("b"); 		// base (start) time integer-milliseconds since epoch
+        				String dt = request.getParameter("dt");			// delta-time per frame, integer-milliseconds
+        				String idx = request.getParameter("i");			// frame counter
+        				if(base!=null && dt!=null && idx!=null) {
+        					long stime = Long.parseLong(base) + Long.parseLong(dt) * Long.parseLong(idx);
+            				if(stime > 0) ctw.setTime(stime);
+            				if(debug) System.err.println("base: "+base+", dt: "+dt+", i: "+idx+", stime: "+stime);
+        				}
+        			}
+    				// if not set (stime==0), by default ctw will auto TOD
+    				byte[] buffer = new byte[BUFSIZ];
+    				int ngot = 0, nget = 0;
+        			while ((nget = in.read(buffer, ngot, (BUFSIZ-ngot))) > 0) {
+        				ngot += nget;
+        			}
+        			in.close();
+        			byte[] buffer2 = new byte[ngot];
+        			System.arraycopy(buffer, 0, buffer2, 0, ngot); 	// truncate (else ctw writes whole-size of buffer)
+    				ctw.putData(file, buffer2);
+    				if(!preCache) ctw.flush();
+//    				System.gc();
+    				if(debug) System.err.println("PUT source: "+source+", file: "+file+", request: "+request.getRequestURI()+", keepTime: "+keepTime);
+    			}
+    			catch(Exception e) {
+    				System.err.println("Error on PUT CTwrite! "+e.getMessage());
+    			}
+    		}
+    		
     	}
     }
     
