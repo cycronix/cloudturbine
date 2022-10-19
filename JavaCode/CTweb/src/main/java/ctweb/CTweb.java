@@ -125,6 +125,8 @@ public class CTweb {
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
     private static boolean preCache = false;			// pre-build index cache
 
+	private static String hostAddress=null;				// An optional host address (eg. specify localhost rather than Jetty default of 0.0.0)
+
 //	private static ArrayList<String> CTwriters = new ArrayList<String>();	// list of CTwriters (one per source)
 	private static HashMap<String, CTwriter> CTwriters = new HashMap<String,CTwriter>();	// list of CTwriters (one per source)	
 
@@ -170,6 +172,7 @@ public class CTweb {
      		if(args[dirArg].equals("-R"))	CTwebPropsFile = args[++dirArg];
      		if(args[dirArg].equals("-W"))	maxCTwriters = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-w"))	keepTime = Double.parseDouble(args[++dirArg]);
+		    if(args[dirArg].equals("-h"))   hostAddress = args[++dirArg];
      		dirArg++;
      	}
      	if(args.length > dirArg) rootFolder = args[dirArg++];
@@ -243,6 +246,9 @@ public class CTweb {
         // HTTP connector
         ServerConnector http = new ServerConnector(server,
                 new HttpConnectionFactory(http_config));
+		if (hostAddress != null) {
+			http.setHost(hostAddress);
+		} // otherwise it will put itself on 0.0.0 which is not ideal for security
         http.setPort(port);
         http.setIdleTimeout(30000);
 
