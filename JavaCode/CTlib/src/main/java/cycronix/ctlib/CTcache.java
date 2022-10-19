@@ -186,12 +186,12 @@ class CTcache {
 	
 	synchronized  	 // don't let multi-threaded CTreaders collide
 	public void buildIndices(String sName, double endTime) {
-		if(endTime == 0) System.err.println("Indexing source: "+sName+"...");  		// notify full rebuild
-//		else System.err.println("Updating Indices for source: "+sName+"...");
 		
 		sourceName = sName;		
 		CTFile ctsource = new CTFile(rootFolder + File.separator + sourceName);
 		CTFile[] listOfFolders = ctsource.listFiles(); 	// mjm 1/26/19: limit to source
+        if(endTime == 0 && listOfFolders!=null && listOfFolders.length>0)   // no false alarm spam if empty
+            System.err.println("Indexing source: "+sName+"...");            // notify full rebuild
 
 		buildTimeFolders(listOfFolders, endTime, 0);			// this builds fileListByChanA
 //		trimIndices(sName, oldTime(ctsource));					// check & trim for missing old files

@@ -183,6 +183,7 @@ public class CTreader {
 		if(listOfFiles == null || listOfFiles.length==0) {
 			CTcache.buildIndices(sourceFolder, 0);
 			listOfFiles = CTcache.fileListByChan.get(thisChanKey);				// try again after rebuilding indexes
+            if(listOfFiles == null) return tlimits;                     // avoid null ptr exception if empty (mjm 3/24/22)
 //			listOfFiles = flatFileList(rootFolder + File.separator + sourceFolder, new CTmap(chan), thisChanKey, true);
 		}
 		

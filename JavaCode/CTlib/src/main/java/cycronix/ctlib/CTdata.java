@@ -55,7 +55,7 @@ public class CTdata {
 	 * @param mytime time of this CTdata (seconds)
 	 * @param mydata data for this CTdata
 	 */
-	CTdata(double mytime, byte[] mydata) {		// mytime units = full-seconds
+	public CTdata(double mytime, byte[] mydata) {		// mytime units = full-seconds
 		this.add(mytime, mydata);				// mydata = full CT file worth each datalist element
 	}
 	
