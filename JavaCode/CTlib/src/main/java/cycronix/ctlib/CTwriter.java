@@ -658,6 +658,7 @@ public class CTwriter {
 					zos.putNextEntry(entry);
 				} catch(IOException e) {
 					CTinfo.warnPrint("zip entry exception: "+e);
+					zos.closeEntry();  	// mjm 2/13/2024:  try to recover from "Deflater has been closed" error...
 					return;	
 				}
 	

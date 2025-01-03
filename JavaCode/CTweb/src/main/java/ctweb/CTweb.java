@@ -124,13 +124,14 @@ public class CTweb {
     private static String CTwebPropsFile=null;			// redirect to other CTweb
     private static Properties CTwebProps=null;			// proxy server Name=Server properties
     private static boolean preCache = false;			// pre-build index cache
-
+    private static double zipFlush = 0;                   // auto-flush interval (sec)
+    
 //	private static ArrayList<String> CTwriters = new ArrayList<String>();	// list of CTwriters (one per source)
 	private static HashMap<String, CTwriter> CTwriters = new HashMap<String,CTwriter>();	// list of CTwriters (one per source)	
+    private static HashMap<String, CTdata> CTlastwrite = new HashMap<String,CTdata>();    // cache of last-putdata for RT monitoring
 
-    HashMap<Integer, String> hmap = new HashMap<Integer, String>();
+ //   HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
-    
 	private static int maxCTwriters = 0;				// crude way to limit out of control PUTs
 	private static double keepTime=0., lastTime=0.;		// CTwriter.dotrim() keep-duration for PUTs
 	private static CTwriter ctwriter = null;			// CTwriter for dotrim
@@ -156,7 +157,8 @@ public class CTweb {
      		if(args[dirArg].equals("-r")) 	swapFlag = true;
      		if(args[dirArg].equals("-x")) 	debug = true;
      		if(args[dirArg].equals("-X")) 	Debug=true; 
-     		if(args[dirArg].equals("-C")) 	preCache=true; 
+     		if(args[dirArg].equals("-C")) 	preCache=true;
+            if(args[dirArg].equals("-Z"))   zipFlush = Double.parseDouble(args[++dirArg]);
      		if(args[dirArg].equals("-F")) 	fastSearch = !fastSearch;
      		if(args[dirArg].equals("-p")) 	port = Integer.parseInt(args[++dirArg]);
      		if(args[dirArg].equals("-P")) 	sslport = Integer.parseInt(args[++dirArg]);
@@ -394,7 +396,7 @@ public class CTweb {
     	@Override
     	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     		long startTime = System.nanoTime();
-    		boolean doProfile=debug;
+    		boolean doProfile=false;
     		
     		if(debug) {
     			String uri = request.getScheme() + "://" +
@@ -414,7 +416,7 @@ public class CTweb {
 //			boolean isRedirect = request.getParameter("redirect")!=null;
 //			System.err.println("isRedirect: "+isRedirect+", qs: "+request.getQueryString());
 //    		if(CTwebProps != null && !isRedirect) {			// no recursive redirects...
-        	if(CTwebProps != null) {
+            if(CTwebProps != null) {
 
 				if(sourceFolder == null) sourceList = ctreader.listSources();
 				else					 sourceList.add(sourceFolder);
@@ -433,7 +435,7 @@ public class CTweb {
 //    					String redirectRequest = requestURI.replace("/"+CTname, "");	// drop CTname in redirect request
 
     					String uri = request.getScheme() + "://" + CTwebProps.getProperty(CTname) +
-    							requestURI +
+    				//????			requestURI +
 //    							redirectRequest +
 //    						(request.getQueryString() != null ? "?" + request.getQueryString() + "&redirect=true": "?redirect=true");
 							(request.getQueryString() != null ? "?" + request.getQueryString() : "");
@@ -553,6 +555,7 @@ public class CTweb {
 
     			if(reference.equals("refresh")) {
     				ctreader.clearFileListCache();
+                                System.gc();    	// mjm 12/2023: force java garbage collect...
     				formResponse(response,null);
     				return;
     			}
@@ -766,7 +769,21 @@ public class CTweb {
     				else    			ctreader.setTimeOnly(false);
 
     				if(doProfile) System.err.println("doGet <R time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
-    				CTdata tdata = ctreader.getData(source,chan,start,duration,reference);
+                    
+                    // main data-fetch:  (MJM 10/22/21: wrap to enable writer-newest fetch?)
+                    CTdata tdata = null;
+                    String schan = source + "/" + chan;
+                    double gotNew = 0;
+                    if(maxCTwriters > 0 && reference.equals("newest") && duration==0) {
+                        tdata = CTlastwrite.get(schan);
+                    }
+                    if(tdata == null) tdata = ctreader.getData(source,chan,start,duration,reference);
+                    else {
+                        double[] ttime = tdata.getTime();
+                      //  if(ttime != null) gotNew = ttime[0];   // keep track of newTime without going thru ctreader...
+                      if(ttime != null && duration == 0) gotNew = ttime[ttime.length-1];   // keep track of newTime without going thru ctreader...
+                    }
+                    
     				if(doProfile) System.err.println("doGet >R time: "+((System.nanoTime()-startTime)/1000000.)+" ms, Memory Used MB: " + (double) (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024*1024));
 
     				if(tdata == null) {		// empty response for WebTurbine compatibility
@@ -794,17 +811,21 @@ public class CTweb {
     						String ifnonematch = request.getHeader("If-None-Match");
     						if(ifnonematch != null) {
     							String[] matchparts = ifnonematch.split(":");
-    							if(matchparts.length == 2 && matchparts[1].length()>0) {
+    							if(matchparts.length >= 2 && matchparts[1].length()>0) {
     								String matchchan = matchparts[0];
     								double matchtime = Double.parseDouble(matchparts[1]);		// int-msec
+                                    double maxmatchtime = (matchparts.length>2)?Double.parseDouble(matchparts[2]):0;
     								//        							long gottime = (long)(1000.* time[0]);				// int-msec for compare
     								double gottime = 1000.* time[time.length-1];	// int-msec for compare to last (most recent) got-time
     								String reqchan = source + "/" + chan;				// reconstruct full path
     								if(reqchan.startsWith("/")) reqchan = reqchan.substring(1);		// strip leading '/' if present
-    								if(debug) System.err.println("ifnonematch, gottime: "+gottime+", matchtime: "+matchtime+", matchchan: "+matchchan+", reqchan: "+reqchan);
+
+    								if(debug)
+                                        System.err.println("ifnonematch, gottime: "+gottime+", matchtime: "+matchtime+", matchchan: "+matchchan+", reqchan: "+reqchan+", maxmatchtime: "+maxmatchtime);
 									if(doProfile) System.err.println("doGet 2a time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
-    								if(Math.abs(matchtime-gottime)<=1 && matchchan.equals(reqchan)) {		// account for msec round off error
+    								if( (Math.abs(matchtime-gottime)<=1) || ( (matchparts.length>2) && ( (gottime < matchtime) || (gottime > maxmatchtime) ) )
+                                       && matchchan.equals(reqchan)) {		// account for msec round off error
     									// add header info about time limits
     									// JPW, in next 2 calls, change from sourcePath to source (ie, don't use full path)
 //    									double oldTime = ctreader.oldTime(source,chan);
@@ -822,7 +843,8 @@ public class CTweb {
     									response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
     									if(doProfile) System.err.println("doGet 2c time: "+((System.nanoTime()-startTime)/1000000.)+" ms");
 
-    									if(debug) System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference+", newTime: "+newTime);
+    									if(debug)
+                                            System.err.println("NOT_MODIFIED: "+matchchan+", reqTime: "+start+", gotTime: "+gottime+", ref: "+reference+", newTime: "+newTime);
     									return;
     								}
     							}
@@ -854,6 +876,7 @@ public class CTweb {
     	//						double oldTime = ctreader.oldTime(source,chan);
     	//						double newTime = ctreader.newTime(source,chan);
 								double[] tlimits = ctreader.timeLimits(source, chan);
+                                if(gotNew>0) tlimits[1] = gotNew;       // sneek in CV time
 								double oldTime = tlimits[0];
 								double newTime = tlimits[1];
     							double lagTime = ((double)System.currentTimeMillis()/1000.) - newTime;
@@ -861,6 +884,7 @@ public class CTweb {
     						
     							if(chan.toLowerCase().endsWith(".jpg")) 		response.setContentType("image/jpeg");
     							else if(chan.toLowerCase().endsWith(".wav")) 	response.setContentType("audio/wav");
+    							else if(chan.toLowerCase().endsWith(".mp4")) 	response.setContentType("video/mp4");    // mjm 4/10/24
     							else											response.setContentType("application/octet-stream");
 
     							if(bdata == null || bdata.length==0) {
@@ -871,6 +895,7 @@ public class CTweb {
     								return;
     							}
     							else {
+                                //    System.err.println("resp time[0]: "+time[0]+", newTime: "+newTime);
     								formHeader(response, time[0], time[time.length-1], oldTime, newTime, lagTime);
     								formResponse(response,null);
     							}
@@ -1057,15 +1082,25 @@ public class CTweb {
     				return;
     			}
  //   			CTwriters.add(source);
-    			CTwriter ctw = new CTwriter(rootFolder+File.separator+source, keepTime);
-    			ctw.setBlockMode(false,preCache);		// no pack, zip if precache set
-    			ctw.autoFlush(preCache?1000:0);			// autoflush if preCache
+                // check if w=trimTime
+                String wrapTimeS = request.getParameter("w");
+                double ktime = keepTime;
+                
+                if(wrapTimeS != null) {
+                    ktime = Double.parseDouble(wrapTimeS);
+                }
+                
+                System.err.println("New CTwriter: "+source+", keepTime: "+ktime);
+    			CTwriter ctw = new CTwriter(rootFolder+File.separator+source, ktime);
+                ctw.setBlockMode(false,zipFlush>0);        // no pack, zip if zipFlush set
+                if(zipFlush > 0) ctw.autoFlush(zipFlush, true);          // autoflush if -Z #, asyncFlag for timer-flush
+
     			ctw.autoSegment(1000);					// was 1000
     			CTwriters.put(source, ctw);
     			if(debug) System.err.println("CTwriters.size: "+CTwriters.size()+", add: "+source);
     		}
 				
-    		if(embeddedTime) {
+    		if(embeddedTime) {          // STALE, possibly broken...
     			// simply write file, presume pre-processed on client to correct CT folder/file structure
     			File targetFile = new File(folder + File.separator + file);
     			if(debug) System.err.println("doPut, folder: "+folder+", file: "+file+", data.size: "+in.available()+", targetFile: "+targetFile);
@@ -1109,43 +1144,67 @@ public class CTweb {
     		}
     		else { 		// use CTwriter API to construct time-folder hierarchy...
     			try {
-    				CTwriter ctw = CTwriters.get(source);
+                    	    double dtime = 0;       // warning: dtime unset for index-based times...
+        		    String param = request.getParameter("t");
+        		    if(param != null) dtime = Double.parseDouble(param);
 
+                    	    String rtonly = request.getParameter("rt");
+
+    			    CTwriter ctw = CTwriters.get(source);
+			    if(rtonly == null) {
     				// see if time is specified as URL parameter ?t=1234
-        			String param = request.getParameter("t");
-        			if(param != null) {
-        				double stime = Double.parseDouble(param);
-        				if(stime > 0) ctw.setTime(stime);
-        			}
+        			if(dtime > 0) ctw.setTime(dtime);
         			else {		// params: ?b=1234567890123&dt=100&i=%d
-        				String base = request.getParameter("b"); 		// base (start) time integer-milliseconds since epoch
-        				String dt = request.getParameter("dt");			// delta-time per frame, integer-milliseconds
-        				String idx = request.getParameter("i");			// frame counter
-        				if(base!=null && dt!=null && idx!=null) {
-        					long stime = Long.parseLong(base) + Long.parseLong(dt) * Long.parseLong(idx);
-            				if(stime > 0) ctw.setTime(stime);
+        			    String base = request.getParameter("b"); 		// base (start) time integer-milliseconds since epoch
+        			    String dt = request.getParameter("dt");			// delta-time per frame, integer-milliseconds
+        			    String idx = request.getParameter("i");			// frame counter
+        			    if(base!=null && dt!=null && idx!=null) {
+        				long stime = Long.parseLong(base) + Long.parseLong(dt) * Long.parseLong(idx);
+            				if(stime > 0) {
+                                	    ctw.setTime(stime);
+                                	    dtime = stime / 1000.;  // untested
+                            		 }
             				if(debug) System.err.println("base: "+base+", dt: "+dt+", i: "+idx+", stime: "+stime);
-        				}
+        			    }
         			}
-    				// if not set (stime==0), by default ctw will auto TOD
-    				byte[] buffer = new byte[BUFSIZ];
-    				int ngot = 0, nget = 0;
-        			while ((nget = in.read(buffer, ngot, (BUFSIZ-ngot))) > 0) {
-        				ngot += nget;
-        			}
-        			in.close();
-        			byte[] buffer2 = new byte[ngot];
-        			System.arraycopy(buffer, 0, buffer2, 0, ngot); 	// truncate (else ctw writes whole-size of buffer)
-    				ctw.putData(file, buffer2);
-    				if(!preCache) ctw.flush();
-//    				System.gc();
-    				if(debug) System.err.println("PUT source: "+source+", file: "+file+", request: "+request.getRequestURI()+", keepTime: "+keepTime);
+                   	    } 
+
+    			    // if not set (stime==0), by default ctw will auto TOD
+    			    byte[] buffer = new byte[BUFSIZ];
+    			    int ngot = 0, nget = 0;
+        		    while ((nget = in.read(buffer, ngot, (BUFSIZ-ngot))) > 0) {
+        			ngot += nget;
+        		    }
+        		    in.close();
+                    
+        		    byte[] buffer2 = new byte[ngot];
+        		    System.arraycopy(buffer, 0, buffer2, 0, ngot); 	// truncate (else ctw writes whole-size of buffer)
+                    
+                    	    // check for RT-only param
+                    	    if(rtonly == null) {
+                        	ctw.putData(file, buffer2);
+                    
+		    		// check for new-segment flag
+		    		if(request.getParameter("ns") != null) {
+				    ctw.newSegment();  	// mjm new 3/13/2023
+				    System.err.println(source + ": new segment!");
+                        	    System.gc();    	// mjm keep it clean 12/10/23
+		    		}
+			    }
+
+                    	    // save last-written buffer for possible RT monitoring request
+                    	    String schan = source + file;
+                    	    CTdata tdata = new CTdata(dtime, buffer2);  // constructor made public 10/22/21
+                    	    CTlastwrite.put(schan, tdata);
+                    
+    			    if(zipFlush<=0) ctw.flush();
+    			    if(debug) System.err.println("PUT source: "+source+", file: "+file+", request: "+request.getRequestURI()+", keepTime: "+keepTime);
     			}
     			catch(Exception e) {
     				System.err.println("Error on PUT CTwrite! "+e.getMessage());
+                    		e.printStackTrace();
     			}
     		}
-    		
     	}
     }
     

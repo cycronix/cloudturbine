@@ -731,7 +731,7 @@ public class CTreader {
 
 			int ifound = fileSearch(listOfFiles, getftime);				// found is at or before getftime
 			if(ifound < 0) {
-				CTinfo.debugPrint("Not Found! "+chan);
+				CTinfo.debugPrint(">>>Not Found! "+chan);
 				return null;
 			}
 			
@@ -1030,16 +1030,16 @@ public class CTreader {
 	//--------------------------------------------------------------------------------------------------------
 	// binary search for file at or before timestamp
     private int fileSearch(TimeFolder[] fileList, double ftime) {
-//    	System.err.println("fileSearch ftime: "+ftime+", f0: "+fileList[0].getTime()+", chan: "+fileList[0].getCTFile().getName());
+ //   	System.err.println("fileSearch ftime: "+ftime+", f0: "+fileList[0].getTime()+", chan: "+fileList[0].getCTFile().getName());
     	
-    	if(ftime < fileList[0].getTime()) return -1;		// quick search for off BOF
+    	if(ftime < fileList[0].getTime()) return 0;		// quick search for off BOF (was return -1)
     	
         int start = 0;
         int end = fileList.length - 1;
         int mid=0;
         while (start < end) {
             mid = (start + end) / 2;
-  //      	System.err.println("start: "+start+", end: "+end+", mid: "+mid+", ftime: "+ftime+", thistime: "+fileList[mid].getTime());
+ //      	System.err.println("start: "+start+", end: "+end+", mid: "+mid+", ftime: "+ftime+", thistime: "+fileList[mid].getTime());
 
             if (ftime == fileList[mid].getTime()) {
                 return mid;

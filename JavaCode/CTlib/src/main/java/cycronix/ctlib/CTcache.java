@@ -42,13 +42,13 @@ class CTcache {
 //	private byte[] myData=null;				// cache?
 //	static private TreeMap<String, byte[]> DataCache = new TreeMap<String, byte[]>();		// cache (need logic to cap size)
 	// cache limits, max entries, max filesize any entry, jvm size at which to dump old cache...
-	private static final int MAX_ENTRIES = 100000;			// limit total entries in data cache (was 10000)
+	private static final int MAX_ENTRIES = 1000;			// limit total entries in data cache (was 100000)
 	private static final int MAX_FILESIZE = 20000000;		// 20MB.  max size any individual entry
 //	private static final int MAX_JVMSIZE = 2000000000;		// 200MB. max overall JVM memory use at which to dump old entries  (2GB?)
-	private static final double MAX_MEMUSE = 0.5;			// fraction available JVM memory to use before limiting cache (was 
+	private static final double MAX_MEMUSE = 0.1;			// fraction available JVM memory to use before limiting cache (was 0.25) 
 	private static final int MAX_ZIPFILES = 1;				// max number open zip files  (was 100, 1 helps a lot on CThdf)
-	private static final int MAX_ZIPMAPS = 10000;			// max number constructed ZipMaps (was 100000 @ moderate impact memuse)
-	private static final int MAX_CTFILES = 10000;			// max number cached CTFiles (was 100000)
+	private static final int MAX_ZIPMAPS = 1000;			// max number constructed ZipMaps (was 10000 @ moderate impact memuse)
+	private static final int MAX_CTFILES = 1000;			// max number cached CTFiles (was 10000)
 	
 	private static boolean cacheProfile = false;
 	public static Object cacheLock = new Object();
